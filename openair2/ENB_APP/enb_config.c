@@ -59,6 +59,10 @@
 #include "executables/thread-common.h"
 #include <openair3/ocp-gtpu/gtp_itf.h>
 
+#ifdef ENABLE_RIC_AGENT
+  #include "ric_agent.h"
+#endif
+
 extern uint32_t to_earfcn_DL(int eutra_bandP, uint32_t dl_CarrierFreq, uint32_t bw);
 extern uint32_t to_earfcn_UL(int eutra_bandP, uint32_t ul_CarrierFreq, uint32_t bw);
 extern char *parallel_config;
@@ -325,6 +329,10 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
 
         for (int I = 0; I < sizeof(PLMNParams) / sizeof(paramdef_t); ++I)
           PLMNParams[I].chkPptr = &(config_check_PLMNParams[I]);
+
+        #ifdef ENABLE_RIC_AGENT
+          rrc->eth_params_s.my_addr = *ENBParamList.paramarray[0][ENB_LOCAL_S_ADDRESS_IDX].strptr;
+        #endif
 
         // In the configuration file it is in seconds. For RRC it has to be in milliseconds
         RRCcfg->rrc_inactivity_timer_thres = (*ENBParamList.paramarray[i][ENB_RRC_INACTIVITY_THRES_IDX].uptr) * 1000;
@@ -2926,4 +2934,8 @@ void read_config_and_init(void) {
     memset((void *)RC.rrc[enb_id], 0, sizeof(eNB_RRC_INST));
     RCconfig_RRC(enb_id, RC.rrc[enb_id]);
   }
+
+  #ifdef ENABLE_RIC_AGENT
+    RCconfig_ric_agent();
+  #endif
 }

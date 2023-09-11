@@ -95,6 +95,8 @@
 
 #define NAS_OAI_TUN_NSA(mSGpTR)         (mSGpTR)->ittiMsg.nas_oai_tun_nsa
 
+#define CU_EVENT_TRIGGER(mSGpTR)		(mSGpTR)->ittiMsg.cu_event_trigger
+
 //-------------------------------------------------------------------------------------------//
 typedef struct RrcStateInd_s {
   Rrc_State_t     state;
@@ -476,5 +478,22 @@ typedef struct rlc_sdu_indication_s {
   int srb_id;
   int message_id;
 } RlcSduIndication;
+
+typedef struct eventTrigger_st {
+  unsigned int   eventTriggerType;
+  unsigned int   eventTriggerSize;
+  uint8_t        eventTriggerBuff[500];
+} eventTrigger;
+
+typedef struct ue_status {
+  uint16_t      rnti;
+  int           ueId; 
+  uint32_t      eNB_ue_s1ap_id :24;
+  uint32_t      mme_ue_s1ap_id;
+  uint8_t       e_rab_id;
+  uint8_t       qci;
+  uint16_t      cu_ue_f1ap_id;
+  uint16_t      du_ue_f1ap_id;
+}ueStatusInd;
 
 #endif /* RRC_MESSAGES_TYPES_H_ */

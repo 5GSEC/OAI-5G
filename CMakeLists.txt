@@ -771,6 +771,113 @@ include_directories("${OPENAIR2_DIR}/UTIL/OPT")
 include_directories("${OPENAIR2_DIR}/UTIL/OMV")
 include_directories("${OPENAIR_DIR}")
 
+
+# O-RAN RIC Agent
+#################
+add_boolean_option(ENABLE_RIC_AGENT False "Enable O-RAN RIC agent" ON)
+if(ENABLE_RIC_AGENT)
+
+  ############################# E2AP_ASN
+  set(E2AP_ASN_VERS R2) # version
+  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
+  set(E2AP_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2AP)
+  set(E2AP_ASN_DIR ${E2AP_DIR}/MESSAGES/ASN1/${E2AP_ASN_VERS})
+  set(E2AP_C_DIR ${asn1_generated_dir}/E2AP/)
+  set(E2AP_ASN_FILE ${E2AP_ASN_DIR}/e2ap_v2.asn1)
+  set(ENV{ASN1C_PREFIX} "E2AP_")
+  file(MAKE_DIRECTORY ${E2AP_C_DIR})
+  execute_process(
+    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2AP_C_DIR} ${E2AP_ASN_FILE}
+    RESULT_VARIABLE ret
+  )
+
+  file(GLOB E2AP_asn_source ${E2AP_C_DIR}/*.c)
+  file(GLOB E2AP_asn_header ${E2AP_C_DIR}/*.h)
+  add_library(E2AP_ASN ${E2AP_asn_source} ${E2AP_asn_header})
+  set(E2AP_ASN_LIB E2AP_ASN)
+
+  ############################# E2AP_LIB
+  file(GLOB E2AP_source ${E2AP_DIR}/*.c)
+  add_library(E2AP ${E2AP_source})
+  target_include_directories(E2AP PUBLIC ${E2AP_C_DIR})
+  target_link_libraries(E2AP PUBLIC E2AP_ASN)
+  set(E2AP_LIB E2AP)
+
+  ##############################E2SM_KPM_ASN
+  # set(KPM_ASN_VERS R01)
+  set(KPM_ASN_VERS R02) # Specify version
+  if (${KPM_ASN_VERS} STREQUAL R01)
+    set(E2SM_KPM_ASN_FILE e2sm-kpm-v01.00.asn1)
+  elseif (${KPM_ASN_VERS} STREQUAL R02)
+    # set(E2SM_KPM_ASN_FILE e2sm-kpm-v02.00.asn1)
+    # set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.2-rm.asn)
+    set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.3-changed.asn)
+  endif (${KPM_ASN_VERS} STREQUAL R01)
+
+  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
+  set(E2SM_KPM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM-KPM)
+  set(E2SM_KPM_ASN_DIR ${E2SM_KPM_DIR}/MESSAGES/ASN1/${KPM_ASN_VERS})
+  set(E2SM_KPM_C_DIR ${asn1_generated_dir}/E2SM-KPM/)
+  set(ENV{ASN1C_PREFIX} "E2SM_KPM_")
+  file(MAKE_DIRECTORY ${E2SM_KPM_C_DIR})
+  execute_process(
+    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_KPM_C_DIR} ${E2SM_KPM_ASN_DIR}/${E2SM_KPM_ASN_FILE}
+    RESULT_VARIABLE ret
+  )
+
+  file(GLOB E2SM_KPM_asn_source ${E2SM_KPM_C_DIR}/*.c)
+  add_library(E2SM_KPM_ASN ${E2SM_KPM_asn_source})
+  set(E2SM_KPM_ASN_LIB E2SM_KPM_ASN)
+
+  ############################# E2SM_KPM_LIB
+  file(GLOB E2SM_KPM_source ${E2SM_KPM_DIR}/*.c)
+  add_library(E2SM_KPM ${E2SM_KPM_source} ${E2SM_KPM_asn_source})
+  target_include_directories(E2SM_KPM PRIVATE ${E2SM_KPM_DIR} "${E2SM_KPM_C_DIR}")
+  set(E2SM_KPM_LIB E2SM_KPM)
+
+  ############################# RIC_AGENT_LIB
+  set(RIC_AGENT_DIR ${OPENAIR2_DIR}/RIC_AGENT)
+  file(GLOB RIC_AGENT_source ${RIC_AGENT_DIR}/*.c)
+  include_directories ("${RIC_AGENT_DIR}")
+  add_library(RIC_AGENT ${RIC_AGENT_source})
+  #add_dependencies(RIC_AGENT rrc_flag)
+  # target_link_libraries(RIC_AGENT PRIVATE asn1_lte_rrc_hdrs)
+  set(RIC_AGENT_LIB RIC_AGENT)
+
+  # Manage dependencies
+  target_link_libraries(E2AP PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
+  target_include_directories(E2AP PUBLIC ${E2SM_KPM_DIR} ${E2SM_KPM_C_DIR})
+  target_include_directories(E2AP_ASN PUBLIC ${E2AP_C_DIR} ${E2SM_KPM_DIR})
+  target_include_directories(E2SM_KPM_ASN PUBLIC ${E2SM_KPM_C_DIR})
+  target_link_libraries(E2SM_KPM PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs asn1_f1ap E2AP_ASN E2AP)
+  target_include_directories(E2SM_KPM PUBLIC ${E2AP_DIR} ${E2AP_C_DIR})
+  # target_include_directories(RIC_AGENT PUBLIC ${E2AP_DIR} ${E2SM_KPM_DIR})
+  target_link_libraries(RIC_AGENT PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs E2AP E2SM_KPM)
+
+
+else()
+  set(RIC_AGENT_LIB "")
+  set(E2AP_ASN_LIB "")
+  set(E2AP_LIB "")
+  set(E2SM_KPM_LIB "")
+endif()
+
+# RAN SLICING: WARNING: DON'T USE THIS FEATURE AS THE SOURCE CODE MAY NOT BE COMPLETE
+#################
+add_boolean_option(ENABLE_RAN_SLICING False "Enable RAN Slicing" ON)
+if(ENABLE_RAN_SLICING)
+  message("RAN_SLICING module enabled")
+  # E2SM_RSM_LIB
+  set(E2SM_RSM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM_RSM)
+  file(GLOB E2SM_RSM_source ${E2SM_RSM_DIR}/*.c)
+  add_library(E2SM_RSM ${E2SM_RSM_source} ${E2SM_RSM_asn_source})
+  set(E2SM_RSM_LIB E2SM_RSM)
+  include_directories (${E2SM_RSM_DIR})
+
+else()
+  set(E2SM_RSM_ASN_LIB "")
+endif()
+
 ###########
 # Utilities
 ###############
@@ -2168,6 +2275,7 @@ target_link_libraries(lte-softmodem PRIVATE
   lte_rrc nr_rrc s1ap m2ap x2ap m3ap GTPV1U SECURITY UTIL HASHTABLE SCTP_CLIENT MME_APP SCHED_LIB SCHED_RU_LIB
   PHY_COMMON PHY PHY_RU  L2 L2_LTE NFAPI_COMMON_LIB NFAPI_LIB NFAPI_VNF_LIB NFAPI_PNF_LIB NFAPI_USER_LIB MISC_NFAPI_LTE_LIB
   ${NAS_UE_LIB} ITTI SIMU SIMU_ETH
+  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
   -Wl,--end-group z dl)
 
 target_link_libraries(lte-softmodem PRIVATE pthread m CONFIG_LIB rt crypt ${CRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES} sctp)
@@ -2270,6 +2378,7 @@ target_link_libraries(nr-softmodem PRIVATE
   ITTI ${NAS_UE_LIB} lte_rrc nr_rrc
   ngap s1ap L2_LTE_NR L2_NR MAC_NR_COMMON NFAPI_COMMON_LIB NFAPI_LIB NFAPI_VNF_LIB NFAPI_PNF_LIB NFAPI_USER_LIB SIMU SIMU_ETH
   x2ap f1ap m2ap m3ap e1ap
+  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
   -Wl,--end-group z dl)
 
 target_link_libraries(nr-softmodem PRIVATE pthread m CONFIG_LIB rt crypt ${CRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES} sctp ${ATLAS_LIBRARIES})
@@ -2586,7 +2695,9 @@ if (${T_TRACER})
         PHY_COMMON PHY PHY_UE PHY_NR PHY_NR_COMMON PHY_NR_UE PHY_RU PHY_MEX
         L2 L2_LTE L2_NR L2_LTE_NR L2_UE NR_L2_UE L2_UE_LTE_NR MAC_NR_COMMON MAC_NR MAC_UE_NR ngap
         CN_UTILS GTPV1U SCTP_CLIENT MME_APP LIB_NAS_UE NB_IoT SIMU SIMU_ETH OPENAIR0_LIB
-        ldpc_orig ldpc_optim ldpc_optim8seg ldpc dfts)
+        ldpc_orig ldpc_optim ldpc_optim8seg ldpc dfts
+        ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
+        )
     if (TARGET ${i})
       add_dependencies(${i} generate_T)
     endif()

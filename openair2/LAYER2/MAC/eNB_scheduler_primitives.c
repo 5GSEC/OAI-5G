@@ -57,6 +57,11 @@ extern uint16_t frame_cnt;
 #include "common/ran_context.h"
 #include "SCHED/sched_common.h"
 #include "openair2/LAYER2/MAC/mac_extern.h"
+
+#ifdef ENABLE_RAN_SLICING
+#include "openair2/LAYER2/MAC/slicing/slicing.h"
+#endif
+
 /*
  * If the CQI is low, then scheduler will use a higher aggregation level and lower aggregation level otherwise
  * this is also dependent to transmission mode, where an offset could be defined
