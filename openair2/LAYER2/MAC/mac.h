@@ -1684,5 +1684,78 @@ typedef  struct {
 
 #include "mac_proto.h"
 
+#ifdef ENABLE_RAN_SLICING
+
+typedef enum apiid_e {
+    SLICE_CREATE_UPDATE_REQ = 1,
+    UE_SLICE_ASSOC_REQ,
+    SLICE_CREATE_UPDATE_RESP,
+    UE_SLICE_ASSOC_RESP,
+    SLICE_DELETE_REQ,
+    SLICE_DELETE_RESP
+}apiId;
+
+typedef enum resp_status_e {
+    API_RESP_SUCCESS =1,
+    API_RESP_FAILURE 
+}apiRespStatus;
+/*
+typedef struct msg_st {
+  unsigned int   apiID;
+  unsigned int   apiSize;
+  uint8_t        apiBuff[500];
+}apiMsg;
+
+typedef struct ue_status {
+  uint16_t      rnti;
+  int           ueId;
+  uint32_t      eNB_ue_s1ap_id :24;
+  uint32_t      mme_ue_s1ap_id;
+  uint8_t       e_rab_id;
+  uint8_t       qci;
+  uint16_t      cu_ue_f1ap_id;
+  uint16_t      du_ue_f1ap_id;
+}ueStatusInd;
+*/
+
+typedef struct slice_req {
+  uint32_t  sliceId;
+  uint32_t  timeSchd;
+  long      sliceType;
+}sliceCreateUpdateReq;
+
+typedef struct slice_del {
+  uint32_t  sliceId;
+  long      sliceType;
+}sliceDeleteReq;
+
+typedef struct ue_slice_assoc {
+  unsigned int      rnti;
+  uint32_t          sliceId;
+  uint32_t          ulSliceId;
+}ueSliceAssocReq;
+
+typedef struct slice_resp {
+  uint8_t   status;
+  uint32_t  sliceId;
+  uint32_t  timeSchd;
+}sliceCreateUpdateResp;
+
+typedef struct ue_slice_assoc_resp {
+  uint8_t       status;
+  int           ueId;
+  uint32_t      sliceId;
+}ueSliceAssocResp;
+
+typedef struct slice_del_resp {
+  uint8_t       status;
+  uint32_t      sliceId;
+}sliceDeleteResp;
+
+//#define DU_SLICE_API_RESP(mSGpTR)        (mSGpTR)->ittiMsg.du_slice_api_resp
+//MESSAGE_DEF(DU_SLICE_API_RESP, MESSAGE_PRIORITY_MED, apiMsg, du_slice_api_resp)
+
+#endif
+
 /*@}*/
 #endif /*__LAYER2_MAC_DEFS_H__ */

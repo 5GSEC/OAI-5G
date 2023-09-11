@@ -61,6 +61,11 @@ RU=0
 CMAKE_C_FLAGS=()
 CMAKE_CXX_FLAGS=()
 
+BUILD_RIC_AGENT="False"
+BUILD_RAN_SLICING="False"
+RIC_GENERATED_E2AP_BINDING_DIR=""
+RIC_GENERATED_E2SM_BINDING_DIR=""
+
 function print_help() {
   echo_info "
 This script compiles OpenAirInterface Software, and can install dependencies
@@ -395,9 +400,19 @@ function main() {
             CMAKE_CMD="$CMAKE_CMD -DAVX2=OFF"
             echo_info "Disabling AVX2 instructions"
             shift 1;;
+        --build-ric-agent)
+            BUILD_RIC_AGENT="True"
+            CMAKE_CMD="$CMAKE_CMD -DENABLE_RIC_AGENT=${BUILD_RIC_AGENT}"
+            echo_info "Enabling RIC agent"
+            shift 1;;
         -k | --skip-shared-libraries)
             SKIP_SHARED_LIB_FLAG="True"
             echo_info "Skipping build of shared libraries, rfsimulator and transport protocol libraries"
+            shift;;
+        --build-ran-slicing)
+            BUILD_RAN_SLICING="True"
+            CMAKE_CMD="$CMAKE_CMD -DENABLE_RAN_SLICING=${BUILD_RAN_SLICING}"
+            echo_info "Enabling RAN Slicing"
             shift;;
         --ninja)
             CMAKE_CMD="$CMAKE_CMD -GNinja"

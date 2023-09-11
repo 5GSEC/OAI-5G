@@ -246,6 +246,9 @@ typedef enum {
   NFAPI_PNF,
   ITTI,
   UTIL,
+  #ifdef ENABLE_RIC_AGENT
+  RIC_AGENT,
+  #endif
   MAX_LOG_PREDEF_COMPONENTS,
 }
 comp_name_t;
