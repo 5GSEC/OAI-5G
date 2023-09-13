@@ -45,6 +45,12 @@ EKBuildOAIUE.sh [-h|--help] [-d|--debug] [-b|--branch <branch] [<mode>] [<networ
     5G | 5g | NR  | nr
 ```
 
+Compile attack branch (LTE)
+```
+./EKBuildOAIUE.sh att lte
+```
+
+
 ## Run Attack
 ```
 ./runOAIUE.sh --help
