@@ -1719,6 +1719,30 @@ void write_dummy(PHY_VARS_UE *UE,  openair0_timestamp timestamp) {
                1),"");
 }
 
+
+// Define an alternative _Assert_ implementation that allows aCTION to be 'continue'
+
+#undef _Assert_
+#define _Assert_(cOND, aCTION, fORMAT, aRGS...)             \
+{                                                        \
+    if (!(cOND)) {                                          \
+        fprintf(stderr, "\nAssertion (%s) failed!\n"   \
+                "In %s() %s:%d\n" fORMAT,                   \
+                #cOND, __FUNCTION__, __FILE__, __LINE__, ##aRGS);  \
+        aCTION;                                             \
+    }						\
+}
+
+#define _Assert_Cont_           \
+{                               \
+  UE->is_synchronized = 0;      \
+  start_rx_stream = 0;          \
+  continue;                     \
+}
+
+#define AssertContinue(cOND, fORMAT, aRGS...)  _Assert_(cOND, _Assert_Cont_, fORMAT, ##aRGS)
+
+
 void *UE_thread(void *arg) {
   PHY_VARS_UE *UE = (PHY_VARS_UE *) arg;
   //  int tx_enabled = 0;
@@ -1782,7 +1806,7 @@ void *UE_thread(void *arg) {
               rxp[i] = (void *)&UE->common_vars.rxdata[i][UE->frame_parms.samples_per_tti*sf];
             write_dummy(UE, timestamp);
 
-            AssertFatal(UE->frame_parms.samples_per_tti == UE->rfdevice.trx_read_func(&UE->rfdevice,
+            AssertContinue(UE->frame_parms.samples_per_tti == UE->rfdevice.trx_read_func(&UE->rfdevice,
                         &timestamp,
                         rxp,
                         UE->frame_parms.samples_per_tti,
@@ -1792,7 +1816,7 @@ void *UE_thread(void *arg) {
           for (int i=0; i<UE->frame_parms.nb_antennas_rx; i++)
             rxp[i] = (void *)&UE->common_vars.rxdata[i][0];
 
-          AssertFatal( UE->frame_parms.samples_per_tti*10 ==
+          AssertContinue( UE->frame_parms.samples_per_tti*10 ==
                        UE->rfdevice.trx_read_func(&UE->rfdevice,
                                                   &timestamp,
                                                   rxp,
@@ -1838,7 +1862,7 @@ void *UE_thread(void *arg) {
 
           while ( UE->rx_offset ) {
             size_t s=min(UE->rx_offset,UE->frame_parms.samples_per_tti);
-            AssertFatal(s == UE->rfdevice.trx_read_func(&UE->rfdevice,
+            AssertContinue(s == UE->rfdevice.trx_read_func(&UE->rfdevice,
                         &timestamp,
                         (void **)UE->common_vars.rxdata,
                         s,
@@ -1861,7 +1885,7 @@ void *UE_thread(void *arg) {
         }
 
         // read in first symbol
-        AssertFatal (UE->frame_parms.ofdm_symbol_size+UE->frame_parms.nb_prefix_samples0 ==
+        AssertContinue (UE->frame_parms.ofdm_symbol_size+UE->frame_parms.nb_prefix_samples0 ==
                      UE->rfdevice.trx_read_func(&UE->rfdevice,
                                                 &timestamp,
                                                 (void **)UE->common_vars.rxdata,
@@ -1934,13 +1958,13 @@ void *UE_thread(void *arg) {
                          UE->rx_offset_diff;
         }
 
-        AssertFatal(readBlockSize ==
+        AssertContinue(readBlockSize ==
                     UE->rfdevice.trx_read_func(&UE->rfdevice,
                                                &timestamp,
                                                rxp,
                                                readBlockSize,
                                                UE->frame_parms.nb_antennas_rx),"");
-        AssertFatal( writeBlockSize ==
+        AssertContinue( writeBlockSize ==
                      UE->rfdevice.trx_write_func(&UE->rfdevice,
                          timestamp+
                          (2*UE->frame_parms.samples_per_tti) -
@@ -1956,7 +1980,7 @@ void *UE_thread(void *arg) {
           int first_symbols=writeBlockSize-readBlockSize;
 
           if ( first_symbols > 0 )
-            AssertFatal(first_symbols ==
+            AssertContinue(first_symbols ==
                         UE->rfdevice.trx_read_func(&UE->rfdevice,
                                                    &timestamp1,
                                                    (void **)UE->common_vars.rxdata,

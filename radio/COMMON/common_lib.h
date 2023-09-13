@@ -594,7 +594,7 @@ extern "C"
 
 
 #define  DEVICE_SECTION   "device"
-#define  CONFIG_HLP_DEVICE  "Identifies the oai device (the interface to RF) to use, the shared lib \"lib_<name>.so\" will be loaded"
+#define  CONFIG_HLP_DEVICE  "Identifies the oai device (the interface to RF) to use, the shared lib \"lib_<name>.so\" will be loaded\n"
 
 #define  CONFIG_DEVICEOPT_NAME "name"
 

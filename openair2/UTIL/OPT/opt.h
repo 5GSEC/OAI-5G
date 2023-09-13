@@ -66,9 +66,9 @@ typedef guint8   gboolean;
 /* OPT parameters definitions */
 #define OPT_CONFIGPREFIX "opt"
 
-#define CONFIG_HLP_TYPEMON       "Type of L2 monitoring messages: none,pcap,wireshark  \n"
-#define CONFIG_HLP_L2MONIP       "ip address for wireshark messages \n"
-#define CONFIG_HLP_L2MONPATH     "file path for pcap  messages on localhost \n"
+#define CONFIG_HLP_TYPEMON       "Type of L2 monitoring messages: none,pcap,wireshark\n"
+#define CONFIG_HLP_L2MONIP       "ip address for wireshark messages\n"
+#define CONFIG_HLP_L2MONPATH     "file path for pcap messages on localhost\n"
 /*---------------------------------------------------------------------------------------------------------------------------------------------*/
 /*                                            command line parameters for LOG utility                                                          */
 /*   optname                helpstr                 paramflags    XXXptr                  defXXXval                       type        numelt   */

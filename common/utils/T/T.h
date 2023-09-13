@@ -562,8 +562,10 @@ extern int *T_active;
 
 #define CONFIG_HLP_TPORT         "tracer port\n"
 #define CONFIG_HLP_NOTWAIT       "don't wait for tracer, start immediately\n"
-#define CONFIG_HLP_STDOUT        "print log messges on console\n"
-
+#define CONFIG_HLP_STDOUT        "print log messages on console or send to tracer\n"\
+"         0 disable console logging and send messages to tracer\n"\
+"         1 enable console logging and do not send messages to tracer\n"\
+"         2 enable console logging and send messages to tracer\n"
 #define TTRACER_CONFIG_PREFIX   "TTracer"
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------*/

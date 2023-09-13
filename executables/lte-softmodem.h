@@ -29,6 +29,9 @@
 #include "SIMULATION/ETH_TRANSPORT/proto.h"
 #include "executables/softmodem-common.h"
 
+#if defined (WANT_CMDLINE_UE_PARAMS)
+
+#include "attack_cliopts.h"
 
 
 /***************************************************************************************************************************************/
@@ -103,18 +106,21 @@
     {"num-ues",           NULL,                   0,               .iptr=&(NB_UE_INST),                 .defuintval=1,         TYPE_INT,      0},   \
     {"r"  ,               CONFIG_HLP_PRB,         0,               .u8ptr=&(frame_parms[0]->N_RB_DL),   .defintval=25,         TYPE_UINT8,    0},   \
     {"dlsch-demod-shift", CONFIG_HLP_DLSHIFT,     0,               .iptr=(int32_t *)&dlsch_demod_shift, .defintval=0,          TYPE_INT,      0},   \
-    {"usrp-args",         CONFIG_HLP_USRP_ARGS,   0,               .strptr=&usrp_args,         .defstrval="type=b200",TYPE_STRING,   0},   \
+    {"usrp-args",         CONFIG_HLP_USRP_ARGS,   0,               .strptr=&usrp_args,                  .defstrval="type=b200",TYPE_STRING,   0},   \
     {"mmapped-dma",       CONFIG_HLP_DMAMAP,      PARAMFLAG_BOOL,  .uptr=&mmapped_dma,                  .defintval=0,          TYPE_INT,      0},   \
     {"T" ,                CONFIG_HLP_TDD,         PARAMFLAG_BOOL,  .iptr=&tddflag,                      .defintval=0,          TYPE_INT,      0},   \
     {"A",                 CONFIG_HLP_TADV,        0,               .iptr=&(timingadv),                  .defintval=0,          TYPE_INT,      0},   \
     {"ue-idx-standalone", NULL,                   0,               .u16ptr=&ue_idx_standalone,          .defuintval=0xFFFF,    TYPE_UINT16,   0},   \
     {"node-number",       NULL,                   0,               .u16ptr=&node_number,                .defuintval=2,         TYPE_UINT16,   0},   \
+    ATTACK_CLI_OPTS,                                                                                                                                \
   }
 // clang-format on
 
 /*-----------------------------------------------------------------------------------------------------------------------------*/
 /*                                            command line parameters specific to UE threads                                   */
 /*   optname                   helpstr     paramflags     XXXptr                       defXXXval        type          numelt   */
+
+#endif /* defined (WANT_CMDLINE_UE_PARAMS) */
 
 #define DEFAULT_DLF 2680000000
 

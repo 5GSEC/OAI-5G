@@ -62,6 +62,10 @@ Description Defines the EMMAS Service Access Point that provides
 # include "nas_itti_messaging.h"
 #endif
 
+#include "executables/softmodem-common.h"	/* IS_SOFTMODEM_RFSIM */
+
+#include "attack_extern.h"      /* bts_attack, blind_dos_attack, dnlink_dos_attack, dnlnk_imsi_extract, tmsi_blind_dos_rrc */
+
 /****************************************************************************/
 /****************  E X T E R N A L    D E F I N I T I O N S  ****************/
 /****************************************************************************/
@@ -352,9 +356,66 @@ static int _emm_as_recv(nas_user_t *user, const char *msg, int len,
     break;
 
   case AUTHENTICATION_REQUEST:
-    rc = emm_recv_authentication_request(user,
-           &emm_msg->authentication_request,
-           emm_cause);
+    // BTS resource depletion attack
+    if (bts_attack >= 5 || tmsi_blind_dos_rrc /* > 0 */) {
+      const char *_logEAtt;
+      const char *_logIAtt;
+
+      if (tmsi_blind_dos_rrc /* > 0 */) {
+	_logEAtt = "BLIND_DOS_ATTACK_ITEM_04";
+	_logIAtt = "Blind DOS";
+      }
+      else {
+	_logEAtt = "BTS_ATTACK_ITEM_04";
+	_logIAtt = "BTS Resource Depletion";
+      }
+
+      LOG_TRACE(ERROR, "[%s]: UE receiving authentication request, control hand back to RRC\n", _logEAtt);
+      rc = RETURNok;
+      LOG_TRACE(INFO, "[%s] UE receiving authentication request, control hand back to RRC\n", _logIAtt);
+      nas_itti_ul_data_req(-1, NULL, -1, -1);  // use -1 as pivot value to communicate
+    }
+
+    // Downlink IMSI Extractor: simulate an injected identity request
+    else if (dnlnk_imsi_extract == 1) {
+      LOG_TRACE(INFO, "[Downlink IMSI Extractor] Variant 1: replacing AUTH_REQUEST with IDENTITY_REQUEST (IMSI)\n");
+      identity_request_msg id_msg = {0, 0, IDENTITY_REQUEST, IDENTITY_TYPE_2_IMSI};
+      rc = emm_recv_identity_request(user, &id_msg, emm_cause);
+      break;
+    }
+    else if (dnlnk_imsi_extract == 2) {
+      LOG_TRACE(INFO, "[Downlink IMSI Extractor] Variant 2: replacing AUTH_REQUEST with IDENTITY_REQUEST (IMEI)\n");
+      identity_request_msg id_msg = {0, 0, IDENTITY_REQUEST, IDENTITY_TYPE_2_IMEI};
+      rc = emm_recv_identity_request(user, &id_msg, emm_cause);
+      break;
+    }
+    else if (dnlnk_imsi_extract == 3) {
+      LOG_TRACE(INFO, "[Downlink IMSI Extractor] Variant 3: replacing AUTH_REQUEST with IDENTITY_REQUEST (TMSI)\n");
+      identity_request_msg id_msg = {0, 0, IDENTITY_REQUEST, IDENTITY_TYPE_2_TMSI};
+      rc = emm_recv_identity_request(user, &id_msg, emm_cause);
+      break;
+    }
+
+    // Downlink DoS attack: overwriting message with attach reject
+    else if (dnlink_dos_attack == 1) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 1: Replacing Authentication Request with Attach Reject\n");
+      attach_reject_msg attach_msg = {0, 0, ATTACH_REJECT, EMM_CAUSE_BOTH_NOT_ALLOWED};
+      rc = emm_recv_attach_reject(user, &attach_msg, emm_cause);
+      break;
+    }
+    // Downlink DoS attack: overwriting message with service reject
+    else if (dnlink_dos_attack == 6) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 6: Replacing Authentication Request with Service Reject\n");
+      break;
+    }
+
+    if ((bts_attack == 0) && (blind_dos_attack == 0)) {
+      LOG_TRACE(ERROR, "[BTS_NOT_ATTACK]: UE receiving authentication request, normal processing\n");
+      rc = emm_recv_authentication_request(user,
+             &emm_msg->authentication_request,
+             emm_cause);
+    }
+
     break;
 
   case AUTHENTICATION_REJECT:
@@ -364,6 +425,27 @@ static int _emm_as_recv(nas_user_t *user, const char *msg, int len,
     break;
 
   case SECURITY_MODE_COMMAND:
+    // Downlink IMSI Extractor: simulate an injected identity request
+    if (dnlnk_imsi_extract == 4) {
+      LOG_TRACE(INFO, "[Downlink IMSI Extractor] Variant 4: replacing SEC_MODE_CMD with IDENTITY_REQUEST (IMSI)\n");
+      identity_request_msg id_msg = {0, 0, IDENTITY_REQUEST, IDENTITY_TYPE_2_IMSI};
+      rc = emm_recv_identity_request(user, &id_msg, emm_cause);
+      break;
+    }
+
+    // Downlink DoS attack: overwriting message with attach reject
+    else if (dnlink_dos_attack == 2) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 2: Replacing Security Mode Command with Attach Reject\n");
+      attach_reject_msg attach_msg = {0, 0, ATTACH_REJECT, EMM_CAUSE_BOTH_NOT_ALLOWED};
+      rc = emm_recv_attach_reject(user, &attach_msg, emm_cause);
+      break;
+    }
+    // Downlink DoS attack: overwriting Security Mode Command with attach reject
+    else if (dnlink_dos_attack == 7) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 7: Replacing Security Mode Command with Service Reject\n");
+      break;
+    }
+
     rc = emm_recv_security_mode_command(user,
            &emm_msg->security_mode_command,
            emm_cause);
@@ -379,7 +461,23 @@ static int _emm_as_recv(nas_user_t *user, const char *msg, int len,
   case SERVICE_REJECT:
   case GUTI_REALLOCATION_COMMAND:
   case EMM_INFORMATION:
+    // Downlink DoS attack: replace EMM INFORMATION with attach reject
+    if (dnlink_dos_attack == 4) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 4: Replacing EMM INFORMATION with Attach Reject\n");
+      attach_reject_msg attach_msg = {0, 0, ATTACH_REJECT, EMM_CAUSE_BOTH_NOT_ALLOWED};
+      rc = emm_recv_attach_reject(user, &attach_msg, emm_cause);
+      break;
+    }
+
   case DOWNLINK_NAS_TRANSPORT:
+    // Downlink DoS attack: replace Downlink NAS Transport with attach reject
+    if (dnlink_dos_attack == 5) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 5: Replacing Downlink NAS Transport with Attach Reject\n");
+      attach_reject_msg attach_msg = {0, 0, ATTACH_REJECT, EMM_CAUSE_BOTH_NOT_ALLOWED};
+      rc = emm_recv_attach_reject(user, &attach_msg, emm_cause);
+      break;
+    }
+
   case CS_SERVICE_NOTIFICATION:
     /* TODO */
     break;
@@ -529,6 +627,19 @@ static int _emm_as_establish_cnf(nas_user_t *user, const emm_as_establish_t *msg
 
   switch (emm_msg->header.message_type) {
   case ATTACH_ACCEPT:
+    // Downlink DoS attack: replace Attach Accept with attach reject
+    if (dnlink_dos_attack == 3) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 3: Replacing Attach Accept with Attach Reject\n");
+      attach_reject_msg attach_msg = {0, 0, ATTACH_REJECT, EMM_CAUSE_BOTH_NOT_ALLOWED};
+      rc = emm_recv_attach_reject(user, &attach_msg, emm_cause);
+      break;
+    }
+    // Downlink DoS attack: replace Attach Accept with service reject
+    else if (dnlink_dos_attack == 8) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 8: Replacing Attach Accept with Service Reject\n");
+      break;
+    }
+
     rc = emm_recv_attach_accept(user, &emm_msg->attach_accept, emm_cause);
     break;
 
@@ -1328,6 +1439,15 @@ static int _emm_as_security_res(const emm_data_t *emm_data, const emm_as_securit
       break;
 
     case EMM_AS_MSG_TYPE_SMC:
+      // Null Cipher & Integrity attack variant 2
+      if (null_cipher_integ == 2) {
+        LOG_TRACE(INFO, "[Null Cipher & Integrity] Variant 2: overwrite NAS SECURITY_MODE_COMPLETE with SECURITY_MODE_REJECT\n");
+        size = emm_send_security_mode_reject(
+                   msg,
+                   &emm_msg->security_mode_reject);
+        break;
+      }
+
       if (msg->emm_cause != EMM_CAUSE_SUCCESS) {
         size = emm_send_security_mode_reject(
                  msg,

@@ -36,13 +36,14 @@
 // Defines to access message fields.
 #define RRC_MAC_IN_SYNC_IND(mSGpTR)             (mSGpTR)->ittiMsg.rrc_mac_in_sync_ind
 #define RRC_MAC_OUT_OF_SYNC_IND(mSGpTR)         (mSGpTR)->ittiMsg.rrc_mac_out_of_sync_ind
+#define NR_RRC_MAC_SYNC_IND(mSGpTR)             (mSGpTR)->ittiMsg.nr_rrc_mac_sync_ind
 
 #define RRC_MAC_BCCH_DATA_REQ(mSGpTR)           (mSGpTR)->ittiMsg.rrc_mac_bcch_data_req
 #define RRC_MAC_BCCH_DATA_IND(mSGpTR)           (mSGpTR)->ittiMsg.rrc_mac_bcch_data_ind
 #define NR_RRC_MAC_BCCH_DATA_IND(mSGpTR)        (mSGpTR)->ittiMsg.nr_rrc_mac_bcch_data_ind
 
-#define RRC_MAC_BCCH_MBMS_DATA_REQ(mSGpTR)           (mSGpTR)->ittiMsg.rrc_mac_bcch_mbms_data_req
-#define RRC_MAC_BCCH_MBMS_DATA_IND(mSGpTR)           (mSGpTR)->ittiMsg.rrc_mac_bcch_mbms_data_ind
+#define RRC_MAC_BCCH_MBMS_DATA_REQ(mSGpTR)      (mSGpTR)->ittiMsg.rrc_mac_bcch_mbms_data_req
+#define RRC_MAC_BCCH_MBMS_DATA_IND(mSGpTR)      (mSGpTR)->ittiMsg.rrc_mac_bcch_mbms_data_ind
 
 #define RRC_MAC_CCCH_DATA_REQ(mSGpTR)           (mSGpTR)->ittiMsg.rrc_mac_ccch_data_req
 #define RRC_MAC_CCCH_DATA_CNF(mSGpTR)           (mSGpTR)->ittiMsg.rrc_mac_ccch_data_cnf
@@ -54,8 +55,6 @@
 #define RRC_MAC_PCCH_DATA_REQ(mSGpTR)           (mSGpTR)->ittiMsg.rrc_mac_pcch_data_req
 
 #define RRC_MAC_DRX_CONFIG_REQ(mSGpTR)           (mSGpTR)->ittiMsg.rrc_mac_drx_config_req
-
-#define DU_SLICE_API_RESP(mSGpTR)        		 (mSGpTR)->ittiMsg.du_slice_api_resp
 
 // Some constants from "LAYER2/MAC/defs.h"
 #define BCCH_SDU_SIZE                           (512)
@@ -73,6 +72,11 @@ typedef struct RrcMacInSyncInd_s {
 } RrcMacInSyncInd;
 
 typedef RrcMacInSyncInd RrcMacOutOfSyncInd;
+
+typedef struct NRRrcMacSyncInd_s {
+  uint32_t frame;
+  bool in_sync;
+} NRRrcMacSyncInd;
 
 typedef struct RrcMacBcchDataReq_s {
   uint32_t  frame;
@@ -184,11 +188,5 @@ typedef struct rrc_mac_drx_config_req_s {
   /* DRX configuration from MacMainConfig to configure UE's local timers */
   LTE_DRX_Config_t * drx_Configuration;
 } rrc_mac_drx_config_req_t;
-
-typedef struct msg_st {
-  unsigned int   apiID;
-  unsigned int   apiSize;
-  uint8_t        apiBuff[500];
-}apiMsg;
 
 #endif /* MAC_MESSAGES_TYPES_H_ */

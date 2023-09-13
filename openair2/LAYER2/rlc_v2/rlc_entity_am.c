@@ -571,7 +571,8 @@ static void finalize_ack_nack_processing(rlc_entity_am_t *entity)
 
 void rlc_entity_am_recv_pdu(rlc_entity_t *_entity, char *buffer, int size)
 {
-#define R(d) do { if (rlc_pdu_decoder_in_error(&d)) goto err; } while (0)
+//#define R(d) do { if (rlc_pdu_decoder_in_error(&d)) goto err; } while (0)
+#define R(d) do { if (rlc_pdu_decoder_in_error(&d)) { LOG_W(RLC, "%s:%d:%s: error decoding PDU, discarding\n", __FILE__, __LINE__, __FUNCTION__); goto discard; } } while (0)
   rlc_entity_am_t *entity = (rlc_entity_am_t *)_entity;
   rlc_pdu_decoder_t decoder;
   rlc_pdu_decoder_t data_decoder;
@@ -783,9 +784,9 @@ control:
 
   return;
 
-err:
-  LOG_W(RLC, "%s:%d:%s: error decoding PDU, discarding\n", __FILE__, __LINE__, __FUNCTION__);
-  goto discard;
+//err:
+//  LOG_W(RLC, "%s:%d:%s: error decoding PDU, discarding\n", __FILE__, __LINE__, __FUNCTION__);
+//  goto discard;
 
 discard:
   if (p)

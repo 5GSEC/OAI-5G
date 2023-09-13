@@ -16,6 +16,7 @@ libutils_la_SOURCES = \
 	conversions.h	conversions.c	\
 	enum_string.h	enum_string.c	\
 	log.c log.h	\
+	log_analyzer.c	\
 	mme_config.c mme_config.h	\
     mcc_mnc_itu.c mcc_mnc_itu.h   \
 	mme_default_values.h	\

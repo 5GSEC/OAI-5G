@@ -1,0 +1,3 @@
+./runOAIUE.sh att -- --bts-attack 999 --rrc-911 |& grep 'received contention resolution msg: '
+./runOAIUE.sh att -- --bts-attack 999 --rrc-911 |& grep -E 'Logical Channel DL-CCCH .+, Received RRCConnectionSetup RNTI'
+./runOAIUE.sh att -- --blind-dos-attack 999 --RRC-TMSI 12345

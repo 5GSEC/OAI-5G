@@ -68,22 +68,24 @@ char * log_mem_filename = &__log_mem_filename[0];
 char logmem_filename[1024] = {0};
 
 const mapping log_level_names[] = {{"error", OAILOG_ERR},
-                                   {"warn", OAILOG_WARNING},
-                                   {"analysis", OAILOG_ANALYSIS},
-                                   {"info", OAILOG_INFO},
-                                   {"debug", OAILOG_DEBUG},
-                                   {"trace", OAILOG_TRACE},
-                                   {NULL, -1}};
+				   {"warn", OAILOG_WARNING},
+				   {"analysis", OAILOG_ANALYSIS},
+				   {"info", OAILOG_INFO},
+				   {"debug", OAILOG_DEBUG},
+				   {"trace", OAILOG_TRACE},
+				   {NULL, -1}};
 
 const mapping log_options[] = {{"nocolor", FLAG_NOCOLOR},
-                               {"level", FLAG_LEVEL},
-                               {"thread", FLAG_THREAD},
-                               {"line_num", FLAG_FILE_LINE},
-                               {"function", FLAG_FUNCT},
-                               {"time", FLAG_TIME},
-                               {"thread_id", FLAG_THREAD_ID},
-                               {"wall_clock", FLAG_REAL_TIME},
-                               {NULL, -1}};
+			       {"level", FLAG_LEVEL},
+			       {"thread", FLAG_THREAD},
+			       {"line_num", FLAG_FILE_LINE},
+			       {"function", FLAG_FUNCT},
+			       {"time", FLAG_TIME},
+			       {"thread_id", FLAG_THREAD_ID},
+			       {"wall_clock", FLAG_REAL_TIME},
+			       {"local_clock", FLAG_REAL_TIME | FLAG_REAL_LTIME},
+			       {"analyzer", FLAG_ANALYZER | FLAG_REAL_TIME},
+			       {NULL,-1}};
 
 mapping log_maskmap[] = LOG_MASKMAP_INIT;
 
@@ -497,9 +499,6 @@ int logInit (void)
   register_log_component("NGAP","",NGAP);
   register_log_component("ITTI","log",ITTI);
   register_log_component("UTIL","log",UTIL);
-  #ifdef ENABLE_RIC_AGENT
-  register_log_component("RIC_AGENT","log",RIC_AGENT);
-  #endif
 
   for (int i=0 ; log_level_names[i].name != NULL ; i++)
     g_log->level2string[i]           = toupper(log_level_names[i].name[0]); // uppercased first letter of level name
@@ -533,7 +532,8 @@ static inline int log_header(log_component_t *c,
 			     const char *file,
 			     const char *func,
 			     int line,
-			     int level)
+			     int level,
+			     struct timespec *pt)
 {
   int flag= g_log->flag | c->flag;
 
@@ -558,15 +558,25 @@ static inline int log_header(log_component_t *c,
     l[0] = 0;
 
   // output time information
-  char timeString[32];
+  char timeString[40];
   if ((flag & FLAG_TIME) || (flag & FLAG_REAL_TIME)) {
     struct timespec t;
     const clockid_t clock = flag & FLAG_TIME ? CLOCK_MONOTONIC : CLOCK_REALTIME;
     if (clock_gettime(clock, &t) == -1)
         abort();
-    snprintf(timeString, sizeof(timeString), "%lu.%06lu ",
-             t.tv_sec,
-             t.tv_nsec / 1000);
+    if (pt && (flag & FLAG_ANALYZER))
+    	*pt = t;
+    if (flag & FLAG_REAL_LTIME) {
+      struct tm *_pTm = localtime (&t.tv_sec);
+
+      (void) strftime (timeString, sizeof (timeString), "%Y.%m.%d %H:%M:%S", _pTm);
+      (void) sprintf  (timeString + strlen (timeString), ".%06lu ",
+		       t.tv_nsec / 1000);
+    }
+    else
+      snprintf(timeString, sizeof(timeString), "%lu.%06lu ",
+	       t.tv_sec,
+	       t.tv_nsec / 1000);
   } else {
     timeString[0] = 0;
   }
@@ -640,7 +650,7 @@ void log_dump(int component,
 
   if (wbuf != NULL) {
     va_start(args, format);
-    int pos=log_header(c, wbuf,MAX_LOG_TOTAL,"noFile","noFunc",0, OAILOG_INFO);
+    int pos=log_header(c, wbuf,MAX_LOG_TOTAL,"noFile","noFunc",0, OAILOG_INFO, NULL);
     pos+=vsprintf(wbuf+pos,format, args);
     va_end(args);
 
@@ -863,6 +873,9 @@ const char logmem_log_level[NUM_LOG_LEVEL] = {
   [OAILOG_TRACE] = 'T',
 };
 
+
+extern void log_analyzer(const char *compName, const char *file, const char *func, int line, int comp, int level, const struct timespec t, const char *msg);
+
 static void log_output_memory(log_component_t *c, const char *file, const char *func, int line, int comp, int level, const char* format,va_list args)
 {
   //logRecord_mt(file,func,line, pthread_self(), comp, level, format, ##args)
@@ -873,10 +886,11 @@ static void log_output_memory(log_component_t *c, const char *file, const char *
    * big enough so that the buffer is never full.
    */
   char log_buffer[MAX_LOG_TOTAL];
+  struct timespec t = {0, 0};
 
   // make sure that for log trace the extra info is only printed once, reset when the level changes
   if (level < OAILOG_TRACE) {
-    int n = log_header(c, log_buffer+len, MAX_LOG_TOTAL, file, func, line, level);
+    int n = log_header(c, log_buffer+len, MAX_LOG_TOTAL, file, func, line, level, &t);
     if (n > 0) {
       len += n;
       if (len > MAX_LOG_TOTAL) {
@@ -886,6 +900,10 @@ static void log_output_memory(log_component_t *c, const char *file, const char *
   }
   int n = vsnprintf(log_buffer+len, MAX_LOG_TOTAL-len, format, args);
   if (n > 0) {
+    // Provisionally invoke log analyzer
+    if ((g_log->flag | c->flag) & FLAG_ANALYZER) {
+      log_analyzer (c->name, file, func, line, comp, level, t, log_buffer);
+    }
     len += n;
     if (len > MAX_LOG_TOTAL) {
       len = MAX_LOG_TOTAL;

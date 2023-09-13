@@ -33,6 +33,7 @@ This section deals with basic functions for OFDM Modulation.
 #include "PHY/defs_eNB.h"
 #include "PHY/defs_gNB.h"
 #include "PHY/impl_defs_top.h"
+#include "PHY/impl_defs_nr.h"
 #include "common/utils/LOG/log.h"
 #include "common/utils/LOG/vcd_signal_dumper.h"
 #include "modulation_common.h"
@@ -333,15 +334,17 @@ void do_OFDM_mod(c16_t **txdataF, c16_t **txdata, uint32_t frame,uint16_t next_s
 
 }
 
-void apply_nr_rotation(NR_DL_FRAME_PARMS *fp,
-                       c16_t *txdataF,
-                       int slot,
-                       int first_symbol,
-                       int nsymb)
+void apply_nr_rotation_TX(NR_DL_FRAME_PARMS *fp,
+                          c16_t *txdataF,
+                          c16_t *symbol_rotation,
+                          int slot,
+                          int nb_rb,
+                          int first_symbol,
+                          int nsymb)
 {
-  int symb_offset = (slot%fp->slots_per_subframe)*fp->symbols_per_slot;
+  int symb_offset = (slot % fp->slots_per_subframe) * fp->symbols_per_slot;
 
-  c16_t *symbol_rotation = fp->symbol_rotation[0] + symb_offset;
+  symbol_rotation += symb_offset;
 
   for (int sidx = first_symbol; sidx < first_symbol + nsymb; sidx++) {
     c16_t *this_rotation = symbol_rotation + sidx;
@@ -354,20 +357,20 @@ void apply_nr_rotation(NR_DL_FRAME_PARMS *fp,
       this_rotation->r,
       this_rotation->i);
 
-    if (fp->N_RB_DL & 1) {
+    if (nb_rb & 1) {
       rotate_cpx_vector(this_symbol, this_rotation, this_symbol,
-                        (fp->N_RB_DL + 1) * 6, 15);
+                        (nb_rb + 1) * 6, 15);
       rotate_cpx_vector(this_symbol + fp->first_carrier_offset - 6,
                         this_rotation,
                         this_symbol + fp->first_carrier_offset - 6,
-                        (fp->N_RB_DL + 1) * 6, 15);
+                        (nb_rb + 1) * 6, 15);
     } else {
       rotate_cpx_vector(this_symbol, this_rotation, this_symbol,
-                        fp->N_RB_DL * 6, 15);
+                        nb_rb * 6, 15);
       rotate_cpx_vector(this_symbol + fp->first_carrier_offset,
                         this_rotation,
                         this_symbol + fp->first_carrier_offset,
-                        fp->N_RB_DL * 6, 15);
+                        nb_rb * 6, 15);
     }
   }
 }

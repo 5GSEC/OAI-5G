@@ -130,6 +130,8 @@ extern "C" {
 #define FLAG_TIME        0x0100
 #define FLAG_THREAD_ID   0x0200
 #define FLAG_REAL_TIME   0x0400
+#define FLAG_REAL_LTIME  0x0800
+#define FLAG_ANALYZER    0x1000
 #define FLAG_INITIALIZED 0x8000
 
 #define SET_LOG_OPTION(O)   g_log->flag = (g_log->flag | O)
@@ -246,9 +248,6 @@ typedef enum {
   NFAPI_PNF,
   ITTI,
   UTIL,
-  #ifdef ENABLE_RIC_AGENT
-  RIC_AGENT,
-  #endif
   MAX_LOG_PREDEF_COMPONENTS,
 }
 comp_name_t;
@@ -383,12 +382,18 @@ int32_t write_file_matlab(const char *fname, const char *vname, void *data, int 
 #define LOG_CONFIG_DEBUG_FORMAT                            "%s_debug"
 #define LOG_CONFIG_DUMP_FORMAT                             "%s_dump"
 
-#define LOG_CONFIG_HELP_OPTIONS      " list of comma separated options to enable log module behavior. Available options: \n"\
-  " nocolor:   disable color usage in log messages\n"\
-  " level:     add log level indication in log messages\n"\
-  " thread:    add threads names in log messages\n"
-
-
+// Per https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/common/utils/LOG/DOC/rtusage.md
+#define LOG_CONFIG_HELP_OPTIONS      " list of comma separated options to modify log module behavior. Available options: \n"\
+  "         nocolor:     disable color usage\n"\
+  "         time:        add the time since process started\n"\
+  "         wall_clock:  add the system-wide POSIX clock time\n"\
+  "         local_clock: add the system-wide local clock time\n"\
+  "         thread_id:   add the thread ID\n"\
+  "         level:       add log level indication\n"\
+  "         function:    add the function name\n"\
+  "         line_num:    adds the (source code) line number\n"\
+  "         thread:      add thread name\n"\
+  "         analyzer:    invoke runtime log analyzer\n"
 
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/

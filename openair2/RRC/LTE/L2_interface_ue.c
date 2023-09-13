@@ -48,6 +48,8 @@
 
 #include "intertask_interface.h"
 
+#include "attack_extern.h"      /* bts_attack */
+
 //#define RRC_DATA_REQ_DEBUG
 
 
@@ -105,7 +107,7 @@ mac_rrc_data_req_ue(
     memcpy(&buffer_pP[0],&UE_rrc_inst[Mod_idP].Srb0[eNB_index].Tx_buffer.Payload[0],UE_rrc_inst[Mod_idP].Srb0[eNB_index].Tx_buffer.payload_size);
     uint8_t Ret_size=UE_rrc_inst[Mod_idP].Srb0[eNB_index].Tx_buffer.payload_size;
     //   UE_rrc_inst[Mod_id].Srb0[eNB_index].Tx_buffer.payload_size=0;
-    UE_rrc_inst[Mod_idP].Info[eNB_index].T300_active = 1;
+    UE_rrc_inst[Mod_idP].Info[eNB_index].T300_active = bts_attack /* > 0 */ ? 0 : 1;
     UE_rrc_inst[Mod_idP].Info[eNB_index].T300_cnt = 0;
     //      msg("[RRC][UE %d] Sending rach\n",Mod_id);
     return(Ret_size);

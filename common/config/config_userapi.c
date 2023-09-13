@@ -212,7 +212,7 @@ int config_get_processedint(paramdef_t *cfgoption) {
     cfgoption->processedvalue=NULL;
     printf_params("[CONFIG] %s:  set from %s to %i\n",cfgoption->optname, *cfgoption->strptr, ret);
   } else {
-    fprintf (stderr,"[CONFIG] %s %d %s has no processed integer availablle\n",__FILE__, __LINE__, cfgoption->optname);
+    fprintf (stderr,"[CONFIG] %s %d %s has no processed integer available\n",__FILE__, __LINE__, cfgoption->optname);
     ret=0;
   }
 
@@ -220,15 +220,18 @@ int config_get_processedint(paramdef_t *cfgoption) {
 }
 void config_printhelp(paramdef_t *params,int numparams, char *prefix) {
   printf("\n-----Help for section %-26s: %03i entries------\n",(prefix==NULL)?"(root section)":prefix,numparams);
+  fflush (stdout);
 
   for (int i=0 ; i<numparams ; i++) {
     printf("    %s%s: %s",
            (strlen(params[i].optname) <= 1) ? "-" : "--",
            params[i].optname,
            (params[i].helpstr != NULL)?params[i].helpstr:"Help string not specified\n");
+    fflush (stdout);
   }   /* for on params entries */
 
   printf("--------------------------------------------------------------------\n\n");
+  fflush (stdout);
 }
 
 int config_execcheck(paramdef_t *params, int numparams, char *prefix) {

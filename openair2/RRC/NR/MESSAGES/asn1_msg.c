@@ -143,6 +143,8 @@
 #include "common/ran_context.h"
 #include "conversions.h"
 
+#include "attack_extern.h"	/* rrc_911 */
+
 //#define XER_PRINT
 
 typedef struct xer_sprint_string_s {
@@ -858,6 +860,8 @@ uint8_t do_RRCSetupRequest(uint8_t Mod_id, uint8_t *buffer, size_t buffer_size, 
   }
 
   rrcSetupRequest->rrcSetupRequest.establishmentCause = NR_EstablishmentCause_mo_Signalling; //EstablishmentCause_mo_Data;
+  if (rrc_911 /* emergency */)
+    rrcSetupRequest->rrcSetupRequest.establishmentCause = NR_EstablishmentCause_emergency; //EstablishmentCause_emergency;
   rrcSetupRequest->rrcSetupRequest.spare.buf = &buf2;
   rrcSetupRequest->rrcSetupRequest.spare.size=1;
   rrcSetupRequest->rrcSetupRequest.spare.bits_unused = 7;

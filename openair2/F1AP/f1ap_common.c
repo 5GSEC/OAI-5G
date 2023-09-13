@@ -32,11 +32,6 @@
 
 #include "f1ap_common.h"
 
-#ifdef ENABLE_RIC_AGENT
-#include "openair2/RRC/LTE/rrc_defs.h"
-extern eNB_RRC_KPI_STATS    rrc_kpi_stats;
-#endif
-
 static f1ap_cudu_inst_t *f1_du_inst[NUMBER_OF_gNB_MAX]= {0};
 static f1ap_cudu_inst_t *f1_cu_inst[NUMBER_OF_gNB_MAX]= {0};
 
@@ -92,14 +87,6 @@ int f1ap_add_ue(F1_t isCu,
       f1_inst->f1ap_ue[i].du_ue_f1ap_id = rntiP;
       f1_inst->f1ap_ue[i].cu_ue_f1ap_id = rntiP;
       f1_inst->num_ues++;
-
-      #ifdef ENABLE_RIC_AGENT
-      if (f1_inst->num_ues > rrc_kpi_stats.rrc_conn_max)
-      {
-        rrc_kpi_stats.rrc_conn_max = f1_inst->num_ues; //Needs to be further implemented at granularity period level, requires resetting.
-      }
-      #endif
-      
       LOG_I(F1AP, "Adding a new UE with RNTI %x and cu/du ue_f1ap_id %ld\n", f1_inst->f1ap_ue[i].rnti, f1_inst->f1ap_ue[i].du_ue_f1ap_id);
       return i;
     }

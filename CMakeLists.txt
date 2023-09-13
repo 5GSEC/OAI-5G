@@ -138,6 +138,10 @@ else()
   message("No Blas/Atlas libs found, some targets will fail")
 endif()
 
+# UE attack implementation
+set (ATTACK_ROOTDIR ${OPENAIR_DIR}/common/attacks)
+include_directories(${ATTACK_ROOTDIR})
+
 #########################################################
 # Base directories, compatible with legacy OAI building #
 #########################################################
@@ -488,7 +492,7 @@ target_link_libraries(f1ap PRIVATE ngap nr_rrc)
 ##############
 # target asn1_lpp in openair3/LPP/MESSAGES/CMakeLists.txt used below
 
-# Hardware dependant options
+# Hardware dependent options
 ###################################
 add_list1_option(NB_ANTENNAS_RX "4" "Number of antennas in reception" "1" "2" "4")
 add_list1_option(NB_ANTENNAS_TX "4" "Number of antennas in transmission" "1" "2" "4")
@@ -507,6 +511,7 @@ target_link_libraries(params_libconfig config)
 set (SHLIB_LOADER_SOURCES
   ${OPENAIR_DIR}/common/utils/load_module_shlib.c
 )
+
 # include RF devices / transport protocols library modules
 ######################################################################
 
@@ -771,113 +776,6 @@ include_directories("${OPENAIR2_DIR}/UTIL/OPT")
 include_directories("${OPENAIR2_DIR}/UTIL/OMV")
 include_directories("${OPENAIR_DIR}")
 
-
-# O-RAN RIC Agent
-#################
-add_boolean_option(ENABLE_RIC_AGENT False "Enable O-RAN RIC agent" ON)
-if(ENABLE_RIC_AGENT)
-
-  ############################# E2AP_ASN
-  set(E2AP_ASN_VERS R2) # version
-  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
-  set(E2AP_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2AP)
-  set(E2AP_ASN_DIR ${E2AP_DIR}/MESSAGES/ASN1/${E2AP_ASN_VERS})
-  set(E2AP_C_DIR ${asn1_generated_dir}/E2AP/)
-  set(E2AP_ASN_FILE ${E2AP_ASN_DIR}/e2ap_v2.asn1)
-  set(ENV{ASN1C_PREFIX} "E2AP_")
-  file(MAKE_DIRECTORY ${E2AP_C_DIR})
-  execute_process(
-    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2AP_C_DIR} ${E2AP_ASN_FILE}
-    RESULT_VARIABLE ret
-  )
-
-  file(GLOB E2AP_asn_source ${E2AP_C_DIR}/*.c)
-  file(GLOB E2AP_asn_header ${E2AP_C_DIR}/*.h)
-  add_library(E2AP_ASN ${E2AP_asn_source} ${E2AP_asn_header})
-  set(E2AP_ASN_LIB E2AP_ASN)
-
-  ############################# E2AP_LIB
-  file(GLOB E2AP_source ${E2AP_DIR}/*.c)
-  add_library(E2AP ${E2AP_source})
-  target_include_directories(E2AP PUBLIC ${E2AP_C_DIR})
-  target_link_libraries(E2AP PUBLIC E2AP_ASN)
-  set(E2AP_LIB E2AP)
-
-  ##############################E2SM_KPM_ASN
-  # set(KPM_ASN_VERS R01)
-  set(KPM_ASN_VERS R02) # Specify version
-  if (${KPM_ASN_VERS} STREQUAL R01)
-    set(E2SM_KPM_ASN_FILE e2sm-kpm-v01.00.asn1)
-  elseif (${KPM_ASN_VERS} STREQUAL R02)
-    # set(E2SM_KPM_ASN_FILE e2sm-kpm-v02.00.asn1)
-    # set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.2-rm.asn)
-    set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.3-changed.asn)
-  endif (${KPM_ASN_VERS} STREQUAL R01)
-
-  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
-  set(E2SM_KPM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM-KPM)
-  set(E2SM_KPM_ASN_DIR ${E2SM_KPM_DIR}/MESSAGES/ASN1/${KPM_ASN_VERS})
-  set(E2SM_KPM_C_DIR ${asn1_generated_dir}/E2SM-KPM/)
-  set(ENV{ASN1C_PREFIX} "E2SM_KPM_")
-  file(MAKE_DIRECTORY ${E2SM_KPM_C_DIR})
-  execute_process(
-    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_KPM_C_DIR} ${E2SM_KPM_ASN_DIR}/${E2SM_KPM_ASN_FILE}
-    RESULT_VARIABLE ret
-  )
-
-  file(GLOB E2SM_KPM_asn_source ${E2SM_KPM_C_DIR}/*.c)
-  add_library(E2SM_KPM_ASN ${E2SM_KPM_asn_source})
-  set(E2SM_KPM_ASN_LIB E2SM_KPM_ASN)
-
-  ############################# E2SM_KPM_LIB
-  file(GLOB E2SM_KPM_source ${E2SM_KPM_DIR}/*.c)
-  add_library(E2SM_KPM ${E2SM_KPM_source} ${E2SM_KPM_asn_source} ${OPENAIR_DIR}/common/secsm.c)
-  target_include_directories(E2SM_KPM PRIVATE ${E2SM_KPM_DIR} "${E2SM_KPM_C_DIR}")
-  set(E2SM_KPM_LIB E2SM_KPM)
-
-  ############################# RIC_AGENT_LIB
-  set(RIC_AGENT_DIR ${OPENAIR2_DIR}/RIC_AGENT)
-  file(GLOB RIC_AGENT_source ${RIC_AGENT_DIR}/*.c)
-  include_directories ("${RIC_AGENT_DIR}")
-  add_library(RIC_AGENT ${RIC_AGENT_source})
-  #add_dependencies(RIC_AGENT rrc_flag)
-  # target_link_libraries(RIC_AGENT PRIVATE asn1_lte_rrc_hdrs)
-  set(RIC_AGENT_LIB RIC_AGENT)
-
-  # Manage dependencies
-  target_link_libraries(E2AP PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
-  target_include_directories(E2AP PUBLIC ${E2SM_KPM_DIR} ${E2SM_KPM_C_DIR})
-  target_include_directories(E2AP_ASN PUBLIC ${E2AP_C_DIR} ${E2SM_KPM_DIR})
-  target_include_directories(E2SM_KPM_ASN PUBLIC ${E2SM_KPM_C_DIR})
-  target_link_libraries(E2SM_KPM PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs asn1_f1ap E2AP_ASN E2AP)
-  target_include_directories(E2SM_KPM PUBLIC ${E2AP_DIR} ${E2AP_C_DIR})
-  # target_include_directories(RIC_AGENT PUBLIC ${E2AP_DIR} ${E2SM_KPM_DIR})
-  target_link_libraries(RIC_AGENT PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs E2AP E2SM_KPM)
-
-
-else()
-  set(RIC_AGENT_LIB "")
-  set(E2AP_ASN_LIB "")
-  set(E2AP_LIB "")
-  set(E2SM_KPM_LIB "")
-endif()
-
-# RAN SLICING: WARNING: DON'T USE THIS FEATURE AS THE SOURCE CODE MAY NOT BE COMPLETE
-#################
-add_boolean_option(ENABLE_RAN_SLICING False "Enable RAN Slicing" ON)
-if(ENABLE_RAN_SLICING)
-  message("RAN_SLICING module enabled")
-  # E2SM_RSM_LIB
-  set(E2SM_RSM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM_RSM)
-  file(GLOB E2SM_RSM_source ${E2SM_RSM_DIR}/*.c)
-  add_library(E2SM_RSM ${E2SM_RSM_source} ${E2SM_RSM_asn_source})
-  set(E2SM_RSM_LIB E2SM_RSM)
-  include_directories (${E2SM_RSM_DIR})
-
-else()
-  set(E2SM_RSM_ASN_LIB "")
-endif()
-
 ###########
 # Utilities
 ###############
@@ -890,6 +788,7 @@ include_directories(${OPENAIR_DIR}/common/utils/hashtable)
 
 add_library(UTIL
   ${OPENAIR_DIR}/common/utils/LOG/log.c
+  ${OPENAIR_DIR}/common/utils/LOG/log_analyzer.c
   ${OPENAIR_DIR}/common/utils/LOG/vcd_signal_dumper.c
   ${OPENAIR2_DIR}/UTIL/MATH/oml.c
   ${OPENAIR2_DIR}/UTIL/OPT/probe.c
@@ -1121,6 +1020,10 @@ endif()
 
 add_library(ldpc MODULE ${PHY_LDPC_OPTIM8SEGMULTI_SRC} )
 target_link_libraries(ldpc PRIVATE ldpc_gen_HEADERS)
+
+add_library(ldpc_parityCheck MODULE ${PHY_LDPC_OPTIM8SEGMULTI_SRC} )
+target_compile_definitions(ldpc_parityCheck PUBLIC NR_LDPC_ENABLE_PARITY_CHECK)
+target_link_libraries(ldpc_parityCheck  PRIVATE ldpc_gen_HEADERS)
 
 add_library(coding MODULE ${PHY_TURBOSRC} )
 
@@ -1413,6 +1316,7 @@ set(PHY_MEX_UE
   ${OPENAIR1_DIR}/PHY/TOOLS/signal_energy.c
   ${OPENAIR1_DIR}/PHY/LTE_ESTIMATION/lte_ue_measurements.c
   ${OPENAIR_DIR}/common/utils/LOG/log.c
+  ${OPENAIR_DIR}/common/utils/LOG/log_analyzer.c
   ${OPENAIR_DIR}/common/utils/T/T.c
   ${OPENAIR_DIR}/common/utils/T/local_tracer.c
   )
@@ -1695,7 +1599,7 @@ add_library(e1_if
   ${NR_RRC_DIR}/cucp_cuup_e1ap.c
   )
 
-target_link_libraries(e1_if PRIVATE asn1_nr_rrc_hdrs asn1_lte_rrc_hdrs asn1_f1ap e1ap GTPV1U)
+target_link_libraries(e1_if PRIVATE asn1_nr_rrc_hdrs asn1_lte_rrc_hdrs asn1_f1ap SECURITY ${OPENSSL_LIBRARIES} crypt e1ap GTPV1U)
 
 add_library(e1_pdcp_if
   ${OPENAIR2_DIR}/LAYER2/nr_pdcp/nr_pdcp_e1_api.c
@@ -1710,7 +1614,6 @@ add_library(L2_LTE_NR
   ${MAC_SRC}
   ${ENB_APP_SRC}
   ${MCE_APP_SRC}
-  ${OPENAIR_DIR}/common/secsm.c
 )
 
 target_link_libraries(L2_LTE_NR PRIVATE f1ap s1ap nr_rrc)
@@ -2221,6 +2124,7 @@ add_custom_target (
 #################################
 add_library(minimal_lib
   ${OPENAIR_DIR}/common/utils/LOG/log.c
+  ${OPENAIR_DIR}/common/utils/LOG/log_analyzer.c
   ${OPENAIR_DIR}/common/utils/minimal_stub.c
   ${T_SOURCE}
   )
@@ -2276,7 +2180,6 @@ target_link_libraries(lte-softmodem PRIVATE
   lte_rrc nr_rrc s1ap m2ap x2ap m3ap GTPV1U SECURITY UTIL HASHTABLE SCTP_CLIENT MME_APP SCHED_LIB SCHED_RU_LIB
   PHY_COMMON PHY PHY_RU  L2 L2_LTE NFAPI_COMMON_LIB NFAPI_LIB NFAPI_VNF_LIB NFAPI_PNF_LIB NFAPI_USER_LIB MISC_NFAPI_LTE_LIB
   ${NAS_UE_LIB} ITTI SIMU SIMU_ETH
-  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
   -Wl,--end-group z dl)
 
 target_link_libraries(lte-softmodem PRIVATE pthread m CONFIG_LIB rt crypt ${CRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES} sctp)
@@ -2379,7 +2282,6 @@ target_link_libraries(nr-softmodem PRIVATE
   ITTI ${NAS_UE_LIB} lte_rrc nr_rrc
   ngap s1ap L2_LTE_NR L2_NR MAC_NR_COMMON NFAPI_COMMON_LIB NFAPI_LIB NFAPI_VNF_LIB NFAPI_PNF_LIB NFAPI_USER_LIB SIMU SIMU_ETH
   x2ap f1ap m2ap m3ap e1ap
-  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
   -Wl,--end-group z dl)
 
 target_link_libraries(nr-softmodem PRIVATE pthread m CONFIG_LIB rt crypt ${CRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES} sctp ${ATLAS_LIBRARIES})
@@ -2411,7 +2313,7 @@ add_executable(nr-cuup
 target_link_libraries(nr-cuup PRIVATE
                       CONFIG_LIB ITTI SCTP_CLIENT
                       GTPV1U e1ap e1_pdcp_if f1ap SIMU_ETH
-                      SECURITY ${OPENSSL_LIBRARIES} crypt z sctp dl pthread)
+                      z sctp dl pthread)
 target_link_libraries(nr-cuup PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
                      
 # nr-uesoftmodem is  UE implementation
@@ -2518,7 +2420,7 @@ add_executable(ldpctest
    ${SHLIB_LOADER_SOURCES}
    )
 
-add_dependencies( ldpctest ldpc_orig ldpc_optim ldpc_optim8seg ldpc )
+add_dependencies( ldpctest ldpc_orig ldpc_optim ldpc_optim8seg ldpc ldpc_parityCheck)
 if (ENABLE_LDPC_CUDA)
   add_dependencies(ldpctest ldpc_cuda)
 endif()
@@ -2696,9 +2598,7 @@ if (${T_TRACER})
         PHY_COMMON PHY PHY_UE PHY_NR PHY_NR_COMMON PHY_NR_UE PHY_RU PHY_MEX
         L2 L2_LTE L2_NR L2_LTE_NR L2_UE NR_L2_UE L2_UE_LTE_NR MAC_NR_COMMON MAC_NR MAC_UE_NR ngap
         CN_UTILS GTPV1U SCTP_CLIENT MME_APP LIB_NAS_UE NB_IoT SIMU SIMU_ETH OPENAIR0_LIB
-        ldpc_orig ldpc_optim ldpc_optim8seg ldpc dfts
-        ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
-        )
+        ldpc_orig ldpc_optim ldpc_optim8seg ldpc dfts)
     if (TARGET ${i})
       add_dependencies(${i} generate_T)
     endif()

@@ -108,19 +108,24 @@ int nr_beam_precoding(c16_t **txdataF,
                       int offset
 );
 
-void apply_nr_rotation(NR_DL_FRAME_PARMS *fp,
-		       c16_t* txdata,
-		       int slot,
-		       int first_symbol,
-		       int nsymb);
+void apply_nr_rotation_TX(NR_DL_FRAME_PARMS *fp,
+                          c16_t *txdataF,
+                          c16_t *symbol_rotation,
+                          int slot,
+                          int nb_rb,
+                          int first_symbol,
+                          int nsymb);
 
 void init_symbol_rotation(NR_DL_FRAME_PARMS *fp);
 
 void init_timeshift_rotation(NR_DL_FRAME_PARMS *fp);
 
-void apply_nr_rotation_ul(NR_DL_FRAME_PARMS *frame_parms,
+void apply_nr_rotation_RX(NR_DL_FRAME_PARMS *frame_parms,
 			  c16_t *rxdataF,
+                          c16_t *rot,
 			  int slot,
+                          int nb_rb,
+                          int soffset,
 			  int first_symbol,
 			  int nsymb);
 

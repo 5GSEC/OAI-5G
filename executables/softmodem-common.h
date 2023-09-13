@@ -40,15 +40,15 @@ extern "C"
 #define CONFIG_HLP_RFCFGF        "Configuration file for front-end (e.g. LMS7002M)\n"
 #define CONFIG_HLP_SPLIT73       "Split 7.3 (below rate matching) option: <cu|du>:<remote ip address>:<remote port>\n"
 #define CONFIG_HLP_TPOOL         "Thread pool configuration: \n\
-  list of cores, comma separated (negative value is no core affinity)\n\
-  example: -1,3 launches two working threads one floating, the second set on core 3\n\
-  default 8 floating threads\n\
-  use N for no pool (runs in calling thread) recommended with rfsim.\n"
+         list of cores, comma separated (negative value is no core affinity)\n\
+         example: -1,3 launches two working threads one floating, the second set on core 3\n\
+         default 8 floating threads\n\
+         use N for no pool (runs in calling thread) recommended with rfsim.\n"
 #define CONFIG_HLP_REORDER       "Disable reorder thread\n"
 #define CONFIG_HLP_ULMAXE        "set the eNodeB max ULSCH erros\n"
 #define CONFIG_HLP_CALUER        "set UE RX calibration\n"
-#define CONFIG_HLP_CALUERM       ""
-#define CONFIG_HLP_CALUERB       ""
+#define CONFIG_HLP_CALUERM       "\n"
+#define CONFIG_HLP_CALUERB       "\n"
 #define CONFIG_HLP_DBGUEPR       "UE run normal prach power ramping, but don't continue random-access\n"
 #define CONFIG_HLP_CALPRACH      "UE run normal prach with maximum power, but don't continue random-access\n"
 #define CONFIG_HLP_NOL2CN        "bypass L2 and upper layers\n"
@@ -58,6 +58,7 @@ extern "C"
 #define CONFIG_HLP_PHYTST        "test UE phy layer, mac disabled\n"
 #define CONFIG_HLP_DORA          "test gNB  and UE with RA procedures\n"
 #define CONFIG_HLP_SA            "run gNB in standalone mode\n"
+#define CONFIG_HLP_SL_MODE       "sets the NR sidelink mode (0: not in sidelink mode, 1: in-coverage/gNB, 2: out-of-coverage/no gNB)"
 #define CONFIG_HLP_EXTS          "tells hardware to use an external timing reference\n"
 #define CONFIG_HLP_DMRSSYNC      "tells RU to insert DMRS in subframe 1 slot 0"
 #define CONFIG_HLP_CLK           "tells hardware to use a clock reference (0:internal, 1:external, 2:gpsdo)\n"
@@ -67,6 +68,7 @@ extern "C"
 #define CONFIG_HLP_NOSNGLT       "Disables single-thread mode in lte-softmodem\n"
 #define CONFIG_HLP_DLF           "Set the downlink frequency for all component carriers\n"
 #define CONFIG_HLP_ULF           "Set the uplink frequency offset for all component carriers\n"
+#define CONFIG_HLP_SLF           "Set the sidelink frequency for all component carriers\n"
 #define CONFIG_HLP_CHOFF         "Channel id offset\n"
 #define CONFIG_HLP_SOFTS         "Enable soft scope and L1 and L2 stats (Xforms)\n"
 #define CONFIG_HLP_SOFTS_QT      "Enable soft scope and L1 and L2 stats (QT)\n"
@@ -103,7 +105,7 @@ extern "C"
 #define CONFIG_HLP_NFAPI         "Change the nFAPI mode for NR 'MONOLITHIC', 'PNF', 'VNF','UE_STUB_PNF','UE_STUB_OFFNET','STANDALONE_PNF'\n"
 #define CONFIG_L1_EMULATOR       "Run in L1 emulated mode (disable PHY layer)\n"
 #define CONFIG_HLP_CONTINUOUS_TX "perform continuous transmission, even in TDD mode (to work around USRP issues)\n"
-#define CONFIG_HLP_STATS_DISABLE "disable globally the stats generation and persistence"
+#define CONFIG_HLP_STATS_DISABLE "disable globally the stats generation and persistence\n"
 
 /*-----------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*                                            command line parameters common to eNodeB and UE                                                          */
@@ -115,6 +117,7 @@ extern "C"
 #define PHY_TEST            softmodem_params.phy_test
 #define DO_RA               softmodem_params.do_ra
 #define SA                  softmodem_params.sa
+#define SL_MODE             softmodem_params.sl_mode
 #define WAIT_FOR_SYNC       softmodem_params.wait_for_sync
 #define SINGLE_THREAD_FLAG  softmodem_params.single_thread_flag
 #define CHAIN_OFFSET        softmodem_params.chain_offset
@@ -146,6 +149,7 @@ extern int usrp_tx_thread;
   {"phy-test",              CONFIG_HLP_PHYTST,        PARAMFLAG_BOOL, .iptr=&PHY_TEST,                        .defintval=0,             TYPE_INT,    0},  \
   {"do-ra",                 CONFIG_HLP_DORA,          PARAMFLAG_BOOL, .iptr=&DO_RA,                           .defintval=0,             TYPE_INT,    0},  \
   {"sa",                    CONFIG_HLP_SA,            PARAMFLAG_BOOL, .iptr=&SA,                              .defintval=0,             TYPE_INT,    0},  \
+  {"sl-mode",               CONFIG_HLP_SL_MODE,       0,              .u8ptr=&SL_MODE,                        .defintval=0,             TYPE_UINT8,  0},  \
   {"usim-test",             CONFIG_HLP_USIM,          PARAMFLAG_BOOL, .u8ptr=&USIM_TEST,                      .defintval=0,             TYPE_UINT8,  0},  \
   {"clock-source",          CONFIG_HLP_CLK,           0,              .uptr=&CLOCK_SOURCE,                    .defintval=0,             TYPE_UINT,   0},  \
   {"time-source",           CONFIG_HLP_TME,           0,              .uptr=&TIMING_SOURCE,                   .defintval=0,             TYPE_UINT,   0},  \
@@ -182,6 +186,7 @@ extern int usrp_tx_thread;
 
 // clang-format off
 #define CMDLINE_PARAMS_CHECK_DESC {         \
+    { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
     { .s5 = { NULL } },                     \
@@ -308,6 +313,7 @@ typedef struct {
   int            phy_test;
   int            do_ra;
   int            sa;
+  uint8_t        sl_mode;
   uint8_t        usim_test;
   int            emulate_rf;
   int            wait_for_sync; //eNodeB only

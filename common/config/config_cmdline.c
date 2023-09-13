@@ -232,11 +232,12 @@ int config_process_cmdline(paramdef_t *cfgoptions,int numoptions, char *prefix) 
         }
       } else {
         pp=strtok_r(NULL, " ",&tokctx);
+	int _helpAll = strcmp (pp, "all") == 0;
 
-        if ( prefix != NULL && pp != NULL && strncasecmp(prefix,pp,strlen(pp)) == 0 ) {
+        if ( (prefix != NULL && pp != NULL && (strncasecmp(prefix,pp,strlen(pp)) == 0)) || _helpAll ) {
           config_printhelp(cfgoptions,numoptions,prefix);
 
-          if ( ! (CONFIG_ISFLAGSET(CONFIG_NOEXITONHELP))) {
+          if ( ! (CONFIG_ISFLAGSET(CONFIG_NOEXITONHELP)) && !_helpAll) {
             fprintf(stderr,"[CONFIG] %s %i section %s:", __FILE__, __LINE__, prefix);
             exit_fun(" Exiting after displaying help\n");
           }

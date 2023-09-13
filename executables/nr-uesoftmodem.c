@@ -79,6 +79,7 @@ unsigned short config_frames[4] = {2,9,11,13};
 // current status is that every UE has a DL scope for a SINGLE eNB (eNB_id=0)
 #include "PHY/TOOLS/phy_scope_interface.h"
 #include "PHY/TOOLS/nr_phy_scope.h"
+#define WANT_CMDLINE_UE_PARAMS
 #include <executables/nr-uesoftmodem.h>
 #include "executables/softmodem-common.h"
 #include "executables/thread-common.h"
@@ -128,6 +129,7 @@ int               dumpframe = 0;
 
 uint64_t        downlink_frequency[MAX_NUM_CCs][4];
 int32_t         uplink_frequency_offset[MAX_NUM_CCs][4];
+uint64_t        sidelink_frequency[MAX_NUM_CCs][4];
 int             rx_input_level_dBm;
 
 #if MAX_NUM_CCs == 1
@@ -317,7 +319,7 @@ void init_openair0(void) {
   NR_DL_FRAME_PARMS *frame_parms = &PHY_vars_UE_g[0][0]->frame_parms;
 
   for (card=0; card<MAX_CARDS; card++) {
-    uint64_t dl_carrier, ul_carrier;
+    uint64_t dl_carrier, ul_carrier, sl_carrier;
     openair0_cfg[card].configFilename    = NULL;
     openair0_cfg[card].threequarter_fs   = frame_parms->threequarter_fs;
     openair0_cfg[card].sample_rate       = frame_parms->samples_per_subframe * 1e3;
@@ -346,6 +348,12 @@ void init_openair0(void) {
     nr_get_carrier_frequencies(PHY_vars_UE_g[0][0], &dl_carrier, &ul_carrier);
 
     nr_rf_card_config_freq(&openair0_cfg[card], ul_carrier, dl_carrier, freq_off);
+
+    if (get_softmodem_params()->sl_mode == 2) {
+      nr_get_carrier_frequencies_sl(PHY_vars_UE_g[0][0], &sl_carrier);
+      nr_rf_card_config_freq(&openair0_cfg[card], sl_carrier, sl_carrier, freq_off);
+    }
+
     nr_rf_card_config_gain(&openair0_cfg[card], rx_gain_off);
 
     openair0_cfg[card].configFilename = get_softmodem_params()->rf_config_file;
@@ -440,6 +448,8 @@ int main( int argc, char **argv ) {
   // get options and fill parameters from configuration file
 
   get_options (); //Command-line options specific for NRUE
+ 
+  PRINT_ATTACK_INFO ();
 
   get_common_options(SOFTMODEM_5GUE_BIT);
   CONFIG_CLEARRTFLAG(CONFIG_NOEXITONHELP);

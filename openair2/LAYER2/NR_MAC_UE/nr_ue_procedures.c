@@ -42,6 +42,7 @@
 
 /* MAC */
 #include "NR_MAC_COMMON/nr_mac.h"
+#define DECL_nr_extract_dci_info
 #include "NR_MAC_UE/mac_proto.h"
 #include "NR_MAC_UE/mac_extern.h"
 #include "NR_MAC_COMMON/nr_mac_extern.h"
@@ -62,6 +63,8 @@
 //#define ENABLE_MAC_PAYLOAD_DEBUG 1
 //#define DEBUG_EXTRACT_DCI
 //#define DEBUG_RAR
+
+
 
 extern uint32_t N_RB_DL;
 
@@ -184,12 +187,6 @@ void nr_ue_mac_default_configs(NR_UE_MAC_INST_t *mac)
   mac->scheduling_info.retxBSR_SF = MAC_UE_BSR_TIMER_NOT_RUNNING;
   mac->BSR_reporting_active = BSR_TRIGGER_NONE;
 
-  mac->first_sync_frame = -1;
-  mac->get_sib1 = false;
-  mac->phy_config_request_sent = false;
-  mac->state = UE_NOT_SYNC;
-  memset(&mac->ssb_measurements, 0, sizeof(mac->ssb_measurements));
-
   for (int i = 0; i < NR_MAX_NUM_LCID; i++) {
     LOG_D(NR_MAC, "Applying default logical channel config for LCGID %d\n", i);
     mac->scheduling_info.Bj[i] = -1;
@@ -268,8 +265,6 @@ int8_t nr_ue_decode_mib(module_id_t module_id,
   nr_mac_rrc_data_ind_ue(module_id, cc_id, gNB_index, 0, 0, 0, NR_BCCH_BCH, (uint8_t *) pduP, 3);    //  fixed 3 bytes MIB PDU
     
   AssertFatal(mac->mib != NULL, "nr_ue_decode_mib() mac->mib == NULL\n");
-
-  mac->ssb_measurements.consecutive_bch_failures = 0; // resetting decoding failures
 
   uint16_t frame = (mac->mib->systemFrameNumber.buf[0] >> mac->mib->systemFrameNumber.bits_unused);
   uint16_t frame_number_4lsb = 0;
@@ -4089,7 +4084,7 @@ int nr_ue_process_rar(nr_downlink_indication_t *dl_info, int pdu_id)
     // MCS
     rar_grant.mcs = (unsigned char) (rar->UL_GRANT_4 >> 4);
     // time alloc
-    rar_grant.Msg3_t_alloc = (unsigned char) (rar->UL_GRANT_3 & 0x07);
+    rar_grant.Msg3_t_alloc = (unsigned char) (rar->UL_GRANT_3 & 0x0f);
     // frequency alloc
     rar_grant.Msg3_f_alloc = (uint16_t) ((rar->UL_GRANT_3 >> 4) | (rar->UL_GRANT_2 << 4) | ((rar->UL_GRANT_1 & 0x03) << 12));
     // frequency hopping

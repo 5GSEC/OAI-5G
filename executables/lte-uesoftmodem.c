@@ -73,6 +73,7 @@
 #include "create_tasks.h"
 #include "system.h"
 
+#define WANT_CMDLINE_UE_PARAMS
 #include "lte-softmodem.h"
 #include "executables/softmodem-common.h"
 
@@ -516,7 +517,7 @@ static void init_pdcp(int ue_id) {
 // Stupid function addition because UE itti messages queues definition is common with eNB
 void *rrc_enb_process_msg(void *notUsed) {
 AssertFatal(false,"");
-	return NULL;
+  return NULL;
 }
 
 int NB_UE_INST = 1;
@@ -544,6 +545,8 @@ int main( int argc, char **argv ) {
   for (int i=0; i<MAX_NUM_CCs; i++) tx_max_power[i]=23;
 
   get_options ();
+ 
+  PRINT_ATTACK_INFO ();
 
   if (NFAPI_MODE == NFAPI_MODE_STANDALONE_PNF) {
     sf_ahead = 1;
