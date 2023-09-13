@@ -23,6 +23,79 @@
   <a href="https://hub.docker.com/r/oaisoftwarealliance/oai-lte-ue"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/oaisoftwarealliance/oai-lte-ue?label=LTE-UE%20docker%20pulls"></a>
 </p>
 
+# OAI LTE Attack Branch #
+
+## Compilation
+```
+./EKBuildOAIUE.sh --help
+EKBuildOAIUE.sh [-h|--help] [-d|--debug] [-b|--branch <branch] [<mode>] [<network type>] [-- ...]
+
+  where <mode> is
+
+    0 or mas[ter] (default)
+    1 or tt[racer]
+    2 or dev[elop]
+    3 or bts[_resource_depletion]
+    4 or blind[_dos]
+    5 or att[ack]
+
+  <network type> is
+
+    4G | 4g | LTE | lte (default)
+    5G | 5g | NR  | nr
+```
+
+## Run Attack
+```
+./runOAIUE.sh --help
+runOAIUE.sh [-h|--help] [-d|--debug]
+           [-U|--use-core <core #>] [-C|--config <5G config>]
+           [-L|--log <output log file>] [-p|--pcap [--ts[stdout] <t_stdout>]
+           [-b|--branch <branch]
+           [<mode>] [<network type>]
+           [-- ...]
+
+  where <mode> is
+
+    0 or mas[ter] (default)
+    1 or tt[racer]
+    2 or dev[elop]
+    3 or bts[_resource_depletion]
+    4 or blind[_dos]
+    5 or att[ack]
+
+  <network type> is
+
+    4G | 4g | LTE | lte (default)
+    5G | 5g | NR  | nr
+
+  <t_stdout>, which must be specified before --pcap, is the value of T_stdout (default: 1):
+
+    0 disable console logging and send messages to T-Tracer
+    1 enable console logging and do not send messages to T-Tracer
+    2 enable console logging and send messages to T-Tracer
+
+  <output log file> is the output file for the console log (default: "/tmp/oaiUE.log"), and
+
+  arguments following '--' are passed to lte-softmodem.<mode>
+
+  Optional environment symbols:
+
+    CFREQ       center frequency (default: 2630000000)
+    RXGAIN      receive gain (default: 120)
+    TXGAIN      transmit gain (default: 0)
+    PRB         physical resource blocks (default: 25)
+
+Example:
+
+  runOAIUE.sh blind -- -g 1 --TMSI 314152
+```
+
+Run Blind DoS attack
+```
+sudo ./runOAIUE.sh att -- --blind-dos-attack 1 --RRC-TMSI 12345
+```
+
 # OpenAirInterface License #
 
  *  [OAI License Model](http://www.openairinterface.org/?page_id=101)
