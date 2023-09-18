@@ -5264,24 +5264,23 @@ void *rrc_ue_task( void *args_p ) {
 
         // Trigger log when we see a non-attack NAS message length
         if (!IS_SOFTMODEM_RFSIM && (bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length != -1) {
-	  const char *_logAtt = tmsi_blind_dos_rrc /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
-
+	        const char *_logAtt = tmsi_blind_dos_rrc /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
           LOG_E(RRC, "[%s NAS_UPLINK_DATA_REQ]: NAS Message Length = %i\n", _logAtt, NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length);
         }
                           
         if ((bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length == -1) {
-	  const char *_logEAtt;
-	  const char *_logIAtt;
+          const char *_logEAtt;
+          const char *_logIAtt;
 
-	  if (tmsi_blind_dos_rrc /* > 0 */) {
-	    _logEAtt = "BLIND_DOS_ATTACK_ITEM_03";
-	    _logIAtt = "Blind DOS";
-	  }
-	  else {
-	    _logEAtt = "BTS_ATTACK_ITEM_03";
-	    _logIAtt = "BTS Resource Depletion";
-	  }
-	  LOG_E(RRC, "[%s]: Generating NAS UL Data Request, revert back to PRACH (primary attack functionality)\n", _logEAtt);
+          if (tmsi_blind_dos_rrc /* > 0 */) {
+            _logEAtt = "BLIND_DOS_ATTACK_ITEM_03";
+            _logIAtt = "Blind DOS";
+          }
+          else {
+            _logEAtt = "BTS_ATTACK_ITEM_03";
+            _logIAtt = "BTS Resource Depletion";
+          }
+          LOG_E(RRC, "[%s]: Generating NAS UL Data Request, revert back to PRACH (primary attack functionality)\n", _logEAtt);
           usleep(bts_delay * 1000);
 
           LOG_I(RRC, "ra_restart_counter: %d\n", _ra_restart_counter);

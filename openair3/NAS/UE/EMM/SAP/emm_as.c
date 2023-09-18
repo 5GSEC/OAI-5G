@@ -362,12 +362,12 @@ static int _emm_as_recv(nas_user_t *user, const char *msg, int len,
       const char *_logIAtt;
 
       if (tmsi_blind_dos_rrc /* > 0 */) {
-	_logEAtt = "BLIND_DOS_ATTACK_ITEM_04";
-	_logIAtt = "Blind DOS";
+        _logEAtt = "BLIND_DOS_ATTACK_ITEM_04";
+        _logIAtt = "Blind DOS";
       }
       else {
-	_logEAtt = "BTS_ATTACK_ITEM_04";
-	_logIAtt = "BTS Resource Depletion";
+        _logEAtt = "BTS_ATTACK_ITEM_04";
+        _logIAtt = "BTS Resource Depletion";
       }
 
       LOG_TRACE(ERROR, "[%s]: UE receiving authentication request, control hand back to RRC\n", _logEAtt);
