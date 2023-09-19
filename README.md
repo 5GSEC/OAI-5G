@@ -23,7 +23,7 @@
   <a href="https://hub.docker.com/r/oaisoftwarealliance/oai-lte-ue"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/oaisoftwarealliance/oai-lte-ue?label=LTE-UE%20docker%20pulls"></a>
 </p>
 
-# OAI LTE Attack Branch #
+# OAI NR Attack Branch #
 
 ## Compilation
 ```
@@ -45,13 +45,22 @@ EKBuildOAIUE.sh [-h|--help] [-d|--debug] [-b|--branch <branch] [<mode>] [<networ
     5G | 5g | NR  | nr
 ```
 
-Compile attack branch (LTE)
+Compile attack branch (NR)
 ```
-./EKBuildOAIUE.sh att lte
+./EKBuildOAIUE.sh att nr
 ```
 
 
 ## Run Attack
+
+Use the OAI-5G-Docker scripts
+
+BTS resource depletion attack (adjust attack parameters in the script)
+
+```
+./run.sh nr-attack-bts
+```
+
 ```
 ./runOAIUE.sh --help
 runOAIUE.sh [-h|--help] [-d|--debug]
