@@ -61,6 +61,8 @@ BTS resource depletion attack (adjust attack parameters in the script)
 ./run.sh nr-attack-bts
 ```
 
+Or use Martin's script:
+
 ```
 ./runOAIUE.sh --help
 runOAIUE.sh [-h|--help] [-d|--debug]
