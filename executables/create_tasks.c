@@ -80,7 +80,7 @@ int create_tasks(uint32_t enb_nb) {
 
   if (RC.nrrrc != NULL) {
     // NR
-    if (NODE_IS_CU(RC.nrrrc[0]->node_type)) {
+    if (NODE_IS_MONOLITHIC(RC.nrrrc[0]->node_type) || NODE_IS_CU(RC.nrrrc[0]->node_type)) {
       rc = itti_create_task(TASK_RIC_AGENT, ric_agent_task, NULL);
       AssertFatal(rc >= 0, "Create task for RIC_AGENT failed\n");
     }
