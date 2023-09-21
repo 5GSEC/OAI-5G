@@ -35,6 +35,7 @@
 #include "e2ap_handler.h"
 #include "e2sm_kpm.h"
 #include "openair2/ENB_APP/RRC_paramsvalues.h"
+#include "openair2/GNB_APP/RRC_nr_paramsvalues.h"
 
 #ifdef ENABLE_RAN_SLICING
 #include "e2sm_rsm.h"
@@ -579,14 +580,14 @@ void RCconfig_ric_agent(void)
     uint16_t i;
     char buf[16];
     paramdef_t ric_params[] = RICPARAMS_DESC;
+    int nb_inst = 0;
 
     e2_conf = (e2_conf_t **)calloc(256, sizeof(e2_conf_t));
 
-    // TODO: the latest OAI does not have CU DU concept for eNB...
-    // For 5G, we need to distinguish the CU and DU type, using different RAN Context struct, see RC.nrrrc[gnb_id]->node_type
-    // Hope this temporary fix will work...
     if (is_nr()) {
         // 5G NR: separate CU and DU
+        RIC_AGENT_INFO("RCconfig_ric_agent: NR node type %d\n", RC.nrrrc[0]->node_type);
+        nb_inst = RC.nb_nr_inst;
         if (NODE_IS_CU(RC.nrrrc[0]->node_type))
         {
             ric_agent_info = (ric_agent_info_t **)calloc(250, sizeof(ric_agent_info_t));
@@ -595,82 +596,100 @@ void RCconfig_ric_agent(void)
         {
             du_ric_agent_info = (du_ric_agent_info_t **)calloc(250, sizeof(du_ric_agent_info_t));
         }
+        else if (NODE_IS_MONOLITHIC(RC.nrrrc[0]->node_type))
+        {
+            // TODO: GNB MONOLITHIC is treated as CU
+            ric_agent_info = (ric_agent_info_t **)calloc(250, sizeof(ric_agent_info_t));
+        }
     }
     else if (is_lte()) {
-        // LTE: init ric agent for CU and DU since eNB does not separate them
+        RIC_AGENT_INFO("RCconfig_ric_agent: LTE node\n");
+        nb_inst = RC.nb_inst;
+        // LTE: init ric agent for CU and DU since OAI has removed F1 for eNB
         ric_agent_info = (ric_agent_info_t **)calloc(250, sizeof(ric_agent_info_t));
         du_ric_agent_info = (du_ric_agent_info_t **)calloc(250, sizeof(du_ric_agent_info_t));
     }
     else {
-        RIC_AGENT_INFO("RAT not LTE or NR");
+        RIC_AGENT_ERROR("RAT not LTE or NR");
+        return;
     }
 
-    for (i = 0; i < RC.nb_inst; ++i) 
+    for (i = 0; i < nb_inst; ++i) 
     {
         if (is_nr()) {
             // 5G NR: skip DU
-            if (!NODE_IS_CU(RC.nrrrc[i]->node_type)) {
+            if (NODE_IS_DU(RC.nrrrc[i]->node_type)) {
                 continue;
             }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+            snprintf(buf, sizeof(buf), "%s.[%d].RIC", GNB_CONFIG_STRING_GNB_LIST, i);
+#pragma GCC diagnostic pop
+        }
+        else if (is_lte()) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+            snprintf(buf, sizeof(buf), "%s.[%d].RIC", ENB_CONFIG_STRING_ENB_LIST, i);
+#pragma GCC diagnostic pop
         }
 
         /* Get RIC configuration. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-        snprintf(buf, sizeof(buf), "%s.[%d].RIC", ENB_CONFIG_STRING_ENB_LIST, i);
-#pragma GCC diagnostic pop
         config_get(ric_params, sizeof(ric_params)/sizeof(paramdef_t), buf);
         
         if (ric_params[RIC_CONFIG_IDX_ENABLED].strptr != NULL
                 && strcmp(*ric_params[RIC_CONFIG_IDX_ENABLED].strptr, "yes") == 0) 
         {
-            // RIC_AGENT_INFO("NODE[%d] enabled for NB %u\n",RC.rrc[i]->node_type, i);
-
             e2_conf[i] = (e2_conf_t *)calloc(1,sizeof(e2_conf_t));
             // NR
             if (is_nr()) {
+                RIC_AGENT_INFO("NODE[%d] enabled for NB %u\n",RC.nrrrc[i]->node_type, i);
                 if (NODE_IS_CU(RC.nrrrc[i]->node_type))
                 {
                     ric_agent_info[i] = (ric_agent_info_t *)calloc(1, sizeof(ric_agent_info_t));
                     ric_agent_info[i]->assoc_id = -1;
                     ric_agent_info[i]->data_conn_assoc_id = -1;
+                    e2_conf[i]->e2node_type = E2NODE_TYPE_GNB_CU;
                 } 
                 else if (NODE_IS_DU(RC.nrrrc[i]->node_type))
                 {
                     du_ric_agent_info[i] = (du_ric_agent_info_t *)calloc(1, sizeof(du_ric_agent_info_t));
                     du_ric_agent_info[i]->du_assoc_id = -1;
                     du_ric_agent_info[i]->du_data_conn_assoc_id = -1;
+                    e2_conf[i]->e2node_type = E2NODE_TYPE_GNB_DU;
                 }
-
-                // init e2 conf
-                switch (RC.nrrrc[i]->node_type) {
-                    case ngran_eNB_CU:
-                        e2_conf[i]->e2node_type = E2NODE_TYPE_ENB_CU;
-                        break;
-                    case ngran_ng_eNB_CU:
-                        e2_conf[i]->e2node_type = E2NODE_TYPE_NG_ENB_CU;
-                        break;
-                    case ngran_gNB_CU:
-                        e2_conf[i]->e2node_type = E2NODE_TYPE_GNB_CU;
-                        break;
-                    case ngran_eNB_DU:
-                        e2_conf[i]->e2node_type = E2NODE_TYPE_ENB_DU;
-                        break;
-                    default:
-                        break;
+                else if (NODE_IS_MONOLITHIC(RC.nrrrc[i]->node_type))
+                {
+                    ric_agent_info[i] = (ric_agent_info_t *)calloc(1, sizeof(ric_agent_info_t));
+                    ric_agent_info[i]->assoc_id = -1;
+                    ric_agent_info[i]->data_conn_assoc_id = -1;
+                    e2_conf[i]->e2node_type = E2NODE_TYPE_GNB;
+                }
+                else {
+                    RIC_AGENT_ERROR("RCconfig_ric_agent: Unhandled NR node type %d\n", RC.nrrrc[i]->node_type);
                 }
 
                 e2_conf[i]->enabled = 1;
-                e2_conf[i]->node_name = strdup(RC.nrrrc[i]->node_name);
+                if (RC.nrrrc[i]->node_name != NULL)
+                    e2_conf[i]->node_name = strdup(RC.nrrrc[i]->node_name);
+                else
+                    e2_conf[i]->node_name = GNB_CONFIG_STRING_GNB_LIST;
                 e2_conf[i]->cell_identity = RC.nrrrc[i]->configuration.cell_identity;
                 e2_conf[i]->mcc = RC.nrrrc[i]->configuration.mcc[0];
                 e2_conf[i]->mnc = RC.nrrrc[i]->configuration.mnc[0];
                 e2_conf[i]->mnc_digit_length = RC.nrrrc[i]->configuration.mnc_digit_length[0];
-                e2_conf[i]->remote_ipv4_addr = strdup(*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr);
-                e2_conf[i]->remote_port = *ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr;
+                if (*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr != NULL)
+                    e2_conf[i]->remote_ipv4_addr = strdup(*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr);
+                else
+                    RIC_AGENT_ERROR("remote_ipv4_addr not provided in the config file\n");
+                
+                if (*ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr != NULL)
+                    e2_conf[i]->remote_port = *ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr;
+                else
+                    RIC_AGENT_ERROR("remote_port not provided in the config file\n");
             }
             // LTE
             else if (is_lte()) {
+                RIC_AGENT_INFO("NODE[%d] enabled for NB %u\n",E2NODE_TYPE_ENB, i);
                 ric_agent_info[i] = (ric_agent_info_t *)calloc(1, sizeof(ric_agent_info_t));
                 ric_agent_info[i]->assoc_id = -1;
                 ric_agent_info[i]->data_conn_assoc_id = -1;
@@ -688,9 +707,20 @@ void RCconfig_ric_agent(void)
                 e2_conf[i]->mnc = RC.rrc[i]->configuration.mnc[0];
                 e2_conf[i]->mnc_digit_length = RC.rrc[i]->configuration.mnc_digit_length[0];
 
-                e2_conf[i]->e2node_type = E2NODE_TYPE_ENB_CU; // eNB considered CU?
-                e2_conf[i]->remote_ipv4_addr = strdup(*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr);
-                e2_conf[i]->remote_port = *ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr;
+                e2_conf[i]->e2node_type = E2NODE_TYPE_ENB;
+                if (*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr != NULL)
+                   e2_conf[i]->remote_ipv4_addr = strdup(*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr);
+                else
+                    RIC_AGENT_ERROR("remote_ipv4_addr not provided in the config file\n");
+
+                if (*ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr != NULL)
+                    e2_conf[i]->remote_port = *ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr;
+                else
+                    RIC_AGENT_ERROR("remote_port not provided in the config file\n");
+            }
+            else {
+                RIC_AGENT_ERROR("RCconfig_ric_agent: Unsupported RAT\n");
+                return;
             }
             
         

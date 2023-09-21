@@ -362,13 +362,26 @@ int e2ap_handle_e2_connection_update(
                 remote_port = decoded_port;
 
                 /* CU & DU Differentiation */
-                if (e2_conf[ranid]->e2node_type == E2NODE_TYPE_ENB_CU)
+                e2node_type_t node_type = e2_conf[ranid]->e2node_type;
+                if (node_type == E2NODE_TYPE_GNB_CU)
                 {
                     msg = itti_alloc_new_message(TASK_RIC_AGENT, 0, SCTP_NEW_ASSOCIATION_REQ);
                 }
-                else //if (e2_conf[ric->ranid]->e2node_type == E2NODE_TYPE_ENB_DU)
+                else if (node_type == E2NODE_TYPE_GNB_DU)
                 {
                     msg = itti_alloc_new_message(TASK_RIC_AGENT_DU, 0, SCTP_NEW_ASSOCIATION_REQ);
+                }
+                else if (node_type == E2NODE_TYPE_GNB)
+                {
+                    msg = itti_alloc_new_message(TASK_RIC_AGENT, 0, SCTP_NEW_ASSOCIATION_REQ);
+                }
+                else if (node_type == E2NODE_TYPE_ENB)
+                {
+                    msg = itti_alloc_new_message(TASK_RIC_AGENT, 0, SCTP_NEW_ASSOCIATION_REQ);
+                }
+                else
+                {
+                    RIC_AGENT_ERROR("Unhandled node type %d in e2ap_handle_e2_connection_update\n", node_type);
                 }
 
                 req = &msg->ittiMsg.sctp_new_association_req;
@@ -1301,3 +1314,4 @@ int e2ap_handle_gp_timer_expiry(
             info->instance_id, info->action_id,
             outbuf, outlen);
 }
+

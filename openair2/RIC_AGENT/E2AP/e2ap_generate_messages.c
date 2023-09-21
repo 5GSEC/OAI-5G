@@ -48,8 +48,8 @@
 #include "E2AP_GlobalE2node-eNB-ID.h"
 #include "E2AP_GlobalE2node-ID.h"
 #include "E2AP_E2nodeComponentInterfaceType.h"
-// #include "E2AP_E2nodeComponentID.h"
-// #include "E2AP_ENB-ID.h"
+
+#include "E2AP_GlobalE2node-gNB-ID.h"
 
 extern int global_e2_node_id(ranid_t ranid, E2AP_GlobalE2node_ID_t* node_id);
 
@@ -143,7 +143,7 @@ int e2ap_generate_e2_setup_request(ranid_t  ranid,
   
   e2NodeCompId = &(e2node_comp_cfg_update_ie->value.choice.E2nodeComponentConfigAddition_Item.e2nodeComponentID);
 
-  if (e2node_type == E2NODE_TYPE_ENB_CU)
+  if (e2node_type == E2NODE_TYPE_GNB_CU || e2node_type == E2NODE_TYPE_GNB || e2node_type == E2NODE_TYPE_ENB)
   {
     e2node_comp_cfg_update_ie->value.choice.E2nodeComponentConfigAddition_Item.e2nodeComponentInterfaceType = E2AP_E2nodeComponentInterfaceType_e1; //E2AP_E2nodeComponentType_ng_eNB_CU 
     e2NodeCompId->present = E2AP_E2nodeComponentID_PR_e2nodeComponentInterfaceTypeE1;
@@ -153,7 +153,7 @@ int e2ap_generate_e2_setup_request(ranid_t  ranid,
     //e2NodeCompId->choice.e2nodeComponentTypeGNB_CU_UP.gNB_CU_UP_ID.size = strlen("100");//sizeof(uint64_t);
     //e2NodeCompId->choice.e2nodeComponentTypeGNB_CU_UP.gNB_CU_UP_ID.buf = (uint8_t *)strdup("100");
   }
-  else if (e2node_type == E2NODE_TYPE_ENB_DU)
+  else if (e2node_type == E2NODE_TYPE_GNB_DU)
   {
     e2node_comp_cfg_update_ie->value.choice.E2nodeComponentConfigAddition_Item.e2nodeComponentInterfaceType = E2AP_E2nodeComponentInterfaceType_f1; //E2AP_E2nodeComponentType_ng_eNB_DU
     e2NodeCompId->present = E2AP_E2nodeComponentID_PR_e2nodeComponentInterfaceTypeF1;
@@ -240,7 +240,7 @@ int e2ap_generate_e2_config_update(ranid_t  ranid,
   ie->value.present = E2AP_E2nodeConfigurationUpdate_IEs__value_PR_E2nodeComponentConfigUpdate_List;
 
   
-  if (e2node_type == E2NODE_TYPE_ENB_CU)
+  if (e2node_type == E2NODE_TYPE_GNB_CU || e2node_type == E2NODE_TYPE_GNB || e2node_type == E2NODE_TYPE_ENB)
   { 
     /* S1 Interface Component Config */
     updateItemIe = (E2AP_E2nodeComponentConfigUpdate_ItemIEs_t *)calloc(1,sizeof(*updateItemIe));
@@ -268,7 +268,7 @@ int e2ap_generate_e2_config_update(ranid_t  ranid,
   updateItemIe->value.present = E2AP_E2nodeComponentConfigUpdate_ItemIEs__value_PR_E2nodeComponentConfigUpdate_Item;
 
   updateItem = (E2AP_E2nodeComponentConfigUpdate_Item_t *)&updateItemIe->value.choice.E2nodeComponentConfigUpdate_Item;
-  if (e2node_type == E2NODE_TYPE_ENB_CU)
+  if (e2node_type == E2NODE_TYPE_GNB_CU || e2node_type == E2NODE_TYPE_GNB || e2node_type == E2NODE_TYPE_ENB)
   {
     updateItem->e2nodeComponentInterfaceType = E2AP_E2nodeComponentInterfaceType_e1;
     updateItem->e2nodeComponentID.present = E2AP_E2nodeComponentID_PR_e2nodeComponentInterfaceTypeE1;
@@ -276,7 +276,7 @@ int e2ap_generate_e2_config_update(ranid_t  ranid,
     if (asn_umax2INTEGER(&updateItem->e2nodeComponentID.choice.e2nodeComponentInterfaceTypeE1->gNB_CU_CP_ID, 100) != 0)
         RIC_AGENT_ERROR("gNB_CU_UP_ID encoding failed\n");
   }
-  else if (e2node_type == E2NODE_TYPE_ENB_DU)
+  else if (e2node_type == E2NODE_TYPE_GNB_DU)
   {
     updateItem->e2nodeComponentInterfaceType = E2AP_E2nodeComponentInterfaceType_f1;
     updateItem->e2nodeComponentID.present = E2AP_E2nodeComponentID_PR_e2nodeComponentInterfaceTypeF1;
@@ -769,11 +769,9 @@ int e2ap_generate_reset_response(ric_agent_info_t *ric,
 }
 
 int global_e2_node_id(ranid_t ranid, E2AP_GlobalE2node_ID_t* node_id) {
-    e2node_type_t node_type;
+    e2node_type_t node_type = e2_conf[ranid]->e2node_type;
 
-    node_type = e2_conf[ranid]->e2node_type;
-
-    if ( (node_type == E2NODE_TYPE_ENB_CU) || (node_type == E2NODE_TYPE_ENB_DU) ) 
+    if (node_type == E2NODE_TYPE_ENB) 
     {
         node_id->present = E2AP_GlobalE2node_ID_PR_eNB;
 
@@ -790,6 +788,27 @@ int global_e2_node_id(ranid_t ranid, E2AP_GlobalE2node_ID_t* node_id) {
                 e2_conf[ranid]->cell_identity,
                 &node_id->choice.eNB->global_eNB_ID.eNB_ID.choice.macro_eNB_ID);
 
+    }
+    else if (node_type == E2NODE_TYPE_GNB || node_type == E2NODE_TYPE_GNB_CU || node_type == E2NODE_TYPE_GNB_DU)
+    {
+      node_id->present = E2AP_GlobalE2node_ID_PR_gNB;
+
+      node_id->choice.gNB = (struct E2AP_GlobalE2node_gNB_ID *) calloc(1, sizeof(*node_id->choice.gNB));
+      MCC_MNC_TO_PLMNID(
+                e2_conf[ranid]->mcc,
+                e2_conf[ranid]->mnc,
+                e2_conf[ranid]->mnc_digit_length,
+                &node_id->choice.gNB->global_gNB_ID.plmn_id);
+      
+      node_id->choice.gNB->global_gNB_ID.gnb_id.present = E2AP_GNB_ID_Choice_PR_gnb_ID;
+
+      MACRO_GNB_ID_TO_BIT_STRING(
+                e2_conf[ranid]->cell_identity,
+                &node_id->choice.gNB->global_gNB_ID.gnb_id.choice.gnb_ID);
+    }
+    else {
+      RIC_AGENT_ERROR("unsupported eNB/gNB ngran_node_t %d; aborting!\n", node_type);
+      exit(1);
     }
 #if 0
     else if (node_type == E2NODE_TYPE_NG_ENB) {
@@ -968,4 +987,5 @@ int e2ap_asn1c_encode_pdu(E2AP_E2AP_PDU_t* pdu, unsigned char **buffer)
 
     return len;
 }
+
 

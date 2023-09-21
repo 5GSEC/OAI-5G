@@ -2259,3 +2259,4 @@ void nr_read_config_and_init(void) {
     nr_pdcp_layer_init();
   }
 }
+

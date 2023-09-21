@@ -195,12 +195,19 @@ typedef struct ric_ran_function {
     void *definition;
 } ric_ran_function_t;
 
-typedef enum {
+typedef enum { // common/ngran_types.h
     E2NODE_TYPE_NONE,
     E2NODE_TYPE_ENB_CU,
+    E2NODE_TYPE_ENB_DU,
+    E2NODE_TYPE_ENB,
+    E2NODE_TYPE_NG_ENB,
     E2NODE_TYPE_NG_ENB_CU,
     E2NODE_TYPE_GNB_CU,
-    E2NODE_TYPE_ENB_DU
+    E2NODE_TYPE_GNB_DU,
+    E2NODE_TYPE_GNB,
+    E2NODE_TYPE_GNB_CU_CP,
+    E2NODE_TYPE_GNB_CU_UP
+    
 } e2node_type_t;
 
 typedef struct e2_conf {
@@ -241,3 +248,4 @@ int is_lte(void);
 int is_nr(void);
 
 #endif /* _RIC_AGENT_H */
+

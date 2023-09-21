@@ -71,6 +71,10 @@
 #include "E2SM_KPM_GlobalENB-ID-KPMv2.h"
 #include "E2SM_KPM_CellGlobalID-KPMv2.h"
 
+#include "E2AP_GNB-ID-Choice.h"
+#include "E2SM_KPM_GlobalKPMnode-gNB-ID-KPMv2.h"
+#include "E2SM_KPM_GlobalgNB-ID-KPMv2.h"
+
 #include "RRC/LTE/rrc_defs.h"
 #include "RRC/NR/nr_rrc_defs.h"
 #include "RRC/LTE/rrc_eNB_UE_context.h"
@@ -89,7 +93,7 @@ int prev_state[MAX_UE_NUM];
 // extern f1ap_cudu_inst_t f1ap_cu_inst[MAX_eNB];
 extern int global_e2_node_id(ranid_t ranid, E2AP_GlobalE2node_ID_t* node_id);
 extern RAN_CONTEXT_t RC;
-extern eNB_RRC_KPI_STATS    rrc_kpi_stats;
+extern eNB_RRC_KPI_STATS    rrc_kpi_stats; // Old eNB KPMSM
 
 
 #ifndef FALSE
@@ -234,45 +238,101 @@ int e2sm_kpm_init(void)
     /* KPM Node List */
     func_def->ric_KPM_Node_List = (struct E2SM_KPM_E2SM_KPMv2_RANfunction_Description__ric_KPM_Node_List *)calloc(1, sizeof(*func_def->ric_KPM_Node_List));
     ric_kpm_node_item = (E2SM_KPM_RIC_KPMNode_Item_KPMv2_t *)calloc(1, sizeof(*ric_kpm_node_item));
-    ric_kpm_node_item->ric_KPMNode_Type.present = E2SM_KPM_GlobalKPMnode_ID_KPMv2_PR_eNB; 
-    
+
+    int nb_inst = 0;
+    if (is_nr())
+        nb_inst = RC.nb_nr_inst;
+    else if (is_lte())
+        nb_inst = RC.nb_inst;
+
+    e2node_type_t node_type;
     /* Fetching PLMN ID*/
-    for (i = 0; i < RC.nb_inst; ++i) { //is there a better way to fetch RANID,otherwise PLMNID of first intance will get populated ?
-        if ( (e2_conf[i]->enabled) && 
-             ((e2_conf[i]->e2node_type == E2NODE_TYPE_ENB_CU) || (e2_conf[i]->e2node_type == E2NODE_TYPE_NG_ENB_CU)) 
-           ){
-            ric_kpm_node_item->ric_KPMNode_Type.choice.eNB = (struct E2SM_KPM_GlobalKPMnode_eNB_ID_KPMv2 *) calloc(1, sizeof(*ric_kpm_node_item->ric_KPMNode_Type.choice.eNB)); //CALLOC(1, sizeof(struct E2SM_KPM_GlobalKPMnode_eNB_ID_KPMv2));
-            MCC_MNC_TO_PLMNID(
-                e2_conf[i]->mcc,
-                e2_conf[i]->mnc,
-                e2_conf[i]->mnc_digit_length,
-                &ric_kpm_node_item->ric_KPMNode_Type.choice.eNB->global_eNB_ID.pLMN_Identity);
-            break;
+    for (i = 0; i < nb_inst; ++i) { 
+        node_type = e2_conf[i]->e2node_type;
+        if (e2_conf[i]->enabled) 
+        {
+            switch (node_type)
+            {
+                case E2NODE_TYPE_GNB:
+                case E2NODE_TYPE_GNB_CU:
+                case E2NODE_TYPE_GNB_DU:
+                    ric_kpm_node_item->ric_KPMNode_Type.present = E2SM_KPM_GlobalKPMnode_ID_KPMv2_PR_gNB;
+                    ric_kpm_node_item->ric_KPMNode_Type.choice.gNB = (struct E2SM_KPM_GlobalKPMnode_gNB_ID_KPMv2 *) calloc(1, sizeof(*ric_kpm_node_item->ric_KPMNode_Type.choice.gNB));
+                    MCC_MNC_TO_PLMNID(
+                        e2_conf[i]->mcc,
+                        e2_conf[i]->mnc,
+                        e2_conf[i]->mnc_digit_length,
+                        &ric_kpm_node_item->ric_KPMNode_Type.choice.gNB->global_gNB_ID.plmn_id);
+                    
+                    /* gNB_ID */
+                    ric_kpm_node_item->ric_KPMNode_Type.choice.gNB->global_gNB_ID.gnb_id.present = E2AP_GNB_ID_Choice_PR_gnb_ID;
+                    MACRO_GNB_ID_TO_BIT_STRING(e2_conf[i]->cell_identity,
+                                            &ric_kpm_node_item->ric_KPMNode_Type.choice.gNB->global_gNB_ID.gnb_id.choice.gnb_ID);
+                    break;
+                
+                case E2NODE_TYPE_ENB:
+                    ric_kpm_node_item->ric_KPMNode_Type.present = E2SM_KPM_GlobalKPMnode_ID_KPMv2_PR_eNB;
+                    ric_kpm_node_item->ric_KPMNode_Type.choice.eNB = (struct E2SM_KPM_GlobalKPMnode_eNB_ID_KPMv2 *) calloc(1, sizeof(*ric_kpm_node_item->ric_KPMNode_Type.choice.eNB));
+                    MCC_MNC_TO_PLMNID(
+                        e2_conf[i]->mcc,
+                        e2_conf[i]->mnc,
+                        e2_conf[i]->mnc_digit_length,
+                        &ric_kpm_node_item->ric_KPMNode_Type.choice.eNB->global_eNB_ID.pLMN_Identity);
+                    
+                    /* eNB_ID */
+                    ric_kpm_node_item->ric_KPMNode_Type.choice.eNB->global_eNB_ID.eNB_ID.present = E2AP_ENB_ID_PR_macro_eNB_ID;
+                    MACRO_ENB_ID_TO_BIT_STRING(e2_conf[i]->cell_identity,
+                                            &ric_kpm_node_item->ric_KPMNode_Type.choice.eNB->global_eNB_ID.eNB_ID.choice.macro_eNB_ID);
+                    break;
+
+                default:
+                    RIC_AGENT_ERROR("Node type %d not handled in switch\n", node_type);
+                    break;
+            }
+            break; //is there a better way to fetch RANID,otherwise PLMNID of first intance will get populated ?
         }
     }
 
-    /* eNB_ID */
-    ric_kpm_node_item->ric_KPMNode_Type.choice.eNB->global_eNB_ID.eNB_ID.present = E2AP_ENB_ID_PR_macro_eNB_ID;
-    MACRO_ENB_ID_TO_BIT_STRING(e2_conf[i]->cell_identity,
-                               &ric_kpm_node_item->ric_KPMNode_Type.choice.eNB->global_eNB_ID.eNB_ID.choice.macro_eNB_ID);
-
-    ric_kpm_node_item->cell_Measurement_Object_List = 
-            (struct E2SM_KPM_RIC_KPMNode_Item_KPMv2__cell_Measurement_Object_List *)calloc(1, sizeof(*ric_kpm_node_item->cell_Measurement_Object_List));
+    ric_kpm_node_item->cell_Measurement_Object_List = (struct E2SM_KPM_RIC_KPMNode_Item_KPMv2__cell_Measurement_Object_List *)calloc(1, sizeof(*ric_kpm_node_item->cell_Measurement_Object_List));
     
     cell_meas_object_item = (E2SM_KPM_Cell_Measurement_Object_Item_KPMv2_t *)calloc(1, sizeof(*cell_meas_object_item));
     cell_meas_object_item->cell_object_ID.buf = (uint8_t *)strdup("1"); //if cell is TDD then EUtranCellTDD
     cell_meas_object_item->cell_object_ID.size = strlen("1");
-    cell_meas_object_item->cell_global_ID.present = E2SM_KPM_CellGlobalID_KPMv2_PR_eUTRA_CGI;
 
-    cell_meas_object_item->cell_global_ID.choice.eUTRA_CGI = (struct E2SM_KPM_EUTRACGI_KPMv2 *) calloc(1, sizeof(*cell_meas_object_item->cell_global_ID.choice.eUTRA_CGI)); //CALLOC(1, sizeof(struct E2SM_KPM_EUTRACGI_KPMv2));
-    MCC_MNC_TO_PLMNID(e2_conf[i]->mcc,
-                      e2_conf[i]->mnc,
-                      e2_conf[i]->mnc_digit_length,
-                      &cell_meas_object_item->cell_global_ID.choice.eUTRA_CGI->pLMN_Identity);
- 
-    //MACRO_ENB_ID_TO_BIT_STRING(e2_conf[i]->cell_identity,
-    MACRO_ENB_ID_TO_CELL_IDENTITY(e2_conf[i]->cell_identity,0,
-                               &cell_meas_object_item->cell_global_ID.choice.eUTRA_CGI->eUTRACellIdentity);
+    switch (node_type) 
+    {
+        case E2NODE_TYPE_GNB:
+        case E2NODE_TYPE_GNB_CU:
+        case E2NODE_TYPE_GNB_DU:
+            cell_meas_object_item->cell_global_ID.present = E2SM_KPM_CellGlobalID_KPMv2_PR_nr_CGI;
+            cell_meas_object_item->cell_global_ID.choice.nr_CGI = (struct E2SM_KPM_NRCGI_KPMv2 *) calloc(1, sizeof(*cell_meas_object_item->cell_global_ID.choice.nr_CGI));
+            MCC_MNC_TO_PLMNID(e2_conf[i]->mcc,
+                            e2_conf[i]->mnc,
+                            e2_conf[i]->mnc_digit_length,
+                            &cell_meas_object_item->cell_global_ID.choice.nr_CGI->pLMN_Identity);
+            
+            MACRO_GNB_ID_TO_CELL_IDENTITY(e2_conf[i]->cell_identity,0,
+                                    &cell_meas_object_item->cell_global_ID.choice.nr_CGI->nRCellIdentity);
+            break;
+
+        case E2NODE_TYPE_ENB:
+            cell_meas_object_item->cell_global_ID.present = E2SM_KPM_CellGlobalID_KPMv2_PR_eUTRA_CGI;
+            cell_meas_object_item->cell_global_ID.choice.eUTRA_CGI = (struct E2SM_KPM_EUTRACGI_KPMv2 *) calloc(1, sizeof(*cell_meas_object_item->cell_global_ID.choice.eUTRA_CGI));
+            MCC_MNC_TO_PLMNID(e2_conf[i]->mcc,
+                            e2_conf[i]->mnc,
+                            e2_conf[i]->mnc_digit_length,
+                            &cell_meas_object_item->cell_global_ID.choice.eUTRA_CGI->pLMN_Identity);
+        
+            //MACRO_ENB_ID_TO_BIT_STRING(e2_conf[i]->cell_identity,
+            MACRO_ENB_ID_TO_CELL_IDENTITY(e2_conf[i]->cell_identity,0,
+                                    &cell_meas_object_item->cell_global_ID.choice.eUTRA_CGI->eUTRACellIdentity);
+            break;
+        
+        default:
+            RIC_AGENT_ERROR("Node type %d not handled in switch\n", node_type);
+            break;
+    }
+    
 
     ASN_SEQUENCE_ADD(&ric_kpm_node_item->cell_Measurement_Object_List->list, cell_meas_object_item);
 
@@ -1028,7 +1088,7 @@ unsigned int tv_to_ntp(struct timeval tv)
 
 void encode_e2sm_kpm_indication_header(ranid_t ranid, E2SM_KPM_E2SM_KPMv2_IndicationHeader_t *ihead) 
 {
-    e2node_type_t node_type;
+    e2node_type_t node_type = e2_conf[ranid]->e2node_type;
     ihead->indicationHeader_formats.present = E2SM_KPM_E2SM_KPMv2_IndicationHeader__indicationHeader_formats_PR_indicationHeader_Format1;
     ihead->indicationHeader_formats.choice.indicationHeader_Format1 = (E2SM_KPM_E2SM_KPMv2_IndicationHeader_Format1_t *) calloc(1, sizeof(*ihead->indicationHeader_formats.choice.indicationHeader_Format1));
 
@@ -1036,24 +1096,45 @@ void encode_e2sm_kpm_indication_header(ranid_t ranid, E2SM_KPM_E2SM_KPMv2_Indica
 
     /* KPM Node ID */
     ind_header->kpmNodeID = (E2SM_KPM_GlobalKPMnode_ID_KPMv2_t *)calloc(1,sizeof(E2SM_KPM_GlobalKPMnode_ID_KPMv2_t));
-    ind_header->kpmNodeID->present = E2SM_KPM_GlobalKPMnode_ID_KPMv2_PR_eNB;
-
-    node_type = e2_conf[ranid]->e2node_type;
     
-    if (node_type == E2NODE_TYPE_ENB_CU) 
+    switch (node_type) 
     {
-        ind_header->kpmNodeID->choice.eNB = (struct E2SM_KPM_GlobalKPMnode_eNB_ID_KPMv2 *) calloc(1, sizeof(*ind_header->kpmNodeID->choice.eNB));
-        MCC_MNC_TO_PLMNID(
-                e2_conf[ranid]->mcc,
-                e2_conf[ranid]->mnc,
-                e2_conf[ranid]->mnc_digit_length,
-                &ind_header->kpmNodeID->choice.eNB->global_eNB_ID.pLMN_Identity);
-    
-        ind_header->kpmNodeID->choice.eNB->global_eNB_ID.eNB_ID.present = E2SM_KPM_ENB_ID_KPMv2_PR_macro_eNB_ID; 
-    
-        MACRO_ENB_ID_TO_BIT_STRING(
-                e2_conf[ranid]->cell_identity,
-                &ind_header->kpmNodeID->choice.eNB->global_eNB_ID.eNB_ID.choice.macro_eNB_ID);
+        case E2NODE_TYPE_GNB:
+        case E2NODE_TYPE_GNB_CU:
+        case E2NODE_TYPE_GNB_DU:
+            ind_header->kpmNodeID->present = E2SM_KPM_GlobalKPMnode_ID_KPMv2_PR_gNB;
+            ind_header->kpmNodeID->choice.gNB = (struct E2SM_KPM_GlobalKPMnode_gNB_ID_KPMv2 *) calloc(1, sizeof(*ind_header->kpmNodeID->choice.gNB));
+            MCC_MNC_TO_PLMNID(
+                    e2_conf[ranid]->mcc,
+                    e2_conf[ranid]->mnc,
+                    e2_conf[ranid]->mnc_digit_length,
+                    &ind_header->kpmNodeID->choice.gNB->global_gNB_ID.plmn_id);
+            
+            ind_header->kpmNodeID->choice.gNB->global_gNB_ID.gnb_id.present = E2AP_GNB_ID_Choice_PR_gnb_ID; 
+            MACRO_GNB_ID_TO_BIT_STRING(
+                    e2_conf[ranid]->cell_identity,
+                    &ind_header->kpmNodeID->choice.gNB->global_gNB_ID.gnb_id.choice.gnb_ID);
+            break;
+
+        case E2NODE_TYPE_ENB:
+            ind_header->kpmNodeID->present = E2SM_KPM_GlobalKPMnode_ID_KPMv2_PR_eNB;
+            ind_header->kpmNodeID->choice.eNB = (struct E2SM_KPM_GlobalKPMnode_eNB_ID_KPMv2 *) calloc(1, sizeof(*ind_header->kpmNodeID->choice.eNB));
+            MCC_MNC_TO_PLMNID(
+                    e2_conf[ranid]->mcc,
+                    e2_conf[ranid]->mnc,
+                    e2_conf[ranid]->mnc_digit_length,
+                    &ind_header->kpmNodeID->choice.eNB->global_eNB_ID.pLMN_Identity);
+        
+            ind_header->kpmNodeID->choice.eNB->global_eNB_ID.eNB_ID.present = E2SM_KPM_ENB_ID_KPMv2_PR_macro_eNB_ID; 
+        
+            MACRO_ENB_ID_TO_BIT_STRING(
+                    e2_conf[ranid]->cell_identity,
+                    &ind_header->kpmNodeID->choice.eNB->global_eNB_ID.eNB_ID.choice.macro_eNB_ID);
+            break;
+        
+        default:
+            RIC_AGENT_ERROR("Node type %d not handled in switch\n", node_type);
+            break;
     }
 
     /* Collect Start Time Stamp */
@@ -1063,3 +1144,4 @@ void encode_e2sm_kpm_indication_header(ranid_t ranid, E2SM_KPM_E2SM_KPMv2_Indica
     *((uint32_t *)(ind_header->colletStartTime.buf)) = htonl((uint32_t)time(NULL));
     // xer_fprint(stderr, &asn_DEF_E2SM_KPM_E2SM_KPMv2_IndicationHeader, ihead);
 }
+

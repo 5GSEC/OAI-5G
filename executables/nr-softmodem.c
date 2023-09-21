@@ -82,6 +82,10 @@ unsigned short config_frames[4] = {2,9,11,13};
 #include "openair2/E1AP/e1ap_common.h"
 #include "openair2/E1AP/e1ap_api.h"
 
+#ifdef ENABLE_RIC_AGENT
+  #include "openair2/RIC_AGENT/ric_agent.h"
+#endif
+
 pthread_cond_t nfapi_sync_cond;
 pthread_mutex_t nfapi_sync_mutex;
 int nfapi_sync_var=-1; //!< protected by mutex \ref nfapi_sync_mutex
@@ -420,6 +424,15 @@ static int create_gNB_tasks(void) {
       }
     }
   }
+
+  #ifdef ENABLE_RIC_AGENT
+    // NR: create RIC agent task
+    if (NODE_IS_MONOLITHIC(node_type) || NODE_IS_CU(node_type)) {
+      RCconfig_ric_agent(); // Load RIC agent config
+      int rc = itti_create_task(TASK_RIC_AGENT, ric_agent_task, NULL);
+      AssertFatal(rc >= 0, "Create task for RIC_AGENT failed\n");
+    }
+  #endif
 
   return 0;
 }
@@ -773,3 +786,4 @@ int main( int argc, char **argv ) {
   printf("Bye.\n");
   return 0;
 }
+

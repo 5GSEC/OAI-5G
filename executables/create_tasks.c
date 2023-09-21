@@ -77,16 +77,8 @@ int create_tasks(uint32_t enb_nb) {
   }
 
   #ifdef ENABLE_RIC_AGENT
-
-  if (RC.nrrrc != NULL) {
-    // NR
-    if (NODE_IS_MONOLITHIC(RC.nrrrc[0]->node_type) || NODE_IS_CU(RC.nrrrc[0]->node_type)) {
-      rc = itti_create_task(TASK_RIC_AGENT, ric_agent_task, NULL);
-      AssertFatal(rc >= 0, "Create task for RIC_AGENT failed\n");
-    }
-  }
-  else if (RC.rrc != NULL) {
-    // LTE
+  // LTE: create RIC agent task
+  if (RC.rrc != NULL) {
     rc = itti_create_task(TASK_RIC_AGENT, ric_agent_task, NULL);
     AssertFatal(rc >= 0, "Create task for RIC_AGENT failed\n");
   }
@@ -94,3 +86,4 @@ int create_tasks(uint32_t enb_nb) {
 
   return 0;
 }
+
