@@ -52,11 +52,14 @@ import cls_cmd
 import sshconnection as SSH
 import helpreadme as HELP
 import constants as CONST
+import cls_oaicitest
 
 #-----------------------------------------------------------
 # Helper functions used here and in other classes
 # (e.g., cls_cluster.py)
 #-----------------------------------------------------------
+IMAGES = ['oai-enb', 'oai-lte-ru', 'oai-lte-ue', 'oai-gnb', 'oai-nr-cuup', 'oai-gnb-aw2s', 'oai-nr-ue']
+
 def CreateWorkspace(sshSession, sourcePath, ranRepository, ranCommitID, ranTargetBranch, ranAllowMerge):
 	if ranCommitID == '':
 		logging.error('need ranCommitID in CreateWorkspace()')
@@ -739,6 +742,7 @@ class Containerize():
 		if lIpAddr == '' or lUserName == '' or lPassWord == '' or lSourcePath == '':
 			HELP.GenericHelp(CONST.Version)
 			sys.exit('Insufficient Parameter')
+		logging.debug('\u001B[1m Pulling image(s) on server: ' + lIpAddr + '\u001B[0m')
 		myCmd = cls_cmd.getConnection(lIpAddr)
 		imagePrefix = 'porcepix.sboai.cs.eurecom.fr'
 		response = myCmd.run(f'docker login -u oaicicd -p oaicicd {imagePrefix}')
@@ -800,8 +804,7 @@ class Containerize():
 			logging.debug('Removing test images locally')
 			myCmd = cls_cmd.LocalCmd()
 
-		imageNames = ['oai-enb', 'oai-gnb', 'oai-lte-ue', 'oai-nr-ue', 'oai-lte-ru', 'oai-nr-cuup', 'oai-gnb-aw2s']
-		for image in imageNames:
+		for image in IMAGES:
 			imageTag = ImageTagToUse(image, self.ranCommitID, self.ranBranch, self.ranAllowMerge)
 			cmd = f'docker rmi oai-ci/{imageTag}'
 			myCmd.run(cmd, reportNonZero=False)
@@ -838,12 +841,9 @@ class Containerize():
 
 		mySSH.command('cd ' + lSourcePath + '/' + self.yamlPath[self.eNB_instance], '\$', 5)
 		mySSH.command('cp docker-compose.y*ml ci-docker-compose.yml', '\$', 5)
-		imagesList = ['oai-enb', 'oai-gnb', 'oai-nr-cuup', 'oai-gnb-aw2s']
-		for image in imagesList:
+		for image in IMAGES:
 			imageTag = ImageTagToUse(image, self.ranCommitID, self.ranBranch, self.ranAllowMerge)
 			mySSH.command(f'sed -i -e "s#image: {image}:latest#image: oai-ci/{imageTag}#" ci-docker-compose.yml', '\$', 2)
-		localMmeIpAddr = EPC.MmeIPAddress
-		mySSH.command('sed -i -e "s/CI_MME_IP_ADDR/' + localMmeIpAddr + '/" ci-docker-compose.yml', '\$', 2)
 
 		# Currently support only one
 		svcName = self.services[self.eNB_instance]
@@ -877,6 +877,7 @@ class Containerize():
 				else:
 					time.sleep(10)
 					cnt += 1
+
 			mySSH.command('docker inspect --format="ImageUsed: {{.Config.Image}}" ' + containerName, '\$', 5)
 			for stdoutLine in mySSH.getBefore().split('\n'):
 				if stdoutLine.count('ImageUsed: oai-ci'):
@@ -903,7 +904,7 @@ class Containerize():
 			cnt = 0
 			while (cnt < 20):
 				mySSH.command('docker logs ' + containerName + ' | egrep --text --color=never -i "wait|sync|Starting"', '\$', 30)
-				result = re.search('got sync|Starting F1AP at CU', mySSH.getBefore())
+				result = re.search('got sync|Starting E1AP at CU UP|Starting F1AP at CU|Got sync|Waiting for RUs to be configured', mySSH.getBefore())
 				if result is None:
 					time.sleep(6)
 					cnt += 1
@@ -993,7 +994,6 @@ class Containerize():
 		mySSH.command('docker volume prune --force', '\$', 20)
 
 		mySSH.close()
-
 		# Analyzing log file!
 		files = ','.join([f'{s}-{HTML.testCase_id}' for s in services])
 		if len(services) > 1:
@@ -1005,6 +1005,16 @@ class Containerize():
 			HTML.htmleNBFailureMsg='Could not copy logfile to analyze it!'
 			HTML.CreateHtmlTestRow('N/A', 'KO', CONST.ENB_PROCESS_NOLOGFILE_TO_ANALYZE)
 			self.exitStatus = 1
+		# use function for UE log analysis, when oai-nr-ue container is used
+		elif 'oai-nr-ue' in services or 'lte_ue0' in services:
+			self.exitStatus == 0
+			logging.debug('\u001B[1m Analyzing UE logfile ' + filename + ' \u001B[0m')
+			logStatus = cls_oaicitest.OaiCiTest().AnalyzeLogFile_UE(f'{filename}', HTML, RAN)
+			if (logStatus < 0):
+				fullStatus = False
+				HTML.CreateHtmlTestRow('UE log Analysis', 'KO', logStatus)
+			else:
+				HTML.CreateHtmlTestRow('UE log Analysis', 'OK', CONST.ALL_PROCESSES_OK)
 		else:
 			for svcName in services:
 				filename = f'{svcName}-{HTML.testCase_id}.log'
@@ -1188,8 +1198,7 @@ class Containerize():
 		myCmd = cls_cmd.LocalCmd(d = self.yamlPath[0])
 		cmd = 'cp docker-compose.y*ml docker-compose-ci.yml'
 		myCmd.run(cmd, silent=self.displayedNewTags)
-		imageNames = ['oai-enb', 'oai-gnb', 'oai-lte-ue', 'oai-nr-ue', 'oai-lte-ru', 'oai-nr-cuup']
-		for image in imageNames:
+		for image in IMAGES:
 			tagToUse = ImageTagToUse(image, self.ranCommitID, self.ranBranch, self.ranAllowMerge)
 			cmd = f'sed -i -e "s@oaisoftwarealliance/{image}:develop@oai-ci/{tagToUse}@" docker-compose-ci.yml'
 			myCmd.run(cmd, silent=self.displayedNewTags)
@@ -1340,62 +1349,6 @@ class Containerize():
 		myCmd.close()
 
 		HTML.CreateHtmlTestRowQueue(self.pingOptions, 'OK', [message])
-
-	def PingFromContainer(self, HTML, RAN, UE):
-		myCmd = cls_cmd.LocalCmd()
-		self.exitStatus = 0
-		ymlPath = self.yamlPath[0].split('/')
-		logPath = '../cmake_targets/log/' + ymlPath[1]
-		cmd = f'mkdir -p {logPath}'
-		myCmd.run(cmd, silent=True)
-
-		cmd = f'docker exec {self.pingContName} /bin/bash -c "ping {self.pingOptions}" 2>&1 | tee {logPath}/ping_{HTML.testCase_id}.log'
-		pingStatus = myCmd.run(cmd, timeout=100, reportNonZero=False)
-		myCmd.close()
-
-		result = re.search(', (?P<packetloss>[0-9\.]+)% packet loss, time [0-9\.]+ms', pingStatus.stdout)
-		if result is None:
-			self.PingExit(HTML, RAN, UE, False, 'Packet Loss Not Found')
-			return
-
-		packetloss = result.group('packetloss')
-		if float(packetloss) == 100:
-			self.PingExit(HTML, RAN, UE, False, 'Packet Loss is 100%')
-			return
-
-		result = re.search('rtt min\/avg\/max\/mdev = (?P<rtt_min>[0-9\.]+)\/(?P<rtt_avg>[0-9\.]+)\/(?P<rtt_max>[0-9\.]+)\/[0-9\.]+ ms', pingStatus.stdout)
-		if result is None:
-			self.PingExit(HTML, RAN, UE, False, 'Ping RTT_Min RTT_Avg RTT_Max Not Found!')
-			return
-
-		rtt_min = result.group('rtt_min')
-		rtt_avg = result.group('rtt_avg')
-		rtt_max = result.group('rtt_max')
-		pal_msg = 'Packet Loss : ' + packetloss + '%'
-		min_msg = 'RTT(Min)    : ' + rtt_min + ' ms'
-		avg_msg = 'RTT(Avg)    : ' + rtt_avg + ' ms'
-		max_msg = 'RTT(Max)    : ' + rtt_max + ' ms'
-
-		message = 'ping result\n'
-		message += '    ' + pal_msg + '\n'
-		message += '    ' + min_msg + '\n'
-		message += '    ' + avg_msg + '\n'
-		message += '    ' + max_msg + '\n'
-		packetLossOK = True
-		if float(packetloss) > float(self.pingLossThreshold):
-			message += '\nPacket Loss too high'
-			packetLossOK = False
-		elif float(packetloss) > 0:
-			message += '\nPacket Loss is not 0%'
-		self.PingExit(HTML, RAN, UE, packetLossOK, message)
-
-		if packetLossOK:
-			logging.debug('\u001B[1;37;44m ping result \u001B[0m')
-			logging.debug('\u001B[1;34m    ' + pal_msg + '\u001B[0m')
-			logging.debug('\u001B[1;34m    ' + min_msg + '\u001B[0m')
-			logging.debug('\u001B[1;34m    ' + avg_msg + '\u001B[0m')
-			logging.debug('\u001B[1;34m    ' + max_msg + '\u001B[0m')
-			logging.info('\u001B[1m Ping Test PASS\u001B[0m')
 
 	def PingExit(self, HTML, RAN, UE, status, message):
 		if status:

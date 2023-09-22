@@ -1,0 +1,1575 @@
+--   **************************************************************
+--   E2SM
+--   Information Element Definitions
+--
+--   **************************************************************
+E2SM-COMMON-IEs {
+iso(1) identified-organization(3) dod(6) internet(1) private(4) enterprise(1) 53148 e2(1) version1
+(1) e2sm(2) e2sm-COMMON-IEs (0)}
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+-- --------------------------------------------------
+-- Constants
+-- --------------------------------------------------
+maxE1APid                       INTEGER ::= 65535
+maxF1APid                       INTEGER ::= 4
+-- IEs derived from 3GPP 36.423 (X2AP)
+maxEARFCN               INTEGER ::= 65535
+-- IEs derived from 3GPP 38.473 (F1AP)
+maxNRARFCN              INTEGER ::= 3279165
+maxnoofNrCellBands      INTEGER ::= 32
+-- --------------------------------------------------
+-- E2SM Commmon IEs
+-- --------------------------------------------------
+CGI ::= CHOICE {
+    nR-CGI                           NR-CGI,
+    eUTRA-CGI                        EUTRA-CGI,
+    ...
+}
+CoreCPID ::= CHOICE {
+    fiveGC                           GUAMI,
+    ePC                              GUMMEI,
+    ...
+}
+InterfaceIdentifier ::= CHOICE {
+    nG                  InterfaceID-NG,
+    xN                  InterfaceID-Xn,
+    f1                  InterfaceID-F1,
+    e1                  InterfaceID-E1,
+    s1                  InterfaceID-S1,
+    x2                  InterfaceID-X2,
+    w1                  InterfaceID-W1,
+    ...
+}
+InterfaceID-NG ::= SEQUENCE {
+    guami                   GUAMI,
+    ...
+}
+InterfaceID-Xn ::= SEQUENCE {
+    global-NG-RAN-ID        GlobalNGRANNodeID,
+    ...
+}
+InterfaceID-F1 ::= SEQUENCE {
+    globalGNB-ID            GlobalGNB-ID,
+    gNB-DU-ID               GNB-DU-ID,
+    ...
+}
+InterfaceID-E1 ::= SEQUENCE {
+    globalGNB-ID            GlobalGNB-ID,
+    gNB-CU-UP-ID            GNB-CU-UP-ID,
+    ...
+}
+InterfaceID-S1 ::= SEQUENCE {
+    gUMMEI                  GUMMEI,
+    ...
+}
+InterfaceID-X2 ::= SEQUENCE {
+    nodeType                CHOICE {
+        global-eNB-ID           GlobalENB-ID,
+        global-en-gNB-ID        GlobalenGNB-ID,
+        ...
+    },
+    ...
+}
+InterfaceID-W1 ::= SEQUENCE {
+    global-ng-eNB-ID                       GlobalNgENB-ID,
+    ng-eNB-DU-ID                           NGENB-DU-ID,
+    ...
+}
+Interface-MessageID ::= SEQUENCE {
+    interfaceProcedureID        INTEGER,
+    messageType                 ENUMERATED {initiatingMessage, successfulOutcome,
+unsuccessfulOutcome, ...},
+    ...
+}
+InterfaceType ::= ENUMERATED {nG, xn, f1, e1, s1, x2, w1, ...}
+GroupID ::= CHOICE {
+    fiveGC                                 FiveQI,
+    ePC                                    QCI,
+    ...
+}
+QoSID ::= CHOICE {
+    fiveGC                                 FiveQI,
+    ePC                                    QCI,
+    ...
+}
+RANfunction-Name ::= SEQUENCE{
+    ranFunction-ShortName                  PrintableString(SIZE(1..150,...)),
+    ranFunction-E2SM-OID                   PrintableString(SIZE(1..1000,...)),
+    ranFunction-Description                PrintableString(SIZE(1..150,...)),
+    ranFunction-Instance                   INTEGER                                               OPTIONAL,
+    ...
+}
+RIC-Format-Type ::= INTEGER
+RIC-Style-Type ::= INTEGER
+RIC-Style-Name ::= PrintableString(SIZE(1..150,...))
+RRC-MessageID ::= SEQUENCE {
+    rrcType         CHOICE {
+        lTE             RRCclass-LTE,
+        nR              RRCclass-NR,
+         ...
+     },
+     messageID            INTEGER,
+     ...
+}
+RRCclass-LTE ::= ENUMERATED {bCCH-BCH, bCCH-BCH-MBMS, bCCH-DL-SCH, bCCH-DL-SCH-BR, bCCH-DL-SCH-MBMS,
+mCCH, pCCH, dL-CCCH, dL-DCCH, uL-CCCH, uL-DCCH, sC-MCCH, ...}
+RRCclass-NR ::= ENUMERATED {bCCH-BCH, bCCH-DL-SCH, dL-CCCH, dL-DCCH, pCCH, uL-CCCH, uL-CCCH1, uL-DCCH, ...}
+ServingCell-ARFCN ::= CHOICE {
+    nR                  NR-ARFCN,
+    eUTRA               E-UTRA-ARFCN,
+    ...
+}
+ServingCell-PCI ::= CHOICE {
+    nR                  NR-PCI,
+    eUTRA               E-UTRA-PCI,
+    ...
+}
+UEID ::= CHOICE{
+    gNB-UEID                    UEID-GNB,
+    gNB-DU-UEID                 UEID-GNB-DU,
+    gNB-CU-UP-UEID              UEID-GNB-CU-UP,
+    ng-eNB-UEID                 UEID-NG-ENB,
+    ng-eNB-DU-UEID              UEID-NG-ENB-DU,
+    en-gNB-UEID                 UEID-EN-GNB,
+    eNB-UEID                    UEID-ENB,
+    ...
+}
+UEID-GNB ::= SEQUENCE{
+    amf-UE-NGAP-ID              AMF-UE-NGAP-ID,
+    guami                       GUAMI,
+    gNB-CU-UE-F1AP-ID-List      UEID-GNB-CU-F1AP-ID-List        OPTIONAL,
+-- C-ifCUDUseparated: This IE shall be present in messages from E2 Node to NearRT-RIC for a CU-DU separated gNB, whereas from NearRT-RIC to E2 Node messages, this IE may not be included. More than 1 F1AP ID shall be reported by E2 Node only when NR-DC is established.
+    gNB-CU-CP-UE-E1AP-ID-List   UEID-GNB-CU-CP-E1AP-ID-List     OPTIONAL,
+-- C-ifCPUPseparated: This IE shall be present in messages from E2 Node to NearRT-RIC for a CP-UP separated gNB, whereas from NearRT-RIC to E2 Node messages, this IE may not be included.
+    ran-UEID                    RANUEID                         OPTIONAL,
+    m-NG-RAN-UE-XnAP-ID         NG-RANnodeUEXnAPID              OPTIONAL,
+-- C-ifDCSetup: This IE shall be present in messages from E2 Node to NearRT-RIC if DC is established, whereas from NearRT-RIC to E2 Node messages, this IE may not be included. To be reported by both MN and SN.
+    globalGNB-ID                GlobalGNB-ID                    OPTIONAL,
+-- This IE shall not be used. This IE is replaced with globalNG-RANNode-ID.
+    ...,
+    globalNG-RANNode-ID         GlobalNGRANNodeID               OPTIONAL
+-- C-ifDCSetup: This IE shall be present in messages from E2 Node to NearRT-RIC if DC is established, whereas from NearRT-RIC to E2 Node messages, this IE may not be included. To be reported only by SN.
+}
+UEID-GNB-CU-CP-E1AP-ID-List ::= SEQUENCE (SIZE(1..maxE1APid)) OF UEID-GNB-CU-CP-E1AP-ID-Item
+UEID-GNB-CU-CP-E1AP-ID-Item ::= SEQUENCE{
+    gNB-CU-CP-UE-E1AP-ID    GNB-CU-CP-UE-E1AP-ID,
+    ...
+}
+UEID-GNB-CU-F1AP-ID-List ::= SEQUENCE (SIZE(1..maxF1APid)) OF UEID-GNB-CU-CP-F1AP-ID-Item
+UEID-GNB-CU-CP-F1AP-ID-Item ::= SEQUENCE{
+    gNB-CU-UE-F1AP-ID       GNB-CU-UE-F1AP-ID,
+    ...
+}
+UEID-GNB-DU ::= SEQUENCE{
+    gNB-CU-UE-F1AP-ID                GNB-CU-UE-F1AP-ID,
+    ran-UEID                         RANUEID                                    OPTIONAL,
+    ...
+}
+UEID-GNB-CU-UP ::= SEQUENCE{
+    gNB-CU-CP-UE-E1AP-ID    GNB-CU-CP-UE-E1AP-ID,
+    ran-UEID                RANUEID                                             OPTIONAL,
+    ...
+}
+UEID-NG-ENB ::= SEQUENCE{
+    amf-UE-NGAP-ID          AMF-UE-NGAP-ID,
+    guami                   GUAMI,
+    ng-eNB-CU-UE-W1AP-ID    NGENB-CU-UE-W1AP-ID             OPTIONAL,
+-- C-ifCUDUseperated: This IE shall be present in messages from E2 Node to NearRT-RIC for a CU-DU seperated ng-eNB, whereas from NearRT-RIC to E2 Node messages, this IE may not be included.
+    m-NG-RAN-UE-XnAP-ID     NG-RANnodeUEXnAPID              OPTIONAL,
+-- C-ifDCSetup: This IE shall be present in messages from E2 Node to NearRT-RIC if DC is established, whereas from NearRT-RIC to E2 Node messages, this IE may not be included. To be reported by both MN and SN.
+    globalNgENB-ID          GlobalNgENB-ID                  OPTIONAL,
+-- This IE shall not be used. This IE is replaced with globalNG-RANNode-ID.
+    ...,
+    globalNG-RANNode-ID         GlobalNGRANNodeID           OPTIONAL
+-- C-ifDCSetup: This IE shall be present in messages from E2 Node to NearRT-RIC if DC is established, whereas from NearRT-RIC to E2 Node messages, this IE may not be included. To be reported only by SN.
+}
+UEID-NG-ENB-DU ::= SEQUENCE{
+    ng-eNB-CU-UE-W1AP-ID    NGENB-CU-UE-W1AP-ID,
+    ...
+}
+UEID-EN-GNB ::= SEQUENCE{
+    m-eNB-UE-X2AP-ID            ENB-UE-X2AP-ID,
+    m-eNB-UE-X2AP-ID-Extension ENB-UE-X2AP-ID-Extension     OPTIONAL,
+    globalENB-ID                GlobalENB-ID,
+    gNB-CU-UE-F1AP-ID           GNB-CU-UE-F1AP-ID           OPTIONAL,
+-- C-ifCUDUseperated: This IE shall be present in messages from E2 Node to                           NearRT-RIC for a CU-DU seperated en-gNB, whereas from NearRT-RIC to E2 Node messages, this IE may                           not be included.
+    gNB-CU-CP-UE-E1AP-ID-List   UEID-GNB-CU-CP-E1AP-ID-List OPTIONAL,
+-- C-ifCPUPseparated: This IE shall be present in messages from E2 Node to                           NearRT-RIC for a CP-UP separated en-gNB, whereas from NearRT-RIC to E2 Node messages, this IE may                           not be included.
+    ran-UEID                    RANUEID                     OPTIONAL,
+    ...
+}
+UEID-ENB ::= SEQUENCE{
+    mME-UE-S1AP-ID              MME-UE-S1AP-ID,
+    gUMMEI                      GUMMEI,
+    m-eNB-UE-X2AP-ID            ENB-UE-X2AP-ID              OPTIONAL,
+-- This IE shall be present in messages from E2 Node to NearRT-RIC if DC is established,                                whereas from NearRT-RIC to E2 Node messages, this IE may not be included. To be reported by MeNB                                and SeNB.
+    m-eNB-UE-X2AP-ID-Extension ENB-UE-X2AP-ID-Extension     OPTIONAL,
+    globalENB-ID                GlobalENB-ID                OPTIONAL,
+-- This IE shall be present in messages from E2 Node to NearRT-RIC if DC is established,                                whereas from NearRT-RIC to E2 Node messages, this IE may not be included. To be reported only by                                SeNB.
+    ...
+}
+-- **************************************************************
+-- 3GPP derived IEs
+--   **************************************************************
+--   NOTE:
+--   - Extension fields removed and replaced with "..."
+--   - IE names modified across all extracts to use "PLMNIdentity"
+--   **************************************************************
+--   IEs derived from 3GPP 36.413 (S1AP)
+--   **************************************************************
+--   **************************************************************
+-- copied from v16.5.0
+ENB-ID ::= CHOICE {
+    macro-eNB-ID    BIT STRING (SIZE (20)),
+    home-eNB-ID     BIT STRING (SIZE (28)),
+    ... ,
+      short-Macro-eNB-ID             BIT STRING (SIZE(18)),
+      long-Macro-eNB-ID              BIT STRING (SIZE(21))
+}
+-- copied from v16.5.0
+GlobalENB-ID ::= SEQUENCE {
+    pLMNIdentity            PLMNIdentity,
+    eNB-ID                  ENB-ID,
+    ...
+}
+-- copied from v16.5.0
+GUMMEI           ::= SEQUENCE {
+    pLMN-Identity        PLMNIdentity,
+    mME-Group-ID         MME-Group-ID,
+    mME-Code             MME-Code,
+    ...
+}
+-- copied from v16.5.0
+MME-Group-ID    ::= OCTET STRING (SIZE (2))
+-- copied from v16.5.0
+MME-Code        ::= OCTET STRING (SIZE (1))
+-- copied from v16.5.0
+MME-UE-S1AP-ID ::= INTEGER (0..4294967295)
+-- copied from v16.5.0
+QCI             ::= INTEGER (0..255)
+-- copied from v16.5.0
+SubscriberProfileIDforRFP ::= INTEGER (1..256)
+--   **************************************************************
+--   IEs derived from 3GPP 36.423 (X2AP)
+--   **************************************************************
+--   Extension fields removed.
+--   GNB-ID renamed ENGNB-ID,
+--   GlobalGNB-ID renamed GlobalenGNB-ID,
+--   UE-X2AP-ID renamed ENB-UE-X2AP-ID
+--   UE-X2AP-ID-Extension renamed ENB-UE-X2AP-ID-Extension
+--   **************************************************************
+-- copied from v16.5.0
+EN-GNB-ID ::= CHOICE {
+    en-gNB-ID   BIT STRING (SIZE (22..32)),
+    ...
+}
+-- copied from v16.5.0
+ENB-UE-X2AP-ID ::= INTEGER (0..4095)
+-- copied from v16.5.0
+ENB-UE-X2AP-ID-Extension ::= INTEGER (0..4095, ...)
+-- copied from v16.5.0
+E-UTRA-ARFCN ::= INTEGER (0..maxEARFCN)
+-- copied from v16.5.0
+E-UTRA-PCI ::= INTEGER (0..503, ...)
+-- copied from v16.5.0
+E-UTRA-TAC ::= OCTET STRING (SIZE(2))
+-- copied from v16.5.0
+GlobalenGNB-ID ::= SEQUENCE {
+    pLMN-Identity           PLMNIdentity,
+    en-gNB-ID               EN-GNB-ID,
+    ...
+}
+-- **************************************************************
+-- IEs derived from 3GPP 37.473 (W1AP)
+-- **************************************************************
+-- copied from v16.3.0
+NGENB-CU-UE-W1AP-ID ::= INTEGER (0..4294967295)
+-- copied from v16.3.0
+NGENB-DU-ID ::= INTEGER (0..68719476735)
+--   **************************************************************
+--   IEs derived from 3GPP 38.413 (NGAP)
+--   Extension fields removed and replaced with ...
+--   **************************************************************
+-- copied from v16.2.0
+AMFPointer ::= BIT STRING (SIZE(6))
+-- copied from v16.2.0
+AMFRegionID ::= BIT STRING (SIZE(8))
+-- copied from v16.2.0
+AMFSetID ::= BIT STRING (SIZE(10))
+-- copied from v16.2.0
+AMF-UE-NGAP-ID ::= INTEGER (0..1099511627775)
+-- copied from v16.2.0
+EUTRACellIdentity ::= BIT STRING (SIZE(28))
+-- copied from v16.2.0
+EUTRA-CGI ::= SEQUENCE {
+    pLMNIdentity                     PLMNIdentity,
+    eUTRACellIdentity                EUTRACellIdentity,
+    ...
+}
+-- copied from v16.2.0
+FiveQI ::= INTEGER (0..255, ...)
+-- copied from v16.2.0
+GlobalGNB-ID ::= SEQUENCE {
+    pLMNIdentity        PLMNIdentity,
+    gNB-ID              GNB-ID,
+    ...
+}
+-- copied from v16.2.0
+GlobalNgENB-ID ::= SEQUENCE {
+    pLMNIdentity        PLMNIdentity,
+    ngENB-ID            NgENB-ID,
+    ...
+}
+-- copied from v16.2.0
+GNB-ID ::= CHOICE {
+    gNB-ID      BIT STRING (SIZE(22..32)),
+    ...
+}
+-- copied from v16.2.0
+GUAMI ::= SEQUENCE {
+    pLMNIdentity                PLMNIdentity,
+    aMFRegionID                 AMFRegionID,
+    aMFSetID                    AMFSetID,
+    aMFPointer                  AMFPointer,
+    ...
+}
+-- copied from v16.2.0
+IndexToRFSP ::= INTEGER (1..256, ...)
+-- copied from v16.2.0
+NgENB-ID ::= CHOICE {
+    macroNgENB-ID                    BIT STRING (SIZE(20)),
+    shortMacroNgENB-ID               BIT STRING (SIZE(18)),
+    longMacroNgENB-ID                BIT STRING (SIZE(21)),
+    ...
+}
+-- copied from v16.2.0
+NRCellIdentity ::= BIT STRING (SIZE(36))
+-- copied from v16.2.0
+NR-CGI ::= SEQUENCE {
+    pLMNIdentity                PLMNIdentity,
+    nRCellIdentity              NRCellIdentity,
+    ...
+}
+-- copied from v16.2.0
+PLMNIdentity ::= OCTET STRING (SIZE(3))
+-- copied from v16.2.0
+QosFlowIdentifier ::= INTEGER (0..63, ...)
+-- copied from v16.2.0
+SD ::= OCTET STRING (SIZE(3))
+-- copied from v16.2.0
+S-NSSAI ::= SEQUENCE {
+    sST                         SST,
+    sD                          SD                                                                    OPTIONAL,
+    ...
+}
+-- copied from v16.2.0
+SST ::= OCTET STRING (SIZE(1))
+-- **************************************************************
+-- IEs derived from 3GPP 38.423 (XnAP)
+-- **************************************************************
+-- copied from v16.2.0
+NG-RANnodeUEXnAPID ::= INTEGER (0.. 4294967295)
+GlobalNGRANNodeID ::= CHOICE {
+    gNB                     GlobalGNB-ID,
+    ng-eNB                  GlobalNgENB-ID,
+    ...
+}
+-- **************************************************************
+-- IEs derived from 3GPP 38.463 (E1AP)
+-- **************************************************************
+-- copied from v16.5.0
+GNB-CU-CP-UE-E1AP-ID                 ::= INTEGER (0..4294967295)
+-- copied from v16.5.0
+GNB-CU-UP-ID                         ::= INTEGER (0..68719476735)
+-- **************************************************************
+-- IEs derived from 3GPP 38.473 (F1AP)
+-- **************************************************************
+-- copied from v16.5.0
+FiveGS-TAC          ::= OCTET STRING (SIZE(3))
+-- copied from v16.5.0
+FreqBandNrItem      ::= SEQUENCE {
+    freqBandIndicatorNr         INTEGER (1..1024, ...),
+    ...
+}
+-- copied from v16.5.0
+GNB-CU-UE-F1AP-ID   ::= INTEGER (0..4294967295)
+-- copied from v16.5.0
+GNB-DU-ID           ::= INTEGER (0..68719476735)
+-- copied from v16.5.0
+NR-PCI              ::= INTEGER (0..1007)
+-- copied from v16.5.0
+NR-ARFCN            ::= SEQUENCE {
+    nRARFCN             INTEGER (0..maxNRARFCN),
+    ...
+}
+-- copied from v16.5.0
+NRFrequencyBand-List ::= SEQUENCE (SIZE(1..maxnoofNrCellBands)) OF NRFrequencyBandItem
+-- copied from v16.5.0
+NRFrequencyBandItem ::= SEQUENCE {
+    freqBandIndicatorNr         INTEGER (1..1024,...),
+    supportedSULBandList        SupportedSULBandList,
+    ...
+}
+-- copied from v16.5.0
+NRFrequencyInfo ::= SEQUENCE {
+    nrARFCN                 NR-ARFCN,
+    frequencyBand-List      NRFrequencyBand-List,
+    frequencyShift7p5khz    NRFrequencyShift7p5khz                              OPTIONAL,
+    ...
+}
+-- copied from v16.5.0
+NRFrequencyShift7p5khz ::= ENUMERATED {false, true, ...}
+-- copied from v16.5.0
+RANUEID             ::= OCTET STRING (SIZE (8))
+-- copied from v16.5.0
+SupportedSULBandList ::= SEQUENCE (SIZE(0..maxnoofNrCellBands)) OF SupportedSULFreqBandItem
+-- copied from v16.5.0
+SupportedSULFreqBandItem ::= SEQUENCE {
+    freqBandIndicatorNr         INTEGER (1..1024,...),
+    ...
+}
+
+END
+
+
+
+
+
+
+
+
+-- ASN1START
+-- **************************************************************
+-- E2SM-RC Information Element Definitions
+-- **************************************************************
+
+E2SM-RC-IEs {
+iso(1) identified-organization(3) dod(6) internet(1) private(4) enterprise(1) oran(53148) e2(1) version1(1) e2sm(2) e2sm-RC-IEs (3)}
+
+
+DEFINITIONS AUTOMATIC TAGS ::=
+
+BEGIN
+
+
+-- **************************************************************
+-- E2SM Common IEs
+-- **************************************************************
+
+IMPORTS
+	CGI,
+	E-UTRA-ARFCN,
+	EUTRA-CGI,
+	E-UTRA-PCI,
+	E-UTRA-TAC,
+	FiveGS-TAC,
+	InterfaceIdentifier,
+	InterfaceType,
+	Interface-MessageID,
+	NRFrequencyInfo,
+	NR-CGI,
+	NR-PCI,
+	RANfunction-Name,
+	RIC-Format-Type,
+	RIC-Style-Name,
+	RIC-Style-Type,
+	RRC-MessageID,
+	ServingCell-ARFCN,
+	ServingCell-PCI,
+	UEID
+FROM E2SM-COMMON-IEs;
+
+
+-- *****************************************************
+-- CONSTANTS
+-- *****************************************************
+
+maxnoofMessages							INTEGER ::= 65535
+maxnoofE2InfoChanges					INTEGER ::= 65535
+maxnoofUEInfoChanges					INTEGER ::= 65535
+maxnoofRRCstate							INTEGER ::= 8
+maxnoofParametersToReport				INTEGER ::= 65535
+maxnoofPolicyConditions					INTEGER ::= 65535
+maxnoofAssociatedRANParameters			INTEGER ::= 65535
+maxnoofUEID								INTEGER ::= 65535
+maxnoofCellID							INTEGER ::= 65535
+maxnoofRANOutcomeParameters				INTEGER ::= 255
+maxnoofParametersinStructure			INTEGER ::= 65535
+maxnoofItemsinList						INTEGER ::= 65535
+maxnoofUEInfo							INTEGER ::= 65535
+maxnoofCellInfo							INTEGER ::= 65535
+maxnoofUEeventInfo						INTEGER ::= 65535
+maxnoofRANparamTest						INTEGER ::= 255
+maxnoofNeighbourCell					INTEGER ::= 65535
+maxnoofRICStyles						INTEGER ::= 63
+maxnoofCallProcessTypes					INTEGER ::= 65535
+maxnoofCallProcessBreakpoints			INTEGER ::= 65535
+maxnoofInsertIndication					INTEGER ::= 65535
+maxnoofControlAction					INTEGER ::= 65535
+maxnoofPolicyAction						INTEGER ::= 65535
+maxnoofInsertIndicationActions			INTEGER ::= 63
+maxnoofMulCtrlActions				INTEGER ::= 63
+
+
+-- *****************************************************
+-- IEs
+-- *****************************************************
+
+LogicalOR ::= ENUMERATED {true, false, ...}
+
+NeighborCell-List ::= SEQUENCE (SIZE(1..maxnoofNeighbourCell)) OF NeighborCell-Item
+
+NeighborCell-Item ::= CHOICE {
+	ranType-Choice-NR					NeighborCell-Item-Choice-NR,
+	ranType-Choice-EUTRA				NeighborCell-Item-Choice-E-UTRA,
+	...
+}
+
+NeighborCell-Item-Choice-NR ::= SEQUENCE {
+	nR-CGI								NR-CGI,
+	nR-PCI								NR-PCI,
+	fiveGS-TAC							FiveGS-TAC,
+	nR-mode-info						ENUMERATED {fdd, tdd, ...},
+	nR-FreqInfo							NRFrequencyInfo,
+	x2-Xn-established					ENUMERATED {true, false, ...},
+	hO-validated						ENUMERATED {true, false, ...},
+	version								INTEGER (1..65535, ...),
+	...
+}
+
+NeighborCell-Item-Choice-E-UTRA ::= SEQUENCE {
+	eUTRA-CGI							EUTRA-CGI,
+	eUTRA-PCI							E-UTRA-PCI,
+	eUTRA-ARFCN							E-UTRA-ARFCN,
+	eUTRA-TAC							E-UTRA-TAC,
+	x2-Xn-established					ENUMERATED {true, false, ...},
+	hO-validated						ENUMERATED {true, false, ...},
+	version								INTEGER (1..65535, ...),
+	...
+}
+
+NeighborRelation-Info ::= SEQUENCE {
+	servingCellPCI						ServingCell-PCI,
+	servingCellARFCN					ServingCell-ARFCN,
+	neighborCell-List					NeighborCell-List,
+	...
+}
+
+RRC-State ::= ENUMERATED {rrc-connected, rrc-inactive, rrc-idle, any, ...}
+
+
+-------------------------------
+-- Event Trigger related IEs
+-------------------------------
+
+EventTrigger-Cell-Info ::= SEQUENCE {
+  cellInfo-List						SEQUENCE (SIZE(1..maxnoofCellInfo)) OF EventTrigger-Cell-Info-Item,
+	...
+}
+
+EventTrigger-Cell-Info-Item ::= SEQUENCE {
+	eventTriggerCellID					RIC-EventTrigger-Cell-ID,
+	cellType							CHOICE {
+		cellType-Choice-Individual		EventTrigger-Cell-Info-Item-Choice-Individual,
+		cellType-Choice-Group			EventTrigger-Cell-Info-Item-Choice-Group,
+		...
+	},
+	logicalOR							LogicalOR 							OPTIONAL,
+	...
+}
+
+EventTrigger-Cell-Info-Item-Choice-Individual ::= SEQUENCE {
+	cellGlobalID						CGI,
+	...
+}
+
+EventTrigger-Cell-Info-Item-Choice-Group ::= SEQUENCE {
+	ranParameterTesting				RANParameter-Testing,
+	...
+}
+
+
+
+EventTrigger-UE-Info ::= SEQUENCE {
+ueInfo-List							SEQUENCE (SIZE(1..maxnoofUEInfo)) OF EventTrigger-UE-Info-Item,
+...
+}
+
+EventTrigger-UE-Info-Item ::= SEQUENCE {
+	eventTriggerUEID					RIC-EventTrigger-UE-ID,
+	ueType								CHOICE {
+		ueType-Choice-Individual		EventTrigger-UE-Info-Item-Choice-Individual,
+		ueType-Choice-Group				EventTrigger-UE-Info-Item-Choice-Group,
+		...
+	},
+	logicalOR							LogicalOR 							OPTIONAL,
+	...
+}
+
+EventTrigger-UE-Info-Item-Choice-Individual ::= SEQUENCE {
+	ueID								UEID,
+	ranParameterTesting					RANParameter-Testing				OPTIONAL,
+	...
+}
+
+EventTrigger-UE-Info-Item-Choice-Group ::= SEQUENCE {
+	ranParameterTesting			RANParameter-Testing,
+	...
+}
+
+
+
+EventTrigger-UEevent-Info ::= SEQUENCE {
+ueEvent-List						SEQUENCE (SIZE(1..maxnoofUEeventInfo)) OF EventTrigger-UEevent-Info-Item,
+...
+}
+
+EventTrigger-UEevent-Info-Item ::= SEQUENCE {
+	ueEventID							RIC-EventTrigger-UEevent-ID,
+	logicalOR							LogicalOR 							OPTIONAL,
+	...
+}
+
+
+-------------------------------
+-- RAN Parameter related IEs
+-------------------------------
+
+RANParameter-ID 	::= INTEGER (1..4294967295, ...)
+
+RANParameter-Name ::= PrintableString (SIZE(1..150, ...))
+RANParameter-Definition ::= SEQUENCE {
+	ranParameter-Definition-Choice		RANParameter-Definition-Choice,
+	...
+}
+
+RANParameter-Definition-Choice ::= CHOICE {
+	choiceLIST							RANParameter-Definition-Choice-LIST,
+	choiceSTRUCTURE						RANParameter-Definition-Choice-STRUCTURE,
+	...
+}
+
+RANParameter-Definition-Choice-LIST ::= SEQUENCE {
+	ranParameter-List					SEQUENCE (SIZE(1..maxnoofItemsinList)) OF RANParameter-Definition-Choice-LIST-Item,
+	...
+}
+
+RANParameter-Definition-Choice-LIST-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL,
+	...
+}
+
+RANParameter-Definition-Choice-STRUCTURE ::= SEQUENCE {
+	ranParameter-STRUCTURE				SEQUENCE (SIZE(1..maxnoofParametersinStructure)) OF RANParameter-Definition-Choice-STRUCTURE-Item,
+	...
+}
+
+RANParameter-Definition-Choice-STRUCTURE-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL,
+	...
+}
+
+RANParameter-Value ::= CHOICE {
+	valueBoolean						BOOLEAN,
+	valueInt							INTEGER,
+	valueReal							REAL,
+	valueBitS							BIT STRING,
+	valueOctS							OCTET STRING,
+	valuePrintableString				PrintableString,
+	...
+}
+
+RANParameter-ValueType ::= CHOICE {
+	ranP-Choice-ElementTrue			RANParameter-ValueType-Choice-ElementTrue,
+	ranP-Choice-ElementFalse		RANParameter-ValueType-Choice-ElementFalse,
+	ranP-Choice-Structure			RANParameter-ValueType-Choice-Structure,
+	ranP-Choice-List				RANParameter-ValueType-Choice-List,
+	...
+}
+
+
+
+RANParameter-ValueType-Choice-ElementTrue ::= SEQUENCE {
+	ranParameter-value			RANParameter-Value,
+	...
+}
+
+RANParameter-ValueType-Choice-ElementFalse ::= SEQUENCE {
+	ranParameter-value			RANParameter-Value 			OPTIONAL,
+-- C-ifControl: This IE shall be present if it is part of a RIC Control Request message. Otherwise it is optional.
+	...
+}
+
+RANParameter-ValueType-Choice-Structure ::= SEQUENCE {
+	ranParameter-Structure			RANParameter-STRUCTURE,
+	...
+}
+
+RANParameter-ValueType-Choice-List ::= SEQUENCE {
+	ranParameter-List				RANParameter-LIST,
+	...
+}
+RANParameter-STRUCTURE ::= SEQUENCE {
+	sequence-of-ranParameters		SEQUENCE (SIZE(1..maxnoofParametersinStructure)) OF RANParameter-STRUCTURE-Item		OPTIONAL,
+	...
+}
+
+RANParameter-STRUCTURE-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-valueType				RANParameter-ValueType,
+	...
+}
+
+RANParameter-LIST ::= SEQUENCE {
+ 	list-of-ranParameter				SEQUENCE (SIZE(1..maxnoofItemsinList)) OF RANParameter-STRUCTURE,
+ 	...
+}
+
+
+RANParameter-Testing ::= SEQUENCE (SIZE(1..maxnoofRANparamTest)) OF RANParameter-Testing-Item
+
+RANParameter-TestingCondition ::= CHOICE {
+	ranP-Choice-comparison				ENUMERATED {equal, difference, greaterthan, lessthan, contains, starts-with, ...},
+	ranP-Choice-presence				ENUMERATED {present, configured, rollover, non-zero, ...},
+	...
+}
+
+RANParameter-Testing-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-Type					CHOICE {
+		ranP-Choice-List				RANParameter-Testing-Item-Choice-List,
+		ranP-Choice-Structure			RANParameter-Testing-Item-Choice-Structure,
+		ranP-Choice-ElementTrue			RANParameter-Testing-Item-Choice-ElementTrue,
+		ranP-Choice-ElementFalse		RANParameter-Testing-Item-Choice-ElementFalse,
+		...
+	},
+	...
+}
+
+RANParameter-Testing-Item-Choice-List ::= SEQUENCE {
+	ranParameter-List					RANParameter-Testing-LIST,
+	...
+}
+
+RANParameter-Testing-Item-Choice-Structure ::= SEQUENCE {
+	ranParameter-Structure				RANParameter-Testing-STRUCTURE,
+	...
+}
+
+RANParameter-Testing-Item-Choice-ElementTrue ::= SEQUENCE {
+	ranParameter-value					RANParameter-Value,
+	...
+}
+
+RANParameter-Testing-Item-Choice-ElementFalse ::= SEQUENCE {
+	ranParameter-TestCondition			RANParameter-TestingCondition,
+	ranParameter-Value					RANParameter-Value 					OPTIONAL,
+	logicalOR							LogicalOR							OPTIONAL,
+	...
+}
+
+RANParameter-Testing-LIST ::= SEQUENCE (SIZE(1..maxnoofItemsinList)) OF RANParameter-Testing-Item
+
+RANParameter-Testing-STRUCTURE ::= SEQUENCE (SIZE(1..maxnoofParametersinStructure)) OF RANParameter-Testing-Item
+
+
+
+----------------------------
+-- RIC Service related IEs
+----------------------------
+
+RAN-CallProcess-ID ::= INTEGER (1..4294967295, ...)
+
+RIC-CallProcessType-ID ::= INTEGER (1..65535, ...)
+RIC-CallProcessType-Name ::= PrintableString (SIZE(1..150, ...))
+
+RIC-CallProcessBreakpoint-ID ::= INTEGER (1..65535, ...)
+
+RIC-CallProcessBreakpoint-Name ::= PrintableString (SIZE(1..150, ...))
+
+RIC-ControlAction-ID ::= INTEGER (1..65535, ...)
+
+RIC-ControlAction-Name ::= PrintableString (SIZE(1..150, ...))
+
+RIC-EventTriggerCondition-ID ::= INTEGER (1..65535, ...)
+
+RIC-EventTrigger-UE-ID ::= INTEGER (1..65535, ...)
+
+RIC-EventTrigger-UEevent-ID ::= INTEGER (1..65535, ...)
+
+RIC-EventTrigger-Cell-ID ::= INTEGER (1..65535, ...)
+
+RIC-InsertIndication-ID ::= INTEGER (1..65535, ...)
+
+RIC-InsertIndication-Name ::= PrintableString (SIZE(1..150, ...))
+
+RIC-PolicyAction ::= SEQUENCE {
+	ric-PolicyAction-ID					RIC-ControlAction-ID,
+	ranParameters-List					SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF RIC-PolicyAction-RANParameter-Item		OPTIONAL,
+	...,
+	ric-PolicyDecision					ENUMERATED {accept, reject, ...}			OPTIONAL
+}
+
+
+RIC-PolicyAction-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-valueType				RANParameter-ValueType,
+	...
+}
+
+
+-- **************************************************************
+-- E2SM-RC Service Model IEs
+-- **************************************************************
+
+
+-- ***************************************************
+-- Event Trigger OCTET STRING contents
+-- ***************************************************
+
+E2SM-RC-EventTrigger ::= SEQUENCE {
+	ric-eventTrigger-formats					CHOICE {
+		eventTrigger-Format1					E2SM-RC-EventTrigger-Format1,
+		eventTrigger-Format2					E2SM-RC-EventTrigger-Format2,
+		eventTrigger-Format3					E2SM-RC-EventTrigger-Format3,
+		eventTrigger-Format4					E2SM-RC-EventTrigger-Format4,
+		eventTrigger-Format5					E2SM-RC-EventTrigger-Format5,
+		...
+	},
+	...
+}
+
+E2SM-RC-EventTrigger-Format1 ::= SEQUENCE {
+	message-List							SEQUENCE (SIZE(1..maxnoofMessages)) OF E2SM-RC-EventTrigger-Format1-Item,
+	globalAssociatedUEInfo					EventTrigger-UE-Info					OPTIONAL,
+	...
+}
+
+E2SM-RC-EventTrigger-Format1-Item ::= SEQUENCE {
+	ric-eventTriggerCondition-ID		RIC-EventTriggerCondition-ID,
+	messageType							MessageType-Choice,
+	messageDirection					ENUMERATED {incoming, outgoing, ...}	OPTIONAL,
+	associatedUEInfo					EventTrigger-UE-Info					OPTIONAL,
+	associatedUEEvent					EventTrigger-UEevent-Info				OPTIONAL,
+	logicalOR							LogicalOR								OPTIONAL,
+	...
+}
+MessageType-Choice ::= CHOICE {
+	messageType-Choice-NI					MessageType-Choice-NI,
+	messageType-Choice-RRC					MessageType-Choice-RRC,
+	...
+}
+
+
+MessageType-Choice-NI ::= SEQUENCE {
+	nI-Type									InterfaceType,
+	nI-Identifier							InterfaceIdentifier				OPTIONAL,
+	nI-Message								Interface-MessageID				OPTIONAL,
+	...
+}
+
+MessageType-Choice-RRC ::= SEQUENCE {
+	rRC-Message								RRC-MessageID,
+	...
+}
+
+
+E2SM-RC-EventTrigger-Format2 ::= SEQUENCE {
+	ric-callProcessType-ID				RIC-CallProcessType-ID,
+	ric-callProcessBreakpoint-ID		RIC-CallProcessBreakpoint-ID,
+	associatedE2NodeInfo				RANParameter-Testing					OPTIONAL,
+	associatedUEInfo					EventTrigger-UE-Info					OPTIONAL,
+	...
+}
+
+
+E2SM-RC-EventTrigger-Format3 ::= SEQUENCE {
+	e2NodeInfoChange-List				SEQUENCE (SIZE(1..maxnoofE2InfoChanges)) OF E2SM-RC-EventTrigger-Format3-Item,
+	...
+}
+
+E2SM-RC-EventTrigger-Format3-Item ::= SEQUENCE {
+	ric-eventTriggerCondition-ID		RIC-EventTriggerCondition-ID,
+	e2NodeInfoChange-ID					INTEGER (1..512, ...),
+	associatedCellInfo					EventTrigger-Cell-Info			OPTIONAL,
+	logicalOR							LogicalOR						OPTIONAL,
+	...
+}
+
+
+E2SM-RC-EventTrigger-Format4 ::= SEQUENCE {
+	uEInfoChange-List						SEQUENCE (SIZE(1..maxnoofUEInfoChanges)) OF E2SM-RC-EventTrigger-Format4-Item,
+	...
+}
+
+E2SM-RC-EventTrigger-Format4-Item ::= SEQUENCE {
+	ric-eventTriggerCondition-ID		RIC-EventTriggerCondition-ID,
+	triggerType							TriggerType-Choice,
+	associatedUEInfo					EventTrigger-UE-Info					OPTIONAL,
+	logicalOR							LogicalOR								OPTIONAL,
+	...
+}
+
+
+TriggerType-Choice ::= CHOICE {
+	triggerType-Choice-RRCstate		TriggerType-Choice-RRCstate,
+	triggerType-Choice-UEID			TriggerType-Choice-UEID,
+	triggerType-Choice-L2state		TriggerType-Choice-L2state,
+	...
+}
+
+TriggerType-Choice-RRCstate ::= SEQUENCE {
+	rrcState-List							SEQUENCE (SIZE(1..maxnoofRRCstate)) OF TriggerType-Choice-RRCstate-Item,
+	...
+}
+
+TriggerType-Choice-RRCstate-Item ::= SEQUENCE {
+  	stateChangedTo							RRC-State,
+	logicalOR								LogicalOR						OPTIONAL,
+	...
+}
+
+TriggerType-Choice-UEID ::= SEQUENCE {
+	ueIDchange-ID							INTEGER (1..512, ...),
+	...
+}
+
+TriggerType-Choice-L2state ::= SEQUENCE {
+	associatedL2variables					RANParameter-Testing,
+	...
+}
+
+
+E2SM-RC-EventTrigger-Format5 ::= SEQUENCE {
+	onDemand								ENUMERATED {true, ...},
+	associatedUEInfo						EventTrigger-UE-Info				OPTIONAL,
+	associatedCellInfo						EventTrigger-Cell-Info				OPTIONAL,
+	...
+}
+
+
+
+-- ***************************************************
+-- Action Definition OCTET STRING contents
+-- ***************************************************
+
+E2SM-RC-ActionDefinition ::= SEQUENCE {
+	ric-Style-Type							RIC-Style-Type,
+	ric-actionDefinition-formats			CHOICE {
+		actionDefinition-Format1			E2SM-RC-ActionDefinition-Format1,
+		actionDefinition-Format2			E2SM-RC-ActionDefinition-Format2,
+		actionDefinition-Format3			E2SM-RC-ActionDefinition-Format3,
+		...,
+		actionDefinition-Format4			E2SM-RC-ActionDefinition-Format4
+
+	},
+	...
+}
+
+E2SM-RC-ActionDefinition-Format1 ::= SEQUENCE {
+	ranP-ToBeReported-List					SEQUENCE (SIZE(1..maxnoofParametersToReport)) OF E2SM-RC-ActionDefinition-Format1-Item,
+	...
+}
+
+
+E2SM-RC-ActionDefinition-Format1-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	...,
+	ranParameter-Definition				RANParameter-Definition				OPTIONAL
+}
+
+
+E2SM-RC-ActionDefinition-Format2 ::= SEQUENCE {
+	ric-PolicyConditions-List				SEQUENCE (SIZE(1..maxnoofPolicyConditions)) OF E2SM-RC-ActionDefinition-Format2-Item,
+	...
+}
+
+E2SM-RC-ActionDefinition-Format2-Item ::= SEQUENCE {
+	ric-PolicyAction						RIC-PolicyAction,
+	ric-PolicyConditionDefinition			RANParameter-Testing			OPTIONAL,
+	...
+}
+
+E2SM-RC-ActionDefinition-Format3 ::= SEQUENCE {
+	ric-InsertIndication-ID					RIC-InsertIndication-ID,
+	ranP-InsertIndication-List				SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF E2SM-RC-ActionDefinition-Format3-Item,
+	ueID									UEID					OPTIONAL,
+	...
+}
+E2SM-RC-ActionDefinition-Format3-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	...,
+	ranParameter-Definition				RANParameter-Definition			OPTIONAL
+}
+
+E2SM-RC-ActionDefinition-Format4 ::= SEQUENCE {
+	ric-InsertStyle-List					SEQUENCE (SIZE(1.. maxnoofRICStyles)) OF E2SM-RC-ActionDefinition-Format4-Style-Item,
+	ueID									UEID					OPTIONAL,
+	...
+}
+
+E2SM-RC-ActionDefinition-Format4-Style-Item ::= SEQUENCE {
+	requested-Insert-Style-Type				RIC-Style-Type,
+	ric-InsertIndication-List				SEQUENCE (SIZE(1..maxnoofInsertIndicationActions)) OF E2SM-RC-ActionDefinition-Format4-Indication-Item,
+	...
+}
+
+E2SM-RC-ActionDefinition-Format4-Indication-Item ::= SEQUENCE {
+	ric-InsertIndication-ID					RIC-InsertIndication-ID,
+	ranP-InsertIndication-List				SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF E2SM-RC-ActionDefinition-Format4-RANP-Item,
+	...
+}
+
+E2SM-RC-ActionDefinition-Format4-RANP-Item ::= SEQUENCE {
+	ranParameter-ID							RANParameter-ID,
+	...,
+	ranParameter-Definition				RANParameter-Definition				OPTIONAL
+}
+
+
+-- ***************************************************
+-- Indication Header OCTET STRING contents
+-- ***************************************************
+
+E2SM-RC-IndicationHeader ::= SEQUENCE {
+ric-indicationHeader-formats		CHOICE {
+		indicationHeader-Format1			E2SM-RC-IndicationHeader-Format1,
+		indicationHeader-Format2			E2SM-RC-IndicationHeader-Format2,
+		...,
+		indicationHeader-Format3			E2SM-RC-IndicationHeader-Format3
+
+	},
+	...
+}
+
+E2SM-RC-IndicationHeader-Format1 ::= SEQUENCE {
+	ric-eventTriggerCondition-ID		RIC-EventTriggerCondition-ID 		OPTIONAL,
+	...
+}
+
+E2SM-RC-IndicationHeader-Format2 ::= SEQUENCE {
+	ueID								UEID,
+	ric-InsertStyle-Type				RIC-Style-Type,
+	ric-InsertIndication-ID				RIC-InsertIndication-ID,
+	...
+}
+
+E2SM-RC-IndicationHeader-Format3 ::= SEQUENCE {
+	ric-eventTriggerCondition-ID		RIC-EventTriggerCondition-ID 		OPTIONAL,
+	ueID								UEID								OPTIONAL,
+	...
+}
+
+
+-- ***************************************************
+-- Indication Message OCTET STRING contents
+-- ***************************************************
+
+E2SM-RC-IndicationMessage ::= SEQUENCE {
+ric-indicationMessage-formats		CHOICE {
+		indicationMessage-Format1			E2SM-RC-IndicationMessage-Format1,
+		indicationMessage-Format2			E2SM-RC-IndicationMessage-Format2,
+		indicationMessage-Format3			E2SM-RC-IndicationMessage-Format3,
+    		indicationMessage-Format4			E2SM-RC-IndicationMessage-Format4,
+		indicationMessage-Format5			E2SM-RC-IndicationMessage-Format5,
+		...,
+		indicationMessage-Format6			E2SM-RC-IndicationMessage-Format6
+
+	},
+	...
+}
+
+E2SM-RC-IndicationMessage-Format1 ::= SEQUENCE {
+	ranP-Reported-List					SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF E2SM-RC-IndicationMessage-Format1-Item,
+	...
+}
+
+E2SM-RC-IndicationMessage-Format1-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-valueType				RANParameter-ValueType,
+	...
+}
+
+
+E2SM-RC-IndicationMessage-Format2 ::= SEQUENCE {
+	ueParameter-List					SEQUENCE (SIZE(1..maxnoofUEID)) OF E2SM-RC-IndicationMessage-Format2-Item,
+	...
+}
+
+E2SM-RC-IndicationMessage-Format2-Item ::= SEQUENCE {
+	ueID								UEID,
+	ranP-List							SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF E2SM-RC-IndicationMessage-Format2-RANParameter-Item,
+	...
+}
+
+
+E2SM-RC-IndicationMessage-Format2-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-valueType				RANParameter-ValueType,
+	...
+}
+
+
+E2SM-RC-IndicationMessage-Format3 ::= SEQUENCE {
+	cellInfo-List						SEQUENCE (SIZE(1..maxnoofCellID)) OF E2SM-RC-IndicationMessage-Format3-Item,
+	...
+}
+
+E2SM-RC-IndicationMessage-Format3-Item ::= SEQUENCE {
+	cellGlobal-ID						CGI,
+	cellContextInfo						OCTET STRING 					OPTIONAL,
+	cellDeleted							BOOLEAN							OPTIONAL,
+	neighborRelation-Table				NeighborRelation-Info		OPTIONAL,
+	...
+}
+
+E2SM-RC-IndicationMessage-Format4 ::= SEQUENCE {
+	ueInfo-List								SEQUENCE (SIZE(0..maxnoofUEID)) OF E2SM-RC-IndicationMessage-Format4-ItemUE,
+	cellInfo-List							SEQUENCE (SIZE(0..maxnoofCellID)) OF E2SM-RC-IndicationMessage-Format4-ItemCell,
+	...
+}
+
+
+E2SM-RC-IndicationMessage-Format4-ItemUE ::= SEQUENCE {
+	ueID									UEID,
+	ueContextInfo							OCTET STRING				OPTIONAL,
+	cellGlobal-ID							CGI,
+	...
+}
+
+
+E2SM-RC-IndicationMessage-Format4-ItemCell ::= SEQUENCE {
+	cellGlobal-ID						CGI,
+	cellContextInfo						OCTET STRING 				OPTIONAL,
+	neighborRelation-Table				NeighborRelation-Info		OPTIONAL,
+  ...
+}
+
+  E2SM-RC-IndicationMessage-Format5 ::= SEQUENCE{
+	ranP-Requested-List					SEQUENCE (SIZE(0..maxnoofAssociatedRANParameters)) OF E2SM-RC-IndicationMessage-Format5-Item,
+	...
+}
+
+
+E2SM-RC-IndicationMessage-Format5-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-valueType				RANParameter-ValueType,
+	...
+}
+
+E2SM-RC-IndicationMessage-Format6 ::= SEQUENCE {
+	ric-InsertStyle-List					SEQUENCE (SIZE(1.. maxnoofRICStyles)) OF E2SM-RC-IndicationMessage-Format6-Style-Item,
+	...
+}
+
+E2SM-RC-IndicationMessage-Format6-Style-Item ::= SEQUENCE {
+	indicated-Insert-Style-Type				RIC-Style-Type,
+	ric-InsertIndication-List				SEQUENCE (SIZE(1..maxnoofInsertIndicationActions)) OF E2SM-RC-IndicationMessage-Format6-Indication-Item,
+	...
+}
+
+E2SM-RC-IndicationMessage-Format6-Indication-Item ::= SEQUENCE {
+	ric-InsertIndication-ID					RIC-InsertIndication-ID,
+	ranP-InsertIndication-List				SEQUENCE (SIZE(0..maxnoofAssociatedRANParameters)) OF E2SM-RC-IndicationMessage-Format6-RANP-Item	,
+	...
+}
+
+E2SM-RC-IndicationMessage-Format6-RANP-Item ::= SEQUENCE {
+	ranParameter-ID							RANParameter-ID,
+	ranParameter-valueType					RANParameter-ValueType,
+	...
+}
+
+
+-- **************************************************
+-- Call Process ID OCTET STRING contents
+-- **************************************************
+
+E2SM-RC-CallProcessID ::= SEQUENCE {
+ric-callProcessID-formats		CHOICE {
+		callProcessID-Format1			E2SM-RC-CallProcessID-Format1,
+		...
+	},
+	...
+}
+
+E2SM-RC-CallProcessID-Format1 ::= SEQUENCE {
+	ric-callProcess-ID			RAN-CallProcess-ID,
+	...
+}
+
+
+-- ***************************************************
+-- Control Header OCTET STRING contents
+-- ***************************************************
+
+E2SM-RC-ControlHeader ::= SEQUENCE {
+	ric-controlHeader-formats			CHOICE {
+	controlHeader-Format1		E2SM-RC-ControlHeader-Format1,
+		...,
+		controlHeader-Format2				E2SM-RC-ControlHeader-Format2
+	},
+	...
+}
+
+E2SM-RC-ControlHeader-Format1 ::= SEQUENCE {
+	ueID								UEID,
+	ric-Style-Type						RIC-Style-Type,
+	ric-ControlAction-ID				RIC-ControlAction-ID,
+  	ric-ControlDecision					ENUMERATED {accept, reject, ...}			OPTIONAL,
+	...
+}
+
+E2SM-RC-ControlHeader-Format2 ::= SEQUENCE {
+	ueID								UEID										OPTIONAL,
+	ric-ControlDecision					ENUMERATED {accept, reject, ...}			OPTIONAL,
+	...
+}
+
+-- ***************************************************
+-- Control Message OCTET STRING contents
+-- ***************************************************
+
+E2SM-RC-ControlMessage ::= SEQUENCE {
+	ric-controlMessage-formats			CHOICE {
+		controlMessage-Format1			E2SM-RC-ControlMessage-Format1,
+		...,
+		controlMessage-Format2				E2SM-RC-ControlMessage-Format2
+
+	},
+	...
+}
+
+E2SM-RC-ControlMessage-Format1 ::= SEQUENCE {
+	ranP-List							SEQUENCE (SIZE(0..maxnoofAssociatedRANParameters)) OF E2SM-RC-ControlMessage-Format1-Item,
+	...
+}
+
+
+E2SM-RC-ControlMessage-Format1-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-valueType				RANParameter-ValueType,
+	...
+}
+
+E2SM-RC-ControlMessage-Format2 ::= SEQUENCE {
+	ric-ControlStyle-List					SEQUENCE (SIZE(1.. maxnoofRICStyles)) OF E2SM-RC-ControlMessage-Format2-Style-Item,
+	...
+}
+
+E2SM-RC-ControlMessage-Format2-Style-Item ::= SEQUENCE {
+	indicated-Control-Style-Type			RIC-Style-Type,
+	ric-ControlAction-List					SEQUENCE (SIZE(1..maxnoofMulCtrlActions)) OF E2SM-RC-ControlMessage-Format2-ControlAction-Item,
+	...
+}
+
+E2SM-RC-ControlMessage-Format2-ControlAction-Item ::= SEQUENCE {
+	ric-ControlAction-ID					RIC-ControlAction-ID,
+	ranP-List								E2SM-RC-ControlMessage-Format1,
+	...
+}
+
+-- ****************************************************
+-- Control Outcome OCTET STRING contents
+-- ****************************************************
+
+E2SM-RC-ControlOutcome ::= SEQUENCE {
+	ric-controlOutcome-formats		CHOICE {
+		controlOutcome-Format1		E2SM-RC-ControlOutcome-Format1,
+		...,
+		controlOutcome-Format2			E2SM-RC-ControlOutcome-Format2,
+		controlOutcome-Format3			E2SM-RC-ControlOutcome-Format3	},
+	...
+}
+
+E2SM-RC-ControlOutcome-Format1 ::= SEQUENCE {
+	ranP-List							SEQUENCE (SIZE(0..maxnoofRANOutcomeParameters)) OF E2SM-RC-ControlOutcome-Format1-Item,
+	...
+}
+
+
+E2SM-RC-ControlOutcome-Format1-Item ::= SEQUENCE {
+	ranParameter-ID					RANParameter-ID,
+  	ranParameter-value				RANParameter-Value,
+	...
+}
+
+E2SM-RC-ControlOutcome-Format2 ::= SEQUENCE {
+	ric-ControlStyle-List					SEQUENCE (SIZE(1.. maxnoofRICStyles)) OF E2SM-RC-ControlOutcome-Format2-Style-Item,
+	...
+}
+
+E2SM-RC-ControlOutcome-Format2-Style-Item ::= SEQUENCE {
+	indicated-Control-Style-Type			RIC-Style-Type,
+	ric-ControlOutcome-List					SEQUENCE (SIZE(1..maxnoofMulCtrlActions)) OF E2SM-RC-ControlOutcome-Format2-ControlOutcome-Item,
+	...
+}
+
+E2SM-RC-ControlOutcome-Format2-ControlOutcome-Item ::= SEQUENCE {
+	ric-ControlAction-ID					RIC-ControlAction-ID,
+	ranP-List								SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF E2SM-RC-ControlOutcome-Format2-RANP-Item,
+	...
+}
+
+E2SM-RC-ControlOutcome-Format2-RANP-Item ::= SEQUENCE {
+	ranParameter-ID							RANParameter-ID,
+	ranParameter-value						RANParameter-Value,
+	...
+}
+
+E2SM-RC-ControlOutcome-Format3 ::= SEQUENCE {
+	ranP-List								SEQUENCE (SIZE(0..maxnoofRANOutcomeParameters)) OF E2SM-RC-ControlOutcome-Format3-Item,
+	...
+}
+
+
+E2SM-RC-ControlOutcome-Format3-Item ::= SEQUENCE {
+	ranParameter-ID							RANParameter-ID,
+	ranParameter-valueType					RANParameter-ValueType,
+	...
+}
+
+
+-- **************************************************************
+-- RAN Function Definition IEs
+-- **************************************************************
+
+E2SM-RC-RANFunctionDefinition ::= SEQUENCE{
+	ranFunction-Name						RANfunction-Name,
+	ranFunctionDefinition-EventTrigger		RANFunctionDefinition-EventTrigger			OPTIONAL,
+	ranFunctionDefinition-Report			RANFunctionDefinition-Report				OPTIONAL,
+	ranFunctionDefinition-Insert			RANFunctionDefinition-Insert				OPTIONAL,
+	ranFunctionDefinition-Control			RANFunctionDefinition-Control				OPTIONAL,
+	ranFunctionDefinition-Policy			RANFunctionDefinition-Policy				OPTIONAL,
+	...
+}
+
+-------------------------------
+-- Event Trigger
+-------------------------------
+RANFunctionDefinition-EventTrigger ::= SEQUENCE {
+	ric-EventTriggerStyle-List				SEQUENCE (SIZE(1..maxnoofRICStyles)) OF RANFunctionDefinition-EventTrigger-Style-Item,
+	ran-L2Parameters-List 					SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF L2Parameters-RANParameter-Item			OPTIONAL,
+	ran-CallProcessTypes-List				SEQUENCE (SIZE(1..maxnoofCallProcessTypes)) OF RANFunctionDefinition-EventTrigger-CallProcess-Item 		OPTIONAL,
+	ran-UEIdentificationParameters-List		SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF UEIdentification-RANParameter-Item 		OPTIONAL,
+	ran-CellIdentificationParameters-List	SEQUENCE (SIZE(1..maxnoofAssociatedRANParameters)) OF CellIdentification-RANParameter-Item		OPTIONAL,
+	...
+}
+
+RANFunctionDefinition-EventTrigger-Style-Item ::= SEQUENCE {
+  	ric-EventTriggerStyle-Type				RIC-Style-Type,
+	ric-EventTriggerStyle-Name				RIC-Style-Name,
+	ric-EventTriggerFormat-Type				RIC-Format-Type,
+	...
+}
+
+
+L2Parameters-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID							RANParameter-ID,
+	ranParameter-name						RANParameter-Name,
+	...,
+	ranParameter-Definition					RANParameter-Definition		OPTIONAL
+}
+
+
+UEIdentification-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+
+
+CellIdentification-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+
+RANFunctionDefinition-EventTrigger-CallProcess-Item ::= SEQUENCE {
+	callProcessType-ID						RIC-CallProcessType-ID,
+	callProcessType-Name					RIC-CallProcessType-Name,
+	callProcessBreakpoints-List				SEQUENCE (SIZE (1..maxnoofCallProcessBreakpoints)) OF RANFunctionDefinition-EventTrigger-Breakpoint-Item,
+	...
+}
+
+
+RANFunctionDefinition-EventTrigger-Breakpoint-Item ::= SEQUENCE {
+	callProcessBreakpoint-ID					RIC-CallProcessBreakpoint-ID,
+	callProcessBreakpoint-Name					RIC-CallProcessBreakpoint-Name,
+	ran-CallProcessBreakpointParameters-List	SEQUENCE (SIZE (1..maxnoofAssociatedRANParameters)) OF CallProcessBreakpoint-RANParameter-Item		OPTIONAL,
+	...
+}
+
+
+CallProcessBreakpoint-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+
+-------------------------------
+-- Report
+-------------------------------
+
+RANFunctionDefinition-Report ::= SEQUENCE {
+	ric-ReportStyle-List					SEQUENCE (SIZE(1..maxnoofRICStyles)) OF RANFunctionDefinition-Report-Item,
+	...
+}
+
+
+RANFunctionDefinition-Report-Item ::= SEQUENCE {
+	ric-ReportStyle-Type					RIC-Style-Type,
+	ric-ReportStyle-Name					RIC-Style-Name,
+	ric-SupportedEventTriggerStyle-Type		RIC-Style-Type,
+	ric-ReportActionFormat-Type				RIC-Format-Type,
+	ric-IndicationHeaderFormat-Type			RIC-Format-Type,
+	ric-IndicationMessageFormat-Type		RIC-Format-Type,
+	ran-ReportParameters-List				SEQUENCE (SIZE (1..maxnoofAssociatedRANParameters)) OF  Report-RANParameter-Item			OPTIONAL,
+	...
+}
+
+
+
+Report-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+
+
+-------------------------------
+-- Insert
+-------------------------------
+
+RANFunctionDefinition-Insert ::= SEQUENCE {
+	ric-InsertStyle-List							SEQUENCE (SIZE(1..maxnoofRICStyles)) OF RANFunctionDefinition-Insert-Item,
+	...
+}
+
+RANFunctionDefinition-Insert-Item ::= SEQUENCE {
+	ric-InsertStyle-Type						RIC-Style-Type,
+	ric-InsertStyle-Name						RIC-Style-Name,
+	ric-SupportedEventTriggerStyle-Type			RIC-Style-Type,
+	ric-ActionDefinitionFormat-Type				RIC-Format-Type,
+	ric-InsertIndication-List					SEQUENCE (SIZE(1..maxnoofInsertIndication)) OF RANFunctionDefinition-Insert-Indication-Item 	OPTIONAL,
+	ric-IndicationHeaderFormat-Type				RIC-Format-Type,
+	ric-IndicationMessageFormat-Type			RIC-Format-Type,
+	ric-CallProcessIDFormat-Type				RIC-Format-Type,
+	...
+}
+
+
+RANFunctionDefinition-Insert-Indication-Item ::= SEQUENCE {
+	ric-InsertIndication-ID						RIC-InsertIndication-ID,
+	ric-InsertIndication-Name					RIC-InsertIndication-Name,
+	ran-InsertIndicationParameters-List		SEQUENCE (SIZE (1..maxnoofAssociatedRANParameters)) OF InsertIndication-RANParameter-Item		OPTIONAL,
+	...
+}
+
+
+InsertIndication-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+-------------------------------
+-- Control
+-------------------------------
+
+RANFunctionDefinition-Control ::= SEQUENCE {
+	ric-ControlStyle-List					SEQUENCE (SIZE(1..maxnoofRICStyles)) OF RANFunctionDefinition-Control-Item,
+	...
+}
+
+
+RANFunctionDefinition-Control-Item ::= SEQUENCE {
+	ric-ControlStyle-Type						RIC-Style-Type,
+	ric-ControlStyle-Name						RIC-Style-Name,
+	ric-ControlAction-List						SEQUENCE (SIZE(1..maxnoofControlAction)) OF  RANFunctionDefinition-Control-Action-Item	OPTIONAL,
+	ric-ControlHeaderFormat-Type			RIC-Format-Type,
+	ric-ControlMessageFormat-Type			RIC-Format-Type,
+	ric-CallProcessIDFormat-Type			RIC-Format-Type				OPTIONAL,
+	ric-ControlOutcomeFormat-Type			RIC-Format-Type,
+	ran-ControlOutcomeParameters-List	SEQUENCE (SIZE(1..maxnoofRANOutcomeParameters)) OF ControlOutcome-RANParameter-Item		OPTIONAL,
+	...
+}
+
+ControlOutcome-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+
+
+RANFunctionDefinition-Control-Action-Item ::= SEQUENCE {
+	ric-ControlAction-ID					RIC-ControlAction-ID,
+	ric-ControlAction-Name					RIC-ControlAction-Name,
+	ran-ControlActionParameters-List		SEQUENCE (SIZE (1..maxnoofAssociatedRANParameters)) OF ControlAction-RANParameter-Item		OPTIONAL,
+	...
+}
+
+ControlAction-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+
+-------------------------------
+-- Policy
+-------------------------------
+
+RANFunctionDefinition-Policy ::= SEQUENCE {
+	ric-PolicyStyle-List					SEQUENCE (SIZE(1..maxnoofRICStyles)) OF RANFunctionDefinition-Policy-Item,
+	...
+}
+
+RANFunctionDefinition-Policy-Item ::= SEQUENCE {
+	ric-PolicyStyle-Type 					RIC-Style-Type,
+	ric-PolicyStyle-Name					RIC-Style-Name,
+	ric-SupportedEventTriggerStyle-Type		RIC-Style-Type,
+	ric-PolicyAction-List				SEQUENCE (SIZE(1..maxnoofPolicyAction)) OF RANFunctionDefinition-Policy-Action-Item	OPTIONAL,
+	...
+}
+
+
+RANFunctionDefinition-Policy-Action-Item ::= SEQUENCE {
+	ric-PolicyAction-ID						RIC-ControlAction-ID,
+	ric-PolicyAction-Name					RIC-ControlAction-Name,
+	ric-ActionDefinitionFormat-Type			RIC-Format-Type,
+	ran-PolicyActionParameters-List			SEQUENCE (SIZE (1..maxnoofAssociatedRANParameters)) OF PolicyAction-RANParameter-Item		OPTIONAL,
+	ran-PolicyConditionParameters-List		SEQUENCE (SIZE (1..maxnoofAssociatedRANParameters)) OF PolicyCondition-RANParameter-Item		OPTIONAL,
+	...
+}
+
+
+PolicyAction-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+
+
+PolicyCondition-RANParameter-Item ::= SEQUENCE {
+	ranParameter-ID						RANParameter-ID,
+	ranParameter-name					RANParameter-Name,
+	...,
+	ranParameter-Definition				RANParameter-Definition		OPTIONAL
+}
+
+END
+
+-- ASN1STOP
+

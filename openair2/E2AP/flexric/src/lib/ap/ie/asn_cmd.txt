@@ -1,0 +1,2 @@
+# Command used to generate the C structs from the ASN description 
+/opt/asn1c/bin/asn1c -gen-APER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps e2ap-v01.01.asn1

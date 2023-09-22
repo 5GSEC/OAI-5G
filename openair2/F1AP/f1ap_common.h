@@ -340,6 +340,8 @@
 #include "F1AP_Cells-To-Be-Broadcast-Item.h"
 #include "F1AP_QCI.h"
 
+#include "f1ap_default_values.h"
+
 #include "conversions.h"
 #include "platform_types.h"
 #include "common/utils/LOG/log.h"
@@ -359,22 +361,13 @@
 
 #include "assertions.h"
 
-#if defined(ENB_MODE)
-  #include "common/utils/LOG/log.h"
-  #include "f1ap_default_values.h"
-  #define F1AP_ERROR(x, args...) LOG_E(F1AP, x, ##args)
-  #define F1AP_WARN(x, args...)  LOG_W(F1AP, x, ##args)
-  #define F1AP_TRAF(x, args...)  LOG_I(F1AP, x, ##args)
-  #define F1AP_INFO(x, args...) LOG_I(F1AP, x, ##args)
-  #define F1AP_DEBUG(x, args...) LOG_I(F1AP, x, ##args)
-#else
-  //# include "mme_default_values.h"
-  #define F1AP_ERROR(x, args...) do { fprintf(stdout, "[F1AP][E]"x, ##args); } while(0)
-  #define F1AP_WARN(x, args...)  do { fprintf(stdout, "[F1AP][W]"x, ##args); } while(0)
-  #define F1AP_TRAF(x, args...)  do { fprintf(stdout, "[F1AP][T]"x, ##args); } while(0)
-  #define F1AP_INFO(x, args...) do { fprintf(stdout, "[F1AP][I]"x, ##args); } while(0)
-  #define F1AP_DEBUG(x, args...) do { fprintf(stdout, "[F1AP][D]"x, ##args); } while(0)
-#endif
+#include "common/utils/LOG/log.h"
+#include "f1ap_default_values.h"
+#define F1AP_ERROR(x, args...) LOG_E(F1AP, x, ##args)
+#define F1AP_WARN(x, args...)  LOG_W(F1AP, x, ##args)
+#define F1AP_TRAF(x, args...)  LOG_I(F1AP, x, ##args)
+#define F1AP_INFO(x, args...) LOG_I(F1AP, x, ##args)
+#define F1AP_DEBUG(x, args...) LOG_I(F1AP, x, ##args)
 
 //Forward declaration
 #define F1AP_FIND_PROTOCOLIE_BY_ID(IE_TYPE, ie, container, IE_ID, mandatory) \
@@ -434,30 +427,6 @@ uint8_t F1AP_get_next_transaction_identifier(instance_t mod_idP, instance_t cu_m
 f1ap_cudu_inst_t *getCxt(F1_t isCU, instance_t instanceP);
 
 void createF1inst(F1_t isCU, instance_t instanceP, f1ap_setup_req_t *req);
-int f1ap_add_ue(F1_t isCu,
-                instance_t     instanceP,
-                rnti_t          rntiP);
-
-int f1ap_remove_ue(F1_t isCu, instance_t instanceP,
-                   rnti_t            rntiP);
-
-int f1ap_get_du_ue_f1ap_id (F1_t isCu, instance_t instanceP,
-                            rnti_t            rntiP);
-
-int f1ap_get_cu_ue_f1ap_id (F1_t isCu, instance_t instanceP,
-                            rnti_t            rntiP);
-
-
-int f1ap_get_rnti_by_du_id(F1_t isCu, instance_t instanceP,
-                           instance_t       du_ue_f1ap_id );
-
-
-int f1ap_get_rnti_by_cu_id(F1_t isCu, instance_t instanceP,
-                           instance_t       cu_ue_f1ap_id );
-
-int f1ap_du_add_cu_ue_id(instance_t instanceP,
-                         instance_t       du_ue_f1ap_id,
-                         instance_t       cu_ue_f1ap_id);
 
 int f1ap_assoc_id(F1_t isCu, instance_t instanceP);
 

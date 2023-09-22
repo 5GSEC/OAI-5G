@@ -119,7 +119,6 @@ void *rrc_gnb_task(void *args_p);
    \ *reOffset Pointer to RE Offset Value */
 void rrc_config_dl_ptrs_params(NR_BWP_Downlink_t *bwp, long *ptrsNrb, long *ptrsMcs, long *epre_Ratio, long *reOffset);
 
-void nr_rrc_mac_remove_ue(rnti_t rntiP);
 void nr_rrc_mac_update_cellgroup(rnti_t rntiMaybeUEid, NR_CellGroupConfig_t *cgc);
 
 int8_t nr_mac_rrc_bwp_switch_req(const module_id_t     module_idP,
@@ -156,7 +155,7 @@ void ue_cxt_mod_send_e1ap(MessageDef *msg,
 void ue_cxt_mod_direct(MessageDef *msg,
                        instance_t instance);
 
-void fill_DRB_configList(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *ue_context_pP, uint8_t xid);
+NR_DRB_ToAddModList_t *fill_DRB_configList(gNB_RRC_UE_t *ue);
 
 void prepare_and_send_ue_context_modification_f1(rrc_gNB_ue_context_t *ue_context_p,
                                                  e1ap_bearer_setup_resp_t *e1ap_resp);
@@ -164,7 +163,6 @@ void nr_pdcp_add_srbs(eNB_flag_t enb_flag, ue_id_t rntiMaybeUEid, NR_SRB_ToAddMo
 
 void nr_pdcp_add_drbs(eNB_flag_t enb_flag,
                       ue_id_t rntiMaybeUEid,
-                      ue_id_t reestablish_ue_id,
                       NR_DRB_ToAddModList_t *const drb2add_list,
                       const uint8_t security_modeP,
                       uint8_t *const kUPenc,
@@ -172,4 +170,7 @@ void nr_pdcp_add_drbs(eNB_flag_t enb_flag,
                       struct NR_CellGroupConfig__rlc_BearerToAddModList *rlc_bearer2add_list);
 
 int rrc_gNB_generate_pcch_msg(uint32_t tmsi, uint8_t paging_drx, instance_t instance, uint8_t CC_id);
+
+void nr_rrc_transfer_protected_rrc_message(const gNB_RRC_INST *rrc, const gNB_RRC_UE_t *ue_p, uint8_t srb_id, const uint8_t* buffer, int size);
+
 #endif

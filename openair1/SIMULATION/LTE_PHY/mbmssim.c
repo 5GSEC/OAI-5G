@@ -585,7 +585,7 @@ double SNR,snr0=-2.0,snr1,rate = 0;
 int print_perf=0;
 
 int main(int argc, char **argv) {
-  int k,i,j,aa;
+  int k = 0,i,j,aa;
   int re;
   int s,Kr,Kr_bytes;
   LTE_DL_FRAME_PARMS *frame_parms;
@@ -1147,8 +1147,6 @@ int main(int argc, char **argv) {
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
     printf("Hostname: %s\n", hostname);
-    //char dirname[FILENAME_MAX];
-    //sprintf(dirname, "%s/SIMU/USER/pre-ci-logs-%s", getenv("OPENAIR_TARGETS"),hostname );
     sprintf(time_meas_fname,"time_meas_prb%d_mcs%d_anttx%d_antrx%d_pdcch%d_channel%s_tx%d.csv",
             N_RB_DL,mcs1,n_tx_phy,n_rx,num_pdcch_symbols,channel_model_input,transmission_mode);
     //mkdir(dirname,0777);

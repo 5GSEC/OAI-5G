@@ -1,0 +1,215 @@
+-- ASN1 START
+-- **************************************************************
+-- E2SM-MAC Stats
+-- Information Element Definitions
+-- 
+-- **************************************************************
+
+E2SM-MACStats-IEs { }
+
+DEFINITIONS AUTOMATIC TAGS ::= 
+
+BEGIN
+
+-- **************************************************************
+--
+-- Lists
+--
+-- **************************************************************
+
+maxofRANParameters						INTEGER ::= 255
+
+-- E2 Service model IEs
+
+-- ---------------------------------------------------
+-- Event Trigger Definition OCTET STRING contents
+-- ---------------------------------------------------
+
+-- E2SM-MACStats-EventTriggerDefinition IE
+E2SM-MACStats-EventTriggerDefinition ::= CHOICE{
+	eventDefinition-Format1		E2SM-MACStats-EventTriggerDefinition-Format1,
+	...
+}
+
+-- E2SM-MACStats-eventTriggerDefinition IE Format 1
+E2SM-MACStats-EventTriggerDefinition-Format1 ::= SEQUENCE{
+	triggerNature						MACStats-TriggerNature,
+	...
+}
+
+-- ---------------------------------------------------
+-- Action Definition OCTET STRING contents
+-- ---------------------------------------------------
+
+E2SM-MACStats-ActionDefinition ::= CHOICE{
+	actionDefinition-Format1		E2SM-MACStats-ActionDefinition-Format1,
+	...
+}
+
+-- E2SM-MACStats-actionDefinition IE used for Action Format 1
+E2SM-MACStats-ActionDefinition-Format1 ::= SEQUENCE{
+	ranParameter-List					SEQUENCE (SIZE(1..maxofRANParameters)) OF RANparameter-Item OPTIONAL,
+	...
+}
+
+
+
+-- ---------------------------------------------------
+-- Indication Header OCTET STRING contents
+-- ---------------------------------------------------
+
+E2SM-MACStats-IndicationHeader ::= CHOICE{
+	indicationHeader-Format1		E2SM-MACStats-IndicationHeader-Format1,
+	...
+}
+
+-- E2SM-MACStats-indicationHeader Format 1
+E2SM-MACStats-IndicationHeader-Format1 ::= SEQUENCE{
+	indicationHeaderParam						MACStats-Header,
+	...
+}
+
+-- ---------------------------------------------------
+-- Indication Message OCTET STRING contents
+-- ---------------------------------------------------
+
+-- E2SM-MACStats-indicationMessage IE
+E2SM-MACStats-IndicationMessage ::= CHOICE{
+	indicationMessage-Format1		E2SM-MACStats-IndicationMessage-Format1,
+	...
+}
+
+-- E2SM-MACStats-IndicationMessage Format 1
+E2SM-MACStats-IndicationMessage-Format1 ::= SEQUENCE{
+        indicationMsgParam                      MACStats-Message,
+        ...
+}
+
+
+-- ---------------------------------------------------
+-- Call Process ID
+-- ---------------------------------------------------
+
+-- Not defined in this E2SM
+
+-- ---------------------------------------------------
+-- Control Header OCTET STRING contents
+-- ---------------------------------------------------
+
+-- E2SM-MACStats-ControlHeader
+E2SM-MACStats-ControlHeader ::= CHOICE{
+	controlHeader-Format1		E2SM-MACStats-ControlHeader-Format1,
+	...
+}
+
+-- E2SM-MACStats-ControlHeader Format 1
+E2SM-MACStats-ControlHeader-Format1 ::= SEQUENCE{
+	controlHeaderParam			MACStats-Header,
+	...
+}
+
+
+-- ---------------------------------------------------
+-- Control Message OCTET STRING contents
+-- ---------------------------------------------------
+
+-- E2SM-MACStats-ControlMessage
+E2SM-MACStats-ControlMessage ::= CHOICE{
+	controlMessage-Format1		E2SM-MACStats-ControlMessage-Format1,
+	...
+}
+
+-- E2SM-MACStats-controlMessage Format 1
+E2SM-MACStats-ControlMessage-Format1 ::= SEQUENCE{
+	controlMsgParam				MACStats-Message,
+	...
+}
+
+-- ---------------------------------------------------
+-- Control Outcome OCTET STRING contents
+-- ---------------------------------------------------
+
+-- Not defined in this E2SM
+
+
+
+-- ---------------------------------------------------
+-- RAN Function definition OCTET STRING contents
+-- ---------------------------------------------------
+
+-- Not defined in this E2SM
+
+
+
+
+-- ---------------------------------------------------
+-- commmon IEs
+-- ---------------------------------------------------
+
+-- A
+-- B
+-- C
+-- D
+-- E
+-- F
+-- G
+-- H
+
+MACStats-Header ::= INTEGER
+
+MACStats-Message ::= OCTET STRING
+
+MACStats-TriggerNature ::= ENUMERATED{
+	oneMs,
+	twoMs,
+	fiveMs,
+	...
+}
+-- I
+-- J
+-- K
+-- L
+-- M
+-- N
+-- O
+-- P
+-- Q
+-- R
+
+
+RANparameter-Item ::= SEQUENCE {
+	ranParameter-ID			RANparameter-ID,
+	ranParameter-Name		RANparameter-Name,
+	ranParameter-Test		RANparameter-Test,
+	ranParameter-Value		RANparameter-Value,
+	...
+}
+
+
+RANparameter-ID ::= INTEGER (0..maxofRANParameters)
+
+RANparameter-Name ::= OCTET STRING
+
+RANparameter-Test ::= ENUMERATED{
+	equal,
+	greaterthan,
+	lessthan,
+	contains,
+	present,
+	...
+}
+
+RANparameter-Value ::= OCTET STRING
+
+-- S
+-- T
+-- U
+-- V
+-- W
+-- X
+-- Y
+-- Z
+
+END
+-- ASN1STOP
+

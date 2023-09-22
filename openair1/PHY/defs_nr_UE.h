@@ -221,12 +221,7 @@ typedef struct {
   /// For IFFT_FPGA this points to the same memory as PHY_vars->tx_vars[a].TX_DMA_BUFFER.
   /// - first index: tx antenna [0..nb_antennas_tx[
   /// - second index: sample [0..FRAME_LENGTH_COMPLEX_SAMPLES[
-  c16_t **txdata;
-  /// \brief Holds the transmit data in the frequency domain.
-  /// For IFFT_FPGA this points to the same memory as PHY_vars->rx_vars[a].RX_DMA_BUFFER.
-  /// - first index: tx antenna [0..nb_antennas_tx[
-  /// - second index: sample [0..FRAME_LENGTH_COMPLEX_SAMPLES_NO_PREFIX[
-  c16_t **txdataF;
+  c16_t **txData;
 
   /// \brief Holds the received data in time domain.
   /// Should point to the same memory as PHY_vars->rx_vars[a].RX_DMA_BUFFER.
@@ -234,14 +229,6 @@ typedef struct {
   /// - second index: sample [0..2*FRAME_LENGTH_COMPLEX_SAMPLES+2048[
   c16_t **rxdata;
 
-    /// \brief Holds the received data in time domain.
-  /// Should point to the same memory as PHY_vars->rx_vars[a].RX_DMA_BUFFER.
-  /// - first index: rx antenna [0..nb_antennas_rx[
-  /// - second index: sample [0..2*FRAME_LENGTH_COMPLEX_SAMPLES+2048[
-  c16_t **rxdataF;
-
-  /// holds output of the sync correlator
-  int32_t *sync_corr;
   /// estimated frequency offset (in radians) for all subcarriers
   int32_t freq_offset;
   /// nid2 is the PSS value, the PCI (physical cell id) will be: 3*NID1 (SSS value) + NID2 (PSS value)
@@ -318,6 +305,22 @@ typedef struct {
   fapi_nr_dl_config_dci_dl_pdu_rel15_t pdcch_config[FAPI_NR_MAX_SS];
 } NR_UE_PDCCH_CONFIG;
 
+#define NR_PSBCH_MAX_NB_CARRIERS 132
+#define NR_PSBCH_MAX_NB_MOD_SYMBOLS 99
+#define NR_PSBCH_DMRS_LENGTH 297 // in mod symbols
+#define NR_PSBCH_DMRS_LENGTH_DWORD 20 // ceil(2(QPSK)*NR_PBCH_DMRS_LENGTH/32)
+
+/* NR Sidelink PSBCH payload fields
+   TODO: This will be removed in the future and
+   filled in by the upper layers once developed. */
+typedef struct {
+  uint32_t coverageIndicator : 1;
+  uint32_t tddConfig : 12;
+  uint32_t DFN : 10;
+  uint32_t slotIndex : 7;
+  uint32_t reserved : 2;
+} PSBCH_payload;
+
 #define PBCH_A 24
 
 typedef struct {
@@ -378,8 +381,12 @@ typedef struct {
   int if_freq_off;
   /// \brief Indicator that UE is synchronized to a gNB
   int is_synchronized;
+  /// \brief Indicator that UE is synchronized to a SyncRef UE on Sidelink
+  int is_synchronized_sl;
   /// \brief Target gNB Nid_cell when UE is resynchronizing
   int target_Nid_cell;
+  /// \brief Indicator that UE is an SynchRef UE
+  int sync_ref;
   /// Data structure for UE process scheduling
   UE_nr_proc_t proc;
   /// Flag to indicate the UE shouldn't do timing correction at all
@@ -465,8 +472,8 @@ typedef struct {
 
   // PRS sequence per gNB, per resource
   uint32_t *****nr_gold_prs;
-  
-  uint32_t X_u[64][839];
+
+  c16_t X_u[64][839];
 
   // flag to activate PRB based averaging of channel estimates
   // when off, defaults to frequency domain interpolation
@@ -585,8 +592,6 @@ typedef struct {
   time_stats_t ulsch_interleaving_stats;
   time_stats_t ulsch_multiplexing_stats;
 
-  time_stats_t generic_stat;
-  time_stats_t generic_stat_bis[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t ue_front_end_stat;
   time_stats_t ue_front_end_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t pdcch_procedures_stat;
@@ -644,6 +649,22 @@ typedef struct {
   int tx_wait_for_dlsch[NR_MAX_SLOTS_PER_FRAME];
 } PHY_VARS_NR_UE;
 
+typedef struct {
+  openair0_timestamp timestamp_tx;
+  int gNB_id;
+  /// NR slot index within frame_tx [0 .. slots_per_frame - 1] to act upon for transmission
+  int nr_slot_tx;
+  int rx_slot_type;
+  /// NR slot index within frame_rx [0 .. slots_per_frame - 1] to act upon for transmission
+  int nr_slot_rx;
+  int tx_slot_type;
+  //#endif
+  /// frame to act upon for transmission
+  int frame_tx;
+  /// frame to act upon for reception
+  int frame_rx;
+} UE_nr_rxtx_proc_t;
+
 typedef struct nr_phy_data_tx_s {
   NR_UE_ULSCH_t ulsch;
   NR_UE_PUCCH pucch_vars;
@@ -660,6 +681,7 @@ typedef struct nr_rxtx_thread_data_s {
   UE_nr_rxtx_proc_t proc;
   PHY_VARS_NR_UE    *UE;
   int writeBlockSize;
+  notifiedFIFO_t txFifo;
   nr_phy_data_t phy_data;
   int tx_wait_for_dlsch;
 } nr_rxtx_thread_data_t;

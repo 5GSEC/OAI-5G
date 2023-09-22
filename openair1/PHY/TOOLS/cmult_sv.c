@@ -83,37 +83,62 @@ void multadd_real_vector_complex_scalar(const int16_t *x, const int16_t *alpha, 
   }
 }
 
-void rotate_cpx_vector(c16_t *x,
-                       c16_t *alpha,
-                       c16_t *y,
-                       uint32_t N,
-                       uint16_t output_shift)
+void rotate_cpx_vector(const c16_t *const x, const c16_t *const alpha, c16_t *y, uint32_t N, uint16_t output_shift)
 {
   // multiply a complex vector with a complex value (alpha)
   // stores result in y
   // N is the number of complex numbers
   // output_shift reduces the result of the multiplication by this number of bits
-  //AssertFatal(N%8==0, "To be developped");
-  if ( (intptr_t)x%32 == 0  && !(intptr_t)y%32 == 0 && __builtin_cpu_supports("avx2")) {
+  if ( __builtin_cpu_supports("avx2")) {
     // output is 32 bytes aligned, but not the input
     
     const c16_t for_re={alpha->r, -alpha->i};
-    __m256i const alpha_for_real =  simde_mm256_set1_epi32(*(uint32_t*)&for_re);
+    const __m256i alpha_for_real = simde_mm256_set1_epi32(*(uint32_t *)&for_re);
     const c16_t for_im={alpha->i, alpha->r};
-    __m256i const alpha_for_im= simde_mm256_set1_epi32(*(uint32_t*)&for_im);
-    __m256i const perm_mask =
-      simde_mm256_set_epi8(31,30,23,22,29,28,21,20,27,26,19,18,25,24,17,16,
-			   15,14,7,6,13,12,5,4,11,10,3,2,9,8,1,0);
+    const __m256i alpha_for_im = simde_mm256_set1_epi32(*(uint32_t *)&for_im);
+    const __m256i perm_mask = simde_mm256_set_epi8(31,
+                                                   30,
+                                                   23,
+                                                   22,
+                                                   29,
+                                                   28,
+                                                   21,
+                                                   20,
+                                                   27,
+                                                   26,
+                                                   19,
+                                                   18,
+                                                   25,
+                                                   24,
+                                                   17,
+                                                   16,
+                                                   15,
+                                                   14,
+                                                   7,
+                                                   6,
+                                                   13,
+                                                   12,
+                                                   5,
+                                                   4,
+                                                   11,
+                                                   10,
+                                                   3,
+                                                   2,
+                                                   9,
+                                                   8,
+                                                   1,
+                                                   0);
     __m256i* xd= (__m256i*)x;
     const __m256i *end=xd+N/8;
     for( __m256i* yd = (__m256i *)y; xd<end ; yd++, xd++) {
-      const __m256i xre = simde_mm256_srai_epi32(simde_mm256_madd_epi16(*xd,alpha_for_real),
+      const __m256i y256= _mm256_lddqu_si256(xd);
+      const __m256i xre = simde_mm256_srai_epi32(simde_mm256_madd_epi16(y256,alpha_for_real),
 						 output_shift);
-      const __m256i xim = simde_mm256_srai_epi32(simde_mm256_madd_epi16(*xd,alpha_for_im),
+      const __m256i xim = simde_mm256_srai_epi32(simde_mm256_madd_epi16(y256,alpha_for_im),
 						 output_shift);
       // a bit faster than unpacklo+unpackhi+packs
       const __m256i tmp=simde_mm256_packs_epi32(xre,xim);
-      *yd=simde_mm256_shuffle_epi8(tmp,perm_mask);
+      _mm256_storeu_si256(yd,simde_mm256_shuffle_epi8(tmp,perm_mask));
     }
     c16_t* alpha16=(c16_t*) alpha, *yLast;
     yLast=((c16_t*)y)+(N/8)*8;

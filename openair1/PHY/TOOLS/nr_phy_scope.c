@@ -193,7 +193,9 @@ void websrv_setpoint(int x, int y, websrv_scopedata_msg_t *msg)
   msg->data_xy[msg->data_xy[0]] = (int16_t)y;
 }
 #endif
-static void commonGraph(OAIgraph_t *graph, int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label, FL_COLOR pointColor) {
+static void commonGraph(OAIgraph_t *graph, int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label, FL_COLOR pointColor)
+{
+  memset(graph, 0, sizeof(*graph));
   if (type==WATERFALL) {
     graph->waterFallh=h-15;
     graph->waterFallAvg=malloc(sizeof(*graph->waterFallAvg) * graph->waterFallh);
@@ -455,6 +457,9 @@ static void timeSignal (OAIgraph_t *graph, PHY_VARS_gNB *phy_vars_gnb, RU_t *phy
 
 static void timeResponse (OAIgraph_t *graph, scopeData_t *p, int nb_UEs) {
   const int len = p->gNB->frame_parms.ofdm_symbol_size;
+  if (!len)
+    // gnb not yet initialized, many race conditions in the scope
+    return;
 #ifdef WEBSRVSCOPE
   websrv_scopedata_msg_t *msg = NULL;
   websrv_nf_getdata(graph->graph, 0, &msg);
@@ -498,7 +503,9 @@ static void timeResponse (OAIgraph_t *graph, scopeData_t *p, int nb_UEs) {
 static void gNBfreqWaterFall (OAIgraph_t *graph, scopeData_t *p, int nb_UEs) {
   NR_DL_FRAME_PARMS *frame_parms=&p->gNB->frame_parms;
   //use 1st antenna
-  genericWaterFall(graph, (scopeSample_t *)p->liveData, frame_parms->samples_per_frame_wCP,
+  genericWaterFall(graph,
+                   (scopeSample_t *)p->liveData[gNBRxdataF],
+                   frame_parms->samples_per_frame_wCP,
                    frame_parms->slots_per_frame,
                    "X axis: Frequency domain, one subframe");
 }
@@ -733,26 +740,32 @@ static void *scope_thread_gNB(void *arg) {
 }
 #endif
 
-static void copyRxdataF(int32_t *data, int slot,  void *scopeData) {
-  scopeData_t *scope=(scopeData_t *)scopeData;
-  memcpy(((int32_t *)scope->liveData) + slot*scope->gNB->frame_parms.samples_per_slot_wCP,
-         data,
-         scope->gNB->frame_parms.samples_per_slot_wCP*sizeof(int32_t));
+static void scopeUpdaterGnb(enum PlotTypeGnbIf plotType, int numElt)
+{
+  switch (plotType) {
+    case puschLLRe:
+      /* update PUSCH LLR plot */
+      break;
+    case puschIQe:
+      /* update PUSCH IQ plot */
+      break;
+  }
 }
 
 STATICFORXSCOPE void gNBinitScope(scopeParms_t *p)
 {
-  AssertFatal(p->gNB->scopeData=malloc(sizeof(scopeData_t)),"");
+  AssertFatal(p->gNB->scopeData = calloc(sizeof(scopeData_t), 1), "");
   scopeData_t *scope=(scopeData_t *) p->gNB->scopeData;
   scope->argc=p->argc;
   scope->argv=p->argv;
   scope->ru=p->ru;
   scope->gNB=p->gNB;
-  scope->slotFunc=copyRxdataF;
-  AssertFatal(scope->liveData= calloc(p->gNB->frame_parms.samples_per_frame_wCP*sizeof(int32_t),1),"");
+  scope->scopeUpdater = scopeUpdaterGnb;
+  scope->copyData = copyData;
 #ifndef WEBSRVSCOPE
   pthread_t forms_thread;
   threadCreate(&forms_thread, scope_thread_gNB, p->gNB->scopeData, "scope", -1, OAI_PRIORITY_RT_LOW);
+  copyDataMutexInit(scope);
 #endif
 }
 static void ueWaterFall  (scopeGraphData_t **data, OAIgraph_t *graph, PHY_VARS_NR_UE *phy_vars_ue, int eNB_id, int UE_id) {
@@ -1137,14 +1150,13 @@ static void *nrUEscopeThread(void *arg) {
 
 STATICFORXSCOPE void nrUEinitScope(PHY_VARS_NR_UE *ue)
 {
-  AssertFatal(ue->scopeData=malloc(sizeof(scopeData_t)),"");
+  AssertFatal(ue->scopeData = calloc(sizeof(scopeData_t), 1), "");
   scopeData_t *scope=(scopeData_t *) ue->scopeData;
-  scope->copyData=UEcopyData;
-  AssertFatal(scope->liveData=calloc(sizeof(scopeGraphData_t *), UEdataTypeNumberOfItems),"");
+  scope->copyData = copyData;
 #ifndef WEBSRVSCOPE
   pthread_t forms_thread;
   threadCreate(&forms_thread, nrUEscopeThread, ue, "scope", -1, OAI_PRIORITY_RT_LOW);
-  UEcopyDataMutexInit();
+  copyDataMutexInit(scope);
 #endif
 }
 

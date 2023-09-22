@@ -1,0 +1,184 @@
+#include "reg_e2_nodes.h"
+
+#include <assert.h>
+#include <pthread.h>
+
+#include "../util/alg_ds/ds/lock_guard/lock_guard.h"
+#include "../util/alg_ds/alg/find.h"
+#include "../util/alg_ds/alg/alg.h" 
+
+#include "../lib/ap/e2ap_types/common/e2ap_global_node_id.h"
+
+
+
+static inline
+void free_e2_nodes(void* key, void* value)
+{
+  assert(key != NULL);
+  assert(value != NULL);
+
+  (void)key;
+  seq_arr_t* arr_node = (seq_arr_t*)value;
+  seq_free_func f =  free_ran_function_wrapper; 
+  seq_arr_free(arr_node, f );
+  free(arr_node);
+}
+
+
+void init_reg_e2_node(reg_e2_nodes_t* i)
+{
+  assert(i != NULL);
+
+  assoc_init(&i->node_to_rf, sizeof(global_e2_node_id_t), cmp_global_e2_node_id_wrapper, free_e2_nodes);
+
+  pthread_mutexattr_t* attr = NULL;
+#ifdef DEBUG
+  *attr = PTHREAD_MUTEX_ERRORCHECK; 
+#endif
+
+  int const rc = pthread_mutex_init(&i->mtx, attr);
+  assert(rc == 0);
+}
+
+void free_reg_e2_node(reg_e2_nodes_t* i)
+{
+  assert(i != NULL);
+  assoc_free(&i->node_to_rf);
+//  assoc_free(&i->rf_to_node);
+
+  int const rc = pthread_mutex_destroy(&i->mtx);
+  assert(rc == 0);
+}
+
+void add_reg_e2_node(reg_e2_nodes_t* i, global_e2_node_id_t const* id, size_t len, ran_function_t const ran_func[len])
+{
+  assert(i != NULL);
+  assert(id != NULL);
+  assert(len > 0);
+  assert(ran_func != NULL);
+
+  seq_arr_t* arr = calloc(1, sizeof(seq_arr_t));
+  seq_init(arr, sizeof(ran_function_t*));
+
+  for(size_t i = 0; i < len; ++i){
+    ran_function_t* tmp = calloc(1, sizeof(ran_function_t) );
+    *tmp = cp_ran_function(&ran_func[i]);
+    seq_push_back(arr, &tmp, sizeof(ran_function_t*) );
+  }
+
+  lock_guard(&i->mtx);
+
+  void* it_node = assoc_front(&i->node_to_rf);
+  void* end_node = assoc_end(&i->node_to_rf);
+
+  it_node = find_if(&i->node_to_rf, it_node, end_node, id, eq_global_e2_node_id_wrapper );
+
+  if(it_node != end_node) {
+    seq_arr_t* old_arr = assoc_extract(&i->node_to_rf,(global_e2_node_id_t*)id);
+    seq_free(old_arr, free_ran_function_wrapper);
+    free(old_arr);
+  }
+
+  assoc_insert(&i->node_to_rf, id, sizeof(global_e2_node_id_t), arr);
+
+  void* it_n = assoc_front(&i->node_to_rf);
+
+  seq_arr_t* arr_tmp = assoc_value(&i->node_to_rf, it_n); 
+  assert(seq_size(arr_tmp) == 1);
+}
+
+/*
+
+static inline
+assoc_rb_tree_t available_e2node(reg_e2_nodes_t* n, size_t len, ran_function_t rf[len])
+{
+  assert(n != NULL);
+  assert(len > 0);
+  assert(rf != NULL);
+
+  assoc_rb_tree_t ret = {0}; 
+  assoc_init(&ret, sizeof(global_e2_node_id_t), cmp_global_e2_node_id_wrapper, free_e2_nodes);
+
+
+  lock_guard(&n->mtx);
+
+  void* it = assoc_front(&n->node_to_rf);
+  void* end = assoc_end(&n->node_to_rf);
+
+  while(it != end){ // per E2 Node
+    seq_arr_t* arr_v = assoc_value(&n->node_to_rf, it); 
+    const size_t sz = seq_size(arr_v); 
+    for(size_t i = 0; i < len; ++i){
+      for(size_t j = 0; j < sz ; ++j){
+        ran_function_t* r = *(ran_function_t**)seq_at(arr_v, j); 
+        // Add the RAN functions that have permission
+        if(eq_ran_function(r,&rf[i]) == true){
+          global_e2_node_id_t* id = assoc_key(&ret, it);
+
+          void* it_ret = assoc_front(&ret);
+          void* end_ret = assoc_end(&ret);
+
+          it_ret = find_if(&ret, it_ret, end_ret, id, eq_global_e2_node_id_wrapper); 
+          seq_arr_t* arr = NULL; 
+          if(it_ret == end_ret){
+            arr = calloc(1, sizeof(seq_arr_t));
+            assert(arr != NULL && "memory exhasuted");
+            seq_init(arr,sizeof(ran_function_t*));
+            assoc_insert(&ret, id, sizeof(global_e2_node_id_t), arr);
+          } else{
+            arr = assoc_value(&ret, it_ret);
+          }
+          ran_function_t* tmp = calloc(1, sizeof(ran_function_t));
+          assert(tmp != NULL);
+          *tmp = cp_ran_function(r);
+          seq_push_back(arr, tmp, sizeof(ran_function_t*));
+        }
+      }
+    }
+    it = assoc_next(&n->node_to_rf, it);
+  }
+
+  return ret;
+}
+
+
+arr_conn_e2_nodes_t nodes_reg_e2_node(reg_e2_nodes_t* i, size_t len, ran_function_t ran_func[len])
+{
+
+  assoc_rb_tree_t t = available_e2node(i, len, ran_func);
+
+  arr_conn_e2_nodes_t conn = {.len = assoc_size(&t)}; 
+  assert(conn.len > 0);
+
+  conn.n = calloc(conn.len, sizeof(e2_node_connected_t) );
+  assert(conn.n != NULL && "Memory exhausted");
+
+  void* it = assoc_front(&i->node_to_rf);
+  void* end = assoc_end(&i->node_to_rf);
+
+  int idx = 0;
+  while(it != end){
+    global_e2_node_id_t* id = assoc_key(&i->node_to_rf, it);
+    
+    e2_node_connected_t* n = &conn.n[idx];
+    n->id = cp_global_e2_node_id(id);
+    
+    seq_arr_t* arr = assoc_value(&i->node_to_rf, it);
+    n->len_rf = seq_size(arr);
+    if(n->len_rf > 0){
+      n->ack_rf = calloc(n->len_rf, sizeof(ran_function_t));
+      assert(n->ack_rf != NULL && "memory exhausted");
+    }
+
+    for(size_t j = 0; j < n->len_rf; ++j){
+     ran_function_t* r = *(ran_function_t**)seq_at(arr, j);
+     n->ack_rf[idx] = cp_ran_function(r); 
+    }
+
+    ++idx;
+    it = assoc_next(&i->node_to_rf, it);
+  }
+  return conn;
+}
+*/
+

@@ -1,0 +1,88 @@
+namespace rlc.stats;
+
+table EventTrigger {
+  ms : uint32;
+}
+//root_type EventTrigger;
+
+
+//table ActionDefinition {
+//}
+//root_type ActionDefinition;
+
+
+table IndicationHeader {
+  dummy: uint32;
+}
+//root_type IndicationHeader;
+
+
+table RadioBearerStats {
+
+  txpdu_pkts: uint64;  
+  txpdu_bytes: uint64; 
+  txpdu_wt_ms: uint64; 
+  txpdu_dd_pkts: uint64; 
+  txpdu_dd_bytes: uint64;
+  txpdu_retx_pkts: uint64;
+  txpdu_retx_bytes: uint64;
+  txpdu_segmented: uint64; 
+  txpdu_status_pkts: uint64;
+  txpdu_status_bytes: uint64;
+  txbuf_occ_bytes: uint64;  
+  txbuf_occ_pkts: uint64;  
+  rxpdu_pkts: uint64;     
+  rxpdu_bytes: uint64;   
+  rxpdu_dup_pkts: uint64; 
+  rxpdu_dup_bytes: uint64; 
+  rxpdu_dd_pkts: uint64;  
+  rxpdu_dd_bytes: uint64; 
+  rxpdu_ow_pkts: uint64; 
+  rxpdu_ow_bytes: uint64; 
+  rxpdu_status_pkts: uint64;
+  rxpdu_status_bytes: uint64;
+  rxbuf_occ_bytes: uint64; 
+  rxbuf_occ_pkts: uint64; 
+  txsdu_pkts: uint64;    
+  txsdu_bytes: uint64;  
+  rxsdu_pkts: uint64;   
+  rxsdu_bytes: uint64;  
+  rxsdu_dd_pkts: uint64; 
+  rxsdu_dd_bytes: uint64; 
+  rnti : uint16;
+  mode : uint8; 
+  rbid : uint8;
+}
+
+//table UEStats {
+//  rnti: uint16;
+//  rb: [RBStats];
+//}
+
+table IndicationMessage {
+
+  rbStats : [RadioBearerStats]
+
+  frame: uint16;
+  slot : uint8;
+
+//  ueStats: [UEStats];
+}
+
+//root_type IndicationMessage;
+
+
+// No ControlHeader in this SM
+
+
+// No ControlMessage in this SM
+
+
+// No CallProcessId in this SM
+
+
+//table RanFunctionDefinition {
+//  supportedReportStyles: [ReportStyle];
+//}
+//root_type RanFunctionDefinition;
+

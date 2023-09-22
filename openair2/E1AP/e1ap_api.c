@@ -30,6 +30,7 @@
 #include "openair2/RRC/LTE/MESSAGES/asn1_msg.h"
 #include "openair3/SECU/key_nas_deriver.h"
 #include "openair3/ocp-gtpu/gtp_itf.h"
+#include "openair2/F1AP/f1ap_ids.h"
 #include "e1ap_asnc.h"
 #include "e1ap_common.h"
 #include "e1ap.h"
@@ -83,8 +84,7 @@ static void fill_DRB_configList_e1(NR_DRB_ToAddModList_t *DRB_configList, pdu_se
       asn1cCallocOne(drbCfg->integrityProtection, NR_PDCP_Config__drb__integrityProtection_enabled);
     }
 
-    if (pdu->confidentialityProtectionIndication == 0 || // Required
-        pdu->confidentialityProtectionIndication == 1) { // Preferred
+    if (pdu->confidentialityProtectionIndication == 2) { // Not Needed
       asn1cCalloc(pdcp_config->ext1, ext1);
       asn1cCallocOne(ext1->cipheringDisabled, NR_PDCP_Config__ext1__cipheringDisabled_true);
     }
@@ -110,30 +110,24 @@ static int drb_config_N3gtpu_create(e1ap_bearer_setup_req_t * const req,
     fill_DRB_configList_e1(&DRB_configList, pdu);
   }
   create_tunnel_req.num_tunnels = req->numPDUSessions;
-  create_tunnel_req.ue_id = (req->gNB_cu_cp_ue_id & 0xFFFF);
+  create_tunnel_req.ue_id = req->gNB_cu_cp_ue_id;
 
   // Create N3 tunnel
   int ret = gtpv1u_create_ngu_tunnel(instance, &create_tunnel_req, create_tunnel_resp, nr_pdcp_data_req_drb, sdap_data_req);
   if (ret != 0) {
-    LOG_E(NR_RRC,"rrc_gNB_process_NGAP_PDUSESSION_SETUP_REQ : gtpv1u_create_ngu_tunnel failed,start to release UE id %ld\n",
+    LOG_E(NR_RRC,
+          "drb_config_N3gtpu_create=>gtpv1u_create_ngu_tunnel failed, cannot set up GTP tunnel for data transmissions of UE %ld\n",
           create_tunnel_req.ue_id);
     return ret;
   }
 
   // Configure DRBs
-  uint8_t kUPenc[16] = {0};
-  uint8_t kUPint[16] = {0};
-
-  nr_derive_key(UP_ENC_ALG, req->cipheringAlgorithm, (uint8_t *)req->encryptionKey, kUPenc);
-
-  nr_derive_key(UP_INT_ALG, req->integrityProtectionAlgorithm, (uint8_t *)req->integrityProtectionKey, kUPint);
-
   nr_pdcp_e1_add_drbs(true, // set this to notify PDCP that his not UE
                       create_tunnel_req.ue_id,
                       &DRB_configList,
                       (req->integrityProtectionAlgorithm << 4) | req->cipheringAlgorithm,
-                      kUPenc,
-                      kUPint);
+                      (uint8_t *)req->encryptionKey,
+                      (uint8_t *)req->integrityProtectionKey);
   return ret;
 }
 
@@ -142,6 +136,11 @@ void process_e1_bearer_context_setup_req(instance_t instance, e1ap_bearer_setup_
   e1ap_upcp_inst_t *inst = getCxtE1(instance);
   AssertFatal(inst, "");
   gtpv1u_gnb_create_tunnel_resp_t create_tunnel_resp_N3={0};
+
+  uint32_t gNB_cu_up_ue_id = req ->gNB_cu_cp_ue_id;
+  LOG_I(E1AP, "adding UE with CU-CP UE ID %d and CU-UP UE ID %d\n", req->gNB_cu_cp_ue_id, gNB_cu_up_ue_id);
+  f1_ue_data_t ue_data = {.secondary_ue = req->gNB_cu_cp_ue_id};
+  cu_add_f1_ue_data(gNB_cu_up_ue_id, &ue_data);
 
   // GTP tunnel for UL
   drb_config_N3gtpu_create(req, &create_tunnel_resp_N3, inst->gtpInstN3);
@@ -155,6 +154,7 @@ void process_e1_bearer_context_setup_req(instance_t instance, e1ap_bearer_setup_
   fill_e1ap_bearer_setup_resp(resp, req, inst->gtpInstF1U, req->gNB_cu_cp_ue_id, inst->setupReq.remotePortF1U, my_addr);
 
   resp->gNB_cu_cp_ue_id = req->gNB_cu_cp_ue_id;
+  resp->gNB_cu_up_ue_id = gNB_cu_up_ue_id;
   resp->numPDUSessions = req->numPDUSessions;
   for (int i=0; i < req->numPDUSessions; i++) {
     pdu_session_setup_t *pduSetup = resp->pduSession + i;

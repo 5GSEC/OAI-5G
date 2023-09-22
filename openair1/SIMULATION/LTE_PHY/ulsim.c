@@ -398,7 +398,6 @@ int main(int argc, char **argv) {
   AssertFatal(load_configmodule(argc,argv,CONFIG_ENABLECMDLINEONLY) != NULL, "Cannot load configuration module, exiting\n");
   logInit();
   set_glog(OAILOG_INFO);
-  T_stdout = 1;
   // enable these lines if you need debug info
   // however itti will catch all signals, so ctrl-c won't work anymore
   // alternatively you can disable ITTI completely in CMakeLists.txt
@@ -653,9 +652,6 @@ int main(int argc, char **argv) {
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
     printf("Hostname: %s\n", hostname);
-    //char dirname[FILENAME_MAX];
-    //sprintf(dirname, "%s//SIMU/USER/pre-ci-logs-%s", getenv("OPENAIR_TARGETS"),hostname);
-    //mkdir(dirname, 0777);
     sprintf(time_meas_fname,"time_meas_prb%d_mcs%d_antrx%d_channel%s_tx%d.csv",
             N_RB_DL,mcs,n_rx,channel_model_input,transmission_m);
     time_meas_fd = fopen(time_meas_fname,"w");

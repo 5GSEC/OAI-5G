@@ -57,8 +57,6 @@ The RF simulator is using the configuration module, and its parameters are defin
 | modelname            | Name of the channel model to apply on received iqs when the `chanmod` option is enabled                           | AWGN |
 | IQfile               | Path to the file to be used to store iqs, when the `saviq` option is enabled                                      | /tmp/rfsimulator.iqs |
         
-Setting the env variable RFSIMULATOR can be used instead of using the serveraddr parameter; it is to preserve compatibility with previous version.
-
 ## How to use the RF simulator options
 
 To define and use a channel model, the configuration file needs to include a channel configuration file. To do this, add `@include "channelmod_rfsimu.conf"` to the end of the configuration file, and place the channel configuration file in the same directory. An example channel configuration file `channelmod_rfsimu.conf` is in `ci-scripts/conf_files`.
@@ -81,7 +79,7 @@ set the model with:
 Example run:
 
 ```bash
-sudo RFSIMULATOR=server ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-LTE-EPC/CONF/gnb.band78.tm1.106PRB.usrpn300.conf --parallel-config PARALLEL_SINGLE_THREAD --rfsim --phy-test --rfsimulator.options chanmod --rfsimulator.modelname AWGN 
+sudo ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-LTE-EPC/CONF/gnb.band78.tm1.106PRB.usrpn300.conf --parallel-config PARALLEL_SINGLE_THREAD --rfsim --phy-test --rfsimulator.options chanmod --rfsimulator.modelname AWGN
 ```
 
 where `@include "channelmod_rfsimu.conf"` has been added at the end of the file, and `ci-scripts/conf_files/channelmod_rfsimu.conf` copied to `targets/PROJECTS/GENERIC-LTE-EPC/CONF/`.
@@ -90,11 +88,11 @@ where `@include "channelmod_rfsimu.conf"` has been added at the end of the file,
 
 For the UE, it should be set to the IP address of the eNB. For example:
 ```bash
-sudo RFSIMULATOR=192.168.2.200 ./lte-uesoftmodem -C 2685000000 -r 50 
+sudo ./lte-uesoftmodem -C 2685000000 -r 50 --rfsimulator.serveraddr 192.168.2.200
 ```
 For the eNB, use a valid configuration file setup for the USRP board tests and start the softmodem as usual, **but**, adding the `--rfsim` option.
 ```bash
-sudo RFSIMULATOR=enb ./lte-softmodem -O <config file> --rfsim
+sudo ./lte-softmodem -O <config file> --rfsim
 ```
 
 Except this, the UE and the eNB can be used as if the RF is real. noS1 mode can also be used with the RF simulator.
@@ -115,29 +113,21 @@ make rfsimulator
 ### Launch gNB in one window
 
 ```bash
-sudo RFSIMULATOR=server ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-LTE-EPC/CONF/gnb.band78.tm1.106PRB.usrpn300.conf --parallel-config PARALLEL_SINGLE_THREAD --rfsim --phy-test
+sudo ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-LTE-EPC/CONF/gnb.band78.tm1.106PRB.usrpn300.conf --parallel-config PARALLEL_SINGLE_THREAD --rfsim --phy-test
 ```
 
 ### Launch UE in another window
 
 ```bash
-sudo RFSIMULATOR=<TARGET_GNB_INTERFACE_ADDRESS> ./nr-uesoftmodem --rfsim --phy-test --rrc_config_path .
+sudo ./nr-uesoftmodem --rfsim --phy-test --rfsimulator.serveraddr <TARGET_GNB_INTERFACE_ADDRESS>
 ```
 
 Notes:
 
-1. This starts the gNB and UE in the `phy-test` UP-only mode where the gNB is started as if a UE had already connected, and a configurable scheduler is used instead of the default one. The options `-m`, `-l`, `-t`, `-M`, `-T`, `-D`, and `-U` can be used to configure this scheduler.
+1. This starts the gNB and UE in the `phy-test` UP-only mode where the gNB is started as if a UE had already connected. See [RUNMODEM.md](../../doc/RUNMODEM.md) for more details.
 2. <TARGET_GNB_INTERFACE_ADDRESS> can be 127.0.0.1 if both gNB and nrUE executables run on the same host, OR the IP interface address of the remote host running the gNB executable, if the gNB and nrUE run on separate hosts.
-3. The --rrc_config_path parameter SHALL specify where the 2 RAW files are located (`rbconfig.raw` and `reconfig.raw`).
-   - If you are running on the same machine and launched the 2 executables (`nr-softmodem` and `nr-uesoftmodem`) from the same directory, nothing has to be done.
-   - If you launched the 2 executables from 2 different folders, just point to the location where you launched the `nr-softmodem`:
-     * `sudo RFSIMULATOR=<TARGET_GNB_INTERFACE_ADDRESS> ./nr-uesoftmodem --rfsim --phy-test --rrc_config_path /the/path/where/you/launched/nr-softmodem`
-   - If you are not running on the same machine or launched the 2 executables from 2 different folders, you need to **COPY** the 2 raw files
-     * `scp usera@machineA:/the/path/where/you/launched/nr-softmodem/r*config.raw userb@machineB:/the/path/where/you/will/launch/nr-uesoftmodem/`
-     * Obviously this operation SHALL be done before launching the `nr-uesoftmodem` executable.
-4. To enable the noS1 mode, `--noS1` option should be added to the command line.
-5. To operate the gNB/UE with a 5GC, start them using the `--sa` option. More information can be found [here](../../../doc/NR_SA_Tutorial_OAI_CN5G.md).
-
+3. To enable the noS1 mode, `--noS1` option should be added to the command line, see again [RUNMODEM.md](../../doc/RUNMODEM.md).
+4. To operate the gNB/UE with a 5GC, start them using the `--sa` option. More information can be found [here](../../../doc/NR_SA_Tutorial_OAI_CN5G.md).
 
 In the UE, you can add `-d` option to get the softscope.
 
@@ -203,7 +193,7 @@ to add a lot of noise:
 
 Example run commands:
 ```bash
-sudo RFSIMULATOR=server ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-LTE-EPC/CONF/gnb.band78.tm1.106PRB.usrpn300.conf --parallel-config PARALLEL_SINGLE_THREAD --rfsim --phy-test --rfsimulator.options chanmod --rfsimulator.modelname AWGN 
+sudo ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-LTE-EPC/CONF/gnb.band78.tm1.106PRB.usrpn300.conf --parallel-config PARALLEL_SINGLE_THREAD --rfsim --phy-test --rfsimulator.options chanmod --rfsimulator.modelname AWGN
 
 ```
 # Real time control and monitoring

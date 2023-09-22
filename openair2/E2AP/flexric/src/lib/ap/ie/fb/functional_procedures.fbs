@@ -1,0 +1,95 @@
+include "ie_definitions.fbs";
+
+namespace e2ap;
+
+/// Table for requesting a new subscription
+table RicSubscriptionRequest {
+  /// the ID of the request
+  requestId: RicRequestId;
+  /// the target RAN function
+  ranFunctionId: uint16;
+  /// the definition of the event, SM-specific
+  eventTriggerDefinition: [uint8];
+  /// the list of actions to carry out for this subscription
+  actions: [Action];
+}
+table Action {
+  id: uint8;
+  type: RicActionType;
+  definition: [uint8];
+  subsequentAction: RicSubsequentAction;
+}
+
+table RicSubscriptionResponse {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+  admittedActions: [RicActionAdmitted];
+  notAdmittedActions: [RicActionNotAdmitted];
+}
+table RicActionAdmitted {
+  id: uint8;
+}
+table RicActionNotAdmitted {
+  id: uint8;
+  cause: Cause;
+}
+
+table RicSubscriptionFailure {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+  notAdmittedActions: [RicActionNotAdmitted];
+  criticalityDiagnostics: CriticalityDiagnostics;
+}
+
+table RicSubscriptionDeleteRequest {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+}
+
+table RicSubscriptionDeleteResponse {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+}
+
+table RicSubscriptionDeleteFailure {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+  cause: Cause;
+  criticalityDiagnostics: CriticalityDiagnostics;
+}
+
+table RicIndication {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+  actionId: uint8;
+  sn: uint16;
+  indicationType: RicIndicationType;
+  header: [uint8];
+  message: [uint8];
+  callProcessId: [uint8];
+}
+
+table RicControlRequest {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+  callProcessId: [uint8];
+  header: [uint8];
+  message: [uint8];
+  ackRequest: RicControlAckRequest;
+}
+
+table RicControlAcknowledge {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+  callProcessId: [uint8];
+  status: RicControlStatus;
+  outcome: [uint8];
+}
+
+table RicControlFailure {
+  requestId: RicRequestId;
+  ranFunctionId: uint16;
+  callProcessId: [uint8];
+  cause: Cause;
+  outcome: [uint8];
+}

@@ -1,0 +1,6 @@
+*.out 
+*.py
+*.swp
+*.json
+build/
+tags

@@ -33,19 +33,13 @@
 #include <stdio.h>
 #include <math.h>
 
-#define DEFINE_VARIABLES_PHY_IMPLEMENTATION_DEFS_NR_H
 #include "PHY/impl_defs_nr.h"
-#undef DEFINE_VARIABLES_PHY_IMPLEMENTATION_DEFS_NR_H
-
 #include "PHY/defs_nr_UE.h"
 #include "PHY/NR_REFSIG/ss_pbch_nr.h"
 #include "PHY/NR_REFSIG/dmrs_nr.h"
 #include "PHY/NR_REFSIG/ul_ref_seq_nr.h"
 
-#define DEFINE_VARIABLES_SRS_MODULATION_NR_H
 #include "PHY/NR_UE_TRANSPORT/srs_modulation_nr.h"
-#undef DEFINE_VARIABLES_SRS_MODULATION_NR_H
-
 //#define SRS_DEBUG
 
 
@@ -432,7 +426,7 @@ int generate_srs_nr(nfapi_nr_srs_pdu_t *srs_config_pdu,
 *                send srs according to current configuration
 *
 *********************************************************************/
-int ue_srs_procedures_nr(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc)
+int ue_srs_procedures_nr(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, c16_t **txdataF)
 {
   if(!ue->srs_vars[0]->active) {
     return -1;
@@ -471,8 +465,15 @@ int ue_srs_procedures_nr(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc)
   NR_DL_FRAME_PARMS *frame_parms = &(ue->frame_parms);
   uint16_t symbol_offset = (frame_parms->symbols_per_slot - 1 - srs_config_pdu->time_start_position)*frame_parms->ofdm_symbol_size;
 
-  if (generate_srs_nr(srs_config_pdu, frame_parms, (int32_t **)ue->common_vars.txdataF, symbol_offset, ue->nr_srs_info,
-                      AMP, proc->frame_tx, proc->nr_slot_tx) == 0) {
+  if (generate_srs_nr(srs_config_pdu,
+                      frame_parms,
+                      (int32_t **)txdataF,
+                      symbol_offset,
+                      ue->nr_srs_info,
+                      AMP,
+                      proc->frame_tx,
+                      proc->nr_slot_tx)
+      == 0) {
     return 0;
   } else {
     return -1;

@@ -72,14 +72,14 @@ void init_RA(module_id_t mod_id,
   ra->starting_preamble_nb = 0;
   ra->RA_backoff_cnt       = 0;
 
+  fapi_nr_config_request_t *cfg = &mac->phy_config.config_req;
+
   prach_resources->RA_PREAMBLE_BACKOFF = 0;
   NR_SubcarrierSpacing_t prach_scs = *nr_rach_ConfigCommon->msg1_SubcarrierSpacing;
   int n_prbs = get_N_RA_RB (prach_scs, mac->current_UL_BWP.scs);
   int start_prb = rach_ConfigGeneric->msg1_FrequencyStart + mac->current_UL_BWP.BWPStart;
-  int carrier_bandwidth = mac->scc_SIB ? mac->scc_SIB->uplinkConfigCommon->frequencyInfoUL.scs_SpecificCarrierList.list.array[0]->carrierBandwidth :
-                          mac->scc->uplinkConfigCommon->frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth;
   // PRACH shall be as specified for QPSK modulated DFT-s-OFDM of equivalent RB allocation (38.101-1)
-  prach_resources->RA_PCMAX = nr_get_Pcmax(mac, 2, false, prach_scs, carrier_bandwidth, true, n_prbs, start_prb);
+  prach_resources->RA_PCMAX = nr_get_Pcmax(mac, 2, false, prach_scs, cfg->carrier_config.dl_grid_size[prach_scs], true, n_prbs, start_prb);
   prach_resources->RA_PREAMBLE_TRANSMISSION_COUNTER = 1;
   prach_resources->RA_PREAMBLE_POWER_RAMPING_COUNTER = 1;
   prach_resources->POWER_OFFSET_2STEP_RA = 0;
@@ -738,9 +738,7 @@ uint8_t nr_ue_get_rach(module_id_t mod_id,
           ((NR_MAC_SUBHEADER_FIXED *) pdu)->R = 0;
           ((NR_MAC_SUBHEADER_FIXED *) pdu)->LCID = UL_SCH_LCID_PADDING;
           pdu += sizeof(NR_MAC_SUBHEADER_FIXED);
-          for (int j = 0; j < TBS_max - ra->Msg3_size - sizeof(NR_MAC_SUBHEADER_FIXED); j++) {
-            pdu[j] = 0;
-          }
+          memset(pdu, 0, TBS_max - ra->Msg3_size - sizeof(NR_MAC_SUBHEADER_FIXED));
         }
 
         // Dumping ULSCH payload
@@ -812,25 +810,17 @@ uint8_t nr_ue_get_rach(module_id_t mod_id,
   return ra->ra_state;
 }
 
-void nr_get_RA_window(NR_UE_MAC_INST_t *mac){
-
-  uint8_t mu, ra_ResponseWindow;
+void nr_get_RA_window(NR_UE_MAC_INST_t *mac)
+{
   RA_config_t *ra = &mac->ra;
   NR_RACH_ConfigCommon_t *setup = mac->current_UL_BWP.rach_ConfigCommon;
   AssertFatal(&setup->rach_ConfigGeneric != NULL, "In %s: FATAL! rach_ConfigGeneric is NULL...\n", __FUNCTION__);
   NR_RACH_ConfigGeneric_t *rach_ConfigGeneric = &setup->rach_ConfigGeneric;
-  long scs = (mac->scc) ? 
-    mac->scc->downlinkConfigCommon->frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing :
-    mac->scc_SIB->downlinkConfigCommon.frequencyInfoDL.scs_SpecificCarrierList.list.array[0]->subcarrierSpacing;
  
-  ra_ResponseWindow = rach_ConfigGeneric->ra_ResponseWindow;
+  int ra_ResponseWindow = rach_ConfigGeneric->ra_ResponseWindow;
+  int mu = mac->current_DL_BWP.scs;
 
-  if (setup->msg1_SubcarrierSpacing)
-    mu = *setup->msg1_SubcarrierSpacing;
-  else
-    mu = scs;
-
-  ra->RA_window_cnt = ra->RA_offset*nr_slots_per_frame[mu]; // taking into account the 2 frames gap introduced by OAI gNB
+  ra->RA_window_cnt = ra->RA_offset * nr_slots_per_frame[mu]; // taking into account the 2 frames gap introduced by OAI gNB
 
   switch (ra_ResponseWindow) {
     case NR_RACH_ConfigGeneric__ra_ResponseWindow_sl1:
@@ -896,7 +886,6 @@ void nr_ra_succeeded(const module_id_t mod_id, const uint8_t gNB_index, const fr
 
   if (ra->cfra) {
     LOG_I(MAC, "[UE %d][%d.%d][RAPROC] RA procedure succeeded. CF-RA: RAR successfully received.\n", mod_id, frame, slot);
-    nr_rrc_RA_succeeded(mod_id, gNB_index);
     mac->state = UE_CONNECTED;
     ra->RA_window_cnt = -1;
   } else {
@@ -911,6 +900,7 @@ void nr_ra_succeeded(const module_id_t mod_id, const uint8_t gNB_index, const fr
   LOG_D(MAC, "In %s: [UE %d] clearing RA_active flag...\n", __FUNCTION__, mod_id);
   ra->RA_active = 0;
   ra->ra_state = RA_SUCCEEDED;
+  nr_mac_rrc_ra_ind(mod_id, frame, true);
 }
 
 // Handling failure of RA procedure @ MAC layer

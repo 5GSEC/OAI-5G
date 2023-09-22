@@ -31,7 +31,7 @@
 
 //#define RM_DEBUG 1
 
-uint8_t index_k0[2][4] = {{0,17,33,56},{0,13,25,43}};
+static const uint8_t index_k0[2][4] = {{0, 17, 33, 56}, {0, 13, 25, 43}};
 
 void nr_interleaving_ldpc(uint32_t E, uint8_t Qm, uint8_t *e,uint8_t *f)
 {
@@ -551,7 +551,8 @@ int nr_rate_matching_ldpc_rx(uint32_t Tbslbrm,
   printf("nr_rate_matching_ldpc_rx: Clear %d, E %u, k0 %u, Ncb %u, rvidx %d, Tbslbrm %u\n", clear, E, ind, Ncb, rvidx, Tbslbrm);
 #endif
 
-  if (clear==1) memset(w,0,Ncb*sizeof(int16_t));
+  if (clear == 1)
+    memset(w, 0, Ncb * sizeof(int16_t));
 
   k=0;
 

@@ -561,7 +561,6 @@ int main(int argc, char **argv)
   
   logInit();
   set_glog(loglvl);
-  T_stdout = 1;
 
   get_softmodem_params()->phy_test = 1;
   get_softmodem_params()->do_ra = 0;
@@ -634,14 +633,12 @@ int main(int argc, char **argv)
                     N_RB_UL,0,mcs_table);
 
   // TODO do a UECAP for phy-sim
-  const gNB_RrcConfigurationReq conf = {
-    .pdsch_AntennaPorts = { .N1 = 1, .N2 = 1, .XP = 1 },
-    .pusch_AntennaPorts = n_rx,
-    .minRXTXTIME = 0,
-    .do_CSIRS = 0,
-    .do_SRS = 0,
-    .force_256qam_off = false
-  };
+  const gNB_RrcConfigurationReq conf = {.pdsch_AntennaPorts = {.N1 = 1, .N2 = 1, .XP = 1},
+                                        .pusch_AntennaPorts = n_rx,
+                                        .minRXTXTIME = 0,
+                                        .do_CSIRS = 0,
+                                        .do_SRS = 0,
+                                        .force_256qam_off = false};
 
   NR_CellGroupConfig_t *secondaryCellGroup = get_default_secondaryCellGroup(scc, scd, UE_Capability_nr, 0, 1, &conf, 0);
 
@@ -680,7 +677,7 @@ int main(int argc, char **argv)
   c16_t **rxdata;
   rxdata = malloc(n_rx * sizeof(*rxdata));
   for (int i = 0; i < n_rx; ++i)
-    rxdata[i] = malloc(gNB->frame_parms.samples_per_frame * sizeof(**rxdata));
+    rxdata[i] = calloc(gNB->frame_parms.samples_per_frame, sizeof(**rxdata));
 
   NR_BWP_Uplink_t *ubwp=secondaryCellGroup->spCellConfig->spCellConfigDedicated->uplinkConfig->uplinkBWP_ToAddModList->list.array[0];
 
@@ -705,8 +702,7 @@ int main(int argc, char **argv)
   }
 
   // Configure UE
-  UE = malloc(sizeof(PHY_VARS_NR_UE));
-  memset((void*)UE,0,sizeof(PHY_VARS_NR_UE));
+  UE = calloc(1, sizeof(PHY_VARS_NR_UE));
   PHY_vars_UE_g = malloc(sizeof(PHY_VARS_NR_UE**));
   PHY_vars_UE_g[0] = malloc(sizeof(PHY_VARS_NR_UE*));
   PHY_vars_UE_g[0][0] = UE;
@@ -756,21 +752,11 @@ int main(int argc, char **argv)
 
   nr_phy_data_tx_t phy_data = {0};
 
-  unsigned char *estimated_output_bit;
-  unsigned char *test_input_bit;
   uint32_t errors_decoding = 0;
-  
 
-  test_input_bit       = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
-  estimated_output_bit = (unsigned char *) malloc16(sizeof(unsigned char) * 16 * 68 * 384);
-
-  nr_scheduled_response_t scheduled_response;
-  fapi_nr_ul_config_request_t ul_config;
-  fapi_nr_tx_request_t tx_req;
-
-  memset(&scheduled_response, 0, sizeof(scheduled_response));
-  memset(&ul_config, 0, sizeof(ul_config));
-  memset(&tx_req, 0, sizeof(tx_req));
+  nr_scheduled_response_t scheduled_response={0};
+  fapi_nr_ul_config_request_t ul_config={0};
+  fapi_nr_tx_request_t tx_req={0};
 
   uint8_t ptrs_mcs1 = 2;
   uint8_t ptrs_mcs2 = 4;
@@ -851,7 +837,7 @@ int main(int argc, char **argv)
 
   ulsch_input_buffer[0] = 0x31;
   for (i = 1; i < TBS/8; i++) {
-    ulsch_input_buffer[i] = (unsigned char) rand();
+    ulsch_input_buffer[i] = (unsigned char) uniformrandom();
   }
 
   uint8_t ptrs_time_density = get_L_ptrs(ptrs_mcs1, ptrs_mcs2, ptrs_mcs3, Imcs, mcs_table);
@@ -1053,7 +1039,7 @@ int main(int argc, char **argv)
         pusch_pdu->maintenance_parms_v3.tbSizeLbrmBytes = tbslbrm;
         pusch_pdu->pusch_data.rv_index = rv_index;
         pusch_pdu->pusch_data.harq_process_id = 0;
-        pusch_pdu->pusch_data.new_data_indicator = round == 0 ? 1 : 0;
+        pusch_pdu->pusch_data.new_data_indicator = round == 0 ? true : false;
         pusch_pdu->pusch_data.num_cb = 0;
         pusch_pdu->pusch_ptrs.ptrs_time_density = ptrs_time_density;
         pusch_pdu->pusch_ptrs.ptrs_freq_density = ptrs_freq_density;
@@ -1197,16 +1183,12 @@ int main(int argc, char **argv)
           phy_procedures_nrUE_TX(UE, &UE_proc, &phy_data);
 
           if (n_trials == 1) {
-            LOG_M("txsig0.m", "txs0", &UE->common_vars.txdata[0][slot_offset], slot_length, 1, 1);
-            LOG_M("txsig0F.m", "txs0F", UE->common_vars.txdataF[0], frame_parms->ofdm_symbol_size * 14, 1, 1);
+            LOG_M("txsig0.m", "txs0", &UE->common_vars.txData[0][slot_offset], slot_length, 1, 1);
             if (precod_nbr_layers > 1) {
-              LOG_M("txsig1.m", "txs1", &UE->common_vars.txdata[1][slot_offset], slot_length, 1, 1);
-              LOG_M("txsig1F.m", "txs1F", UE->common_vars.txdataF[1], frame_parms->ofdm_symbol_size * 14, 1, 1);
-              if (precod_nbr_layers == 4) {
-                LOG_M("txsig2.m", "txs2", &UE->common_vars.txdata[2][slot_offset], slot_length, 1, 1);
-                LOG_M("txsig3.m", "txs3", &UE->common_vars.txdata[3][slot_offset], slot_length, 1, 1);
-                LOG_M("txsig2F.m", "txs2F", UE->common_vars.txdataF[2], frame_parms->ofdm_symbol_size * 14, 1, 1);
-                LOG_M("txsig3F.m", "txs3F", UE->common_vars.txdataF[3], frame_parms->ofdm_symbol_size * 14, 1, 1);
+            LOG_M("txsig1.m", "txs1", &UE->common_vars.txData[1][slot_offset], slot_length, 1, 1);
+            if (precod_nbr_layers == 4) {
+              LOG_M("txsig2.m", "txs2", &UE->common_vars.txData[2][slot_offset], slot_length, 1, 1);
+              LOG_M("txsig3.m", "txs3", &UE->common_vars.txData[3][slot_offset], slot_length, 1, 1);
               }
             }
           }
@@ -1215,8 +1197,10 @@ int main(int argc, char **argv)
           tx_offset = frame_parms->get_samples_slot_timestamp(slot, frame_parms, 0);
           txlev_sum = 0;
           for (int aa = 0; aa < UE->frame_parms.nb_antennas_tx; aa++) {
-            atxlev[aa] = signal_energy((int32_t *)&UE->common_vars.txdata[aa][tx_offset + 5 * frame_parms->ofdm_symbol_size + 4 * frame_parms->nb_prefix_samples + frame_parms->nb_prefix_samples0],
-                                       frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples);
+            atxlev[aa] = signal_energy(
+                (int32_t *)&UE->common_vars.txData[aa][tx_offset + 5 * frame_parms->ofdm_symbol_size
+                                                       + 4 * frame_parms->nb_prefix_samples + frame_parms->nb_prefix_samples0],
+                frame_parms->ofdm_symbol_size + frame_parms->nb_prefix_samples);
 
             txlev_sum += atxlev[aa];
 
@@ -1237,13 +1221,13 @@ int main(int argc, char **argv)
 
           for (i = 0; i < slot_length; i++) {
             for (int aa = 0; aa < UE->frame_parms.nb_antennas_tx; aa++) {
-              s_re[aa][i] = ((double)(((short *)&UE->common_vars.txdata[aa][slot_offset]))[(i << 1)]);
-              s_im[aa][i] = ((double)(((short *)&UE->common_vars.txdata[aa][slot_offset]))[(i << 1) + 1]);
+              s_re[aa][i] = (double)UE->common_vars.txData[aa][slot_offset + i].r;
+              s_im[aa][i] = (double)UE->common_vars.txData[aa][slot_offset + i].i;
             }
           }
 
           multipath_channel(UE2gNB, s_re, s_im, r_re, r_im, slot_length, 0, (n_trials == 1) ? 1 : 0);
-          add_noise(rxdata, (const double **) r_re, (const double **) r_im, sigma, slot_length, slot_offset, ts, delay, pdu_bit_map, frame_parms->nb_antennas_rx);
+          add_noise(rxdata, (const double **) r_re, (const double **) r_im, sigma, slot_length, slot_offset, ts, delay, pdu_bit_map, PUSCH_PDU_BITMAP_PUSCH_PTRS, frame_parms->nb_antennas_rx);
 
         } /*End input_fd */
 
@@ -1270,11 +1254,14 @@ int main(int argc, char **argv)
                            slot,
                            0);
         }
-
+        int offset = (slot & 3) * gNB->frame_parms.symbols_per_slot * gNB->frame_parms.ofdm_symbol_size;
         for (int aa = 0; aa < gNB->frame_parms.nb_antennas_rx; aa++)  {
-          apply_nr_rotation_ul(&gNB->frame_parms,
+          apply_nr_rotation_RX(&gNB->frame_parms,
                                gNB->common_vars.rxdataF[aa],
+                               gNB->frame_parms.symbol_rotation[1],
                                slot,
+                               gNB->frame_parms.N_RB_UL,
+                               offset,
                                0,
                                gNB->frame_parms.Ncp == EXTENDED ? 12 : 14);
         }
@@ -1312,7 +1299,6 @@ int main(int argc, char **argv)
                 frame_parms->ofdm_symbol_size,
                 1,
                 1);
-          LOG_M("chestT0.m", "chT0", &pusch_vars->ul_ch_estimates_time[0][0], frame_parms->ofdm_symbol_size, 1, 1);
           LOG_M("chestF0_ext.m",
                 "chF0_ext",
                 &pusch_vars->ul_ch_estimates_ext[0][(start_symbol + 1) * (off + (NR_NB_SC_PER_RB * pusch_pdu->rb_size))],
@@ -1524,10 +1510,10 @@ int main(int argc, char **argv)
       }
 
       for (i = 0; i < TBS; i++) {
-        estimated_output_bit[i] = (ulsch_gNB->harq_process->b[i / 8] & (1 << (i & 7))) >> (i & 7);
-        test_input_bit[i] = (UE->ul_harq_processes[harq_pid].b[i / 8] & (1 << (i & 7))) >> (i & 7);
+        uint8_t estimated_output_bit = (ulsch_gNB->harq_process->b[i / 8] & (1 << (i & 7))) >> (i & 7);
+        uint8_t test_input_bit = (UE->ul_harq_processes[harq_pid].b[i / 8] & (1 << (i & 7))) >> (i & 7);
       
-        if (estimated_output_bit[i] != test_input_bit[i]) {
+        if (estimated_output_bit != test_input_bit) {
           /*if(errors_decoding == 0)
               printf("\x1B[34m""[frame %d][trial %d]\t1st bit in error in decoding     = %d\n" "\x1B[0m", frame, trial, i);*/
           errors_decoding++;
@@ -1553,9 +1539,9 @@ int main(int argc, char **argv)
       if (!crc_status)
         effRate += ((double)TBS) / (double)round;
 
-      sum_pusch_delay += ulsch_gNB->delay.pusch_est_delay;
-      min_pusch_delay = ulsch_gNB->delay.pusch_est_delay < min_pusch_delay ? ulsch_gNB->delay.pusch_est_delay : min_pusch_delay;
-      max_pusch_delay = ulsch_gNB->delay.pusch_est_delay > max_pusch_delay ? ulsch_gNB->delay.pusch_est_delay : max_pusch_delay;
+      sum_pusch_delay += ulsch_gNB->delay.est_delay;
+      min_pusch_delay = min(ulsch_gNB->delay.est_delay, min_pusch_delay);
+      max_pusch_delay = max(ulsch_gNB->delay.est_delay, max_pusch_delay);
       delay_pusch_est_count++;
 
     } // trial loop
@@ -1662,8 +1648,6 @@ int main(int argc, char **argv)
           num_dmrs_cdm_grps_no_data);
 
   free_MIB_NR(mib);
-  free(test_input_bit);
-  free(estimated_output_bit);
   if (gNB->ldpc_offload_flag)
     free_nrLDPClib_offload();
 

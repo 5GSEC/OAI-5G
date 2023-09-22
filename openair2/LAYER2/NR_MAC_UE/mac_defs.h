@@ -367,12 +367,9 @@ typedef struct {
 } PUCCH_sched_t;
 
 typedef struct {
-
   uint32_t ssb_index;
   /// SSB RSRP in dBm
   short ssb_rsrp_dBm;
-  int consecutive_bch_failures;
-
 } NR_SSB_meas_t;
 
 typedef struct NR_UL_TIME_ALIGNMENT {
@@ -384,109 +381,6 @@ typedef struct NR_UL_TIME_ALIGNMENT {
   int frame;
   int slot;
 } NR_UL_TIME_ALIGNMENT_t;
-
-/*!\brief Top level UE MAC structure */
-typedef struct {
-  NR_UE_L2_STATE_t state;
-  NR_ServingCellConfigCommon_t    *scc;
-  NR_ServingCellConfigCommonSIB_t *scc_SIB;
-  NR_CellGroupConfig_t            *cg;
-  int                             servCellIndex;
-  NR_CSI_ReportConfig_t           *csirc;
-  long                            physCellId;
-  ////  MAC config
-  int                             first_sync_frame;
-  bool                            get_sib1;
-  NR_DRX_Config_t                 *drx_Config;
-  NR_SchedulingRequestConfig_t    *schedulingRequestConfig;
-  NR_BSR_Config_t                 *bsr_Config;
-  NR_TAG_Config_t                 *tag_Config;
-  NR_PHR_Config_t                 *phr_Config;
-  NR_RNTI_Value_t                 *cs_RNTI;
-  NR_MIB_t                        *mib;
-
-  NR_UE_DL_BWP_t current_DL_BWP;
-  NR_UE_UL_BWP_t current_UL_BWP;
-  NR_UL_TIME_ALIGNMENT_t ul_time_alignment;
-
-  NR_SearchSpace_t *otherSI_SS;
-  NR_SearchSpace_t *ra_SS;
-  NR_SearchSpace_t *paging_SS;
-  NR_ControlResourceSet_t *BWP_coresets[FAPI_NR_MAX_CORESET_PER_BWP];
-  NR_ControlResourceSet_t *coreset0;
-  NR_SearchSpace_t *BWP_searchspaces[FAPI_NR_MAX_SS];
-  NR_SearchSpace_t *search_space_zero;
-
-  bool phy_config_request_sent;
-  frame_type_t frame_type;
-
-  ///     Type0-PDCCH seach space
-  fapi_nr_dl_config_dci_dl_pdu_rel15_t type0_pdcch_dci_config;
-  uint32_t type0_pdcch_ss_mux_pattern;
-  SFN_C_TYPE type0_pdcch_ss_sfn_c;
-  uint32_t type0_pdcch_ss_n_c;
-  uint32_t type0_pdcch_consecutive_slots;
-
-  /* PDUs */
-  /// Outgoing CCCH pdu for PHY
-  CCCH_PDU CCCH_pdu;
-  ULSCH_PDU ulsch_pdu;
-
-  /* Random Access */
-  /// CRNTI
-  uint16_t crnti;
-  /// RA configuration
-  RA_config_t ra;
-  /// SSB index from MIB decoding
-  uint8_t mib_ssb;
-
-  nr_csi_report_t csi_report_template[MAX_CSI_REPORTCONFIG];
-
-  /// measurements from CSI-RS
-  fapi_nr_csirs_measurements_t csirs_measurements;
-
-  /// Last NDI of UL HARQ processes
-  uint8_t UL_ndi[NR_MAX_HARQ_PROCESSES];
-  /// first ULTX of UL HARQ processes
-  int first_ul_tx[NR_MAX_HARQ_PROCESSES];
-  ////	FAPI-like interface message
-  fapi_nr_ul_config_request_t *ul_config_request;
-  fapi_nr_dl_config_request_t *dl_config_request;
-
-  ///     Interface module instances
-  nr_ue_if_module_t       *if_module;
-  nr_phy_config_t         phy_config;
-  nr_synch_request_t      synch_request;
-
-  /// BSR report flag management
-  uint8_t BSR_reporting_active;
-
-  /// LogicalChannelConfig has bearer.
-  bool logicalChannelBearer_exist[NR_MAX_NUM_LCID];
-  NR_UE_SCHEDULING_INFO   scheduling_info;
-
-  /// PHR
-  uint8_t PHR_reporting_active;
-
-  NR_Type0_PDCCH_CSS_config_t type0_PDCCH_CSS_config;
-  frequency_range_t frequency_range;
-  uint16_t nr_band;
-  uint8_t ssb_subcarrier_offset;
-
-  NR_SSB_meas_t ssb_measurements;
-
-  dci_pdu_rel15_t def_dci_pdu_rel15[NR_MAX_SLOTS_PER_FRAME][8];
-
-  // Defined for abstracted mode
-  nr_downlink_indication_t dl_info;
-  NR_UE_HARQ_STATUS_t dl_harq_info[NR_MAX_HARQ_PROCESSES];
-
-  nr_emulated_l1_t nr_ue_emul_l1;
-
-  pthread_mutex_t mutex_dl_info;
-
-} NR_UE_MAC_INST_t;
-
 
 // The PRACH Config period is a series of selected slots in one or multiple frames
 typedef struct prach_conf_period {
@@ -524,6 +418,121 @@ typedef struct ssb_list_info {
   ssb_info_t tx_ssb[MAX_NB_SSB];
   uint8_t   nb_tx_ssb;
 } ssb_list_info_t;
+
+/*!\brief Top level UE MAC structure */
+typedef struct {
+  NR_UE_L2_STATE_t state;
+  NR_CellGroupConfig_t            *cg;
+  int                             servCellIndex;
+  NR_CSI_ReportConfig_t           *csirc;
+  long                            physCellId;
+  ////  MAC config
+  int                             first_sync_frame;
+  bool                            get_sib1;
+  bool                            get_otherSI;
+  NR_DRX_Config_t                 *drx_Config;
+  NR_SchedulingRequestConfig_t    *schedulingRequestConfig;
+  NR_BSR_Config_t                 *bsr_Config;
+  NR_TAG_Config_t                 *tag_Config;
+  NR_PHR_Config_t                 *phr_Config;
+  NR_RNTI_Value_t                 *cs_RNTI;
+  NR_MIB_t                        *mib;
+  struct NR_SI_SchedulingInfo *si_SchedulingInfo;
+  int si_window_start;
+  ssb_list_info_t ssb_list;
+
+  NR_UE_DL_BWP_t current_DL_BWP;
+  NR_UE_UL_BWP_t current_UL_BWP;
+  NR_BWP_DownlinkCommon_t *bwp_dlcommon;
+  NR_BWP_UplinkCommon_t *bwp_ulcommon;
+
+  NR_UL_TIME_ALIGNMENT_t ul_time_alignment;
+
+  NR_SearchSpace_t *otherSI_SS;
+  NR_SearchSpace_t *ra_SS;
+  NR_SearchSpace_t *paging_SS;
+  NR_ControlResourceSet_t *BWP_coresets[FAPI_NR_MAX_CORESET_PER_BWP];
+  NR_ControlResourceSet_t *coreset0;
+  NR_SearchSpace_t *BWP_searchspaces[FAPI_NR_MAX_SS];
+  NR_SearchSpace_t *search_space_zero;
+
+  NR_TDD_UL_DL_ConfigCommon_t *tdd_UL_DL_ConfigurationCommon;
+
+  bool phy_config_request_sent;
+  frame_type_t frame_type;
+
+  ///     Type0-PDCCH seach space
+  fapi_nr_dl_config_dci_dl_pdu_rel15_t type0_pdcch_dci_config;
+  uint32_t type0_pdcch_ss_mux_pattern;
+  int type0_pdcch_ss_sfn_c;
+  uint32_t type0_pdcch_ss_n_c;
+  uint32_t type0_pdcch_consecutive_slots;
+
+  /* PDUs */
+  /// Outgoing CCCH pdu for PHY
+  CCCH_PDU CCCH_pdu;
+  ULSCH_PDU ulsch_pdu;
+
+  /* Random Access */
+  /// CRNTI
+  uint16_t crnti;
+  /// RA configuration
+  RA_config_t ra;
+  /// SSB index from MIB decoding
+  uint8_t mib_ssb;
+  uint32_t mib_additional_bits;
+  int mib_frame;
+
+  nr_csi_report_t csi_report_template[MAX_CSI_REPORTCONFIG];
+
+  /// measurements from CSI-RS
+  fapi_nr_csirs_measurements_t csirs_measurements;
+
+  /// Last NDI of UL HARQ processes
+  uint8_t UL_ndi[NR_MAX_HARQ_PROCESSES];
+  /// first ULTX of UL HARQ processes
+  int first_ul_tx[NR_MAX_HARQ_PROCESSES];
+  ////	FAPI-like interface message
+  fapi_nr_ul_config_request_t *ul_config_request;
+  fapi_nr_dl_config_request_t *dl_config_request;
+
+  ///     Interface module instances
+  nr_ue_if_module_t       *if_module;
+  nr_phy_config_t         phy_config;
+  nr_synch_request_t      synch_request;
+
+  /// BSR report flag management
+  uint8_t BSR_reporting_active;
+
+  /// LogicalChannelConfig has bearer.
+  bool logicalChannelBearer_exist[NR_MAX_NUM_LCID];
+  NR_UE_SCHEDULING_INFO   scheduling_info;
+
+  /// PHR
+  uint8_t PHR_reporting_active;
+
+  int dmrs_TypeA_Position;
+  NR_P_Max_t *p_Max;
+
+  NR_Type0_PDCCH_CSS_config_t type0_PDCCH_CSS_config;
+  frequency_range_t frequency_range;
+  uint16_t nr_band;
+  uint8_t ssb_subcarrier_offset;
+  int ssb_start_subcarrier;
+
+  NR_SSB_meas_t ssb_measurements;
+
+  dci_pdu_rel15_t def_dci_pdu_rel15[NR_MAX_SLOTS_PER_FRAME][8];
+
+  // Defined for abstracted mode
+  nr_downlink_indication_t dl_info;
+  NR_UE_HARQ_STATUS_t dl_harq_info[NR_MAX_HARQ_PROCESSES];
+
+  nr_emulated_l1_t nr_ue_emul_l1;
+
+  pthread_mutex_t mutex_dl_info;
+
+} NR_UE_MAC_INST_t;
 
 /*@}*/
 #endif /*__LAYER2_MAC_DEFS_H__ */

@@ -61,6 +61,14 @@ Note: The available resources, and their current usage, is indicated here:
 
 [PDF version](testbenches_doc_resources/5g-aw2s-bench.pdf) | [LaTeX/TikZ version](testbenches_doc_resources/5g-aw2s-bench.tex) if you want to modify to reflect your setup
 
+### 5G UE OTA Testbench
+
+**Purpose**: Over-the-air 5G tests with OAI UE
+
+![OAI UE Testbench](testbenches_doc_resources/5g-nrue-bench.png)
+
+[PDF version](testbenches_doc_resources/5g-nrue-bench.pdf) | [LaTeX/TikZ version](testbenches_doc_resources/5g-nrue-bench.tex) if you want to modify to reflect your setup
+
 ### 4G Testbench(es)
 
 **Purpose**: 4G/LTE testbenches
@@ -93,10 +101,13 @@ Webhook
   - L2simulator: skips physical layer and uses proxy between gNB and UE, currently only ping
 - [RAN-LTE-FDD-LTEBOX-Container](https://jenkins-oai.eurecom.fr/job/RAN-LTE-FDD-LTEBOX-Container/)
   - hutch + B210, nano w/ ltebox + 2x UE
-  - tests RRC inactivity timers, different bandwidths
+  - tests RRC inactivity timers, different bandwidths, IF4p5 fronthaul
+- [RAN-LTE-FDD-OAIUE-OAICN4G-Container](https://jenkins-oai.eurecom.fr/job/RAN-LTE-FDD-OAIUE-OAICN4G-Container/)
+  - hutch + B210 (eNB), carabe + B210 (4G UE), nano w/ OAI 4GC
+  - tests OAI 4G for 10 MHz/TM1; known to be unstable
 - [RAN-LTE-TDD-2x2-Container](https://jenkins-oai.eurecom.fr/view/RAN/job/RAN-LTE-TDD-2x2-Container/)
   - obelix + N310, porcepix, nrmodule2 + Quectel
-  - TM1 and TM2 test
+  - TM1 and TM2 test, IF4p5 fronthaul
 - [RAN-LTE-TDD-LTEBOX-Container](https://jenkins-oai.eurecom.fr/job/RAN-LTE-TDD-LTEBOX-Container/)
   - starsky + B210, nano w/ ltebox + 2x UE
   - TM1 over bandwidths 5, 10, 20 MHz in Band 40, default scheduler for 20 MHz
@@ -121,6 +132,9 @@ Webhook
 - [RAN-SA-B200-Module-SABOX-Container](https://jenkins-oai.eurecom.fr/job/RAN-SA-B200-Module-SABOX-Container/)
   - ofqot + B200, idefix + Quectel, nepes w/ sabox
   - basic SA test (20 MHz TDD), F1, reestablishment, ...
+- [RAN-SA-OAIUE-CN5G](https://jenkins-oai.eurecom.fr/job/RAN-SA-OAIUE-CN5G/)
+  - 5G-NR SA test setup: gNB on avra(RHEL9.2) + N310, OAIUE on caracal(RHEL9.1) + N310, OAI CN5G
+  - OpenShift cluster for CN deployment and container images for gNB and UE deployment
 - [RAN-Ubuntu18-Image-Builder](https://jenkins-oai.eurecom.fr/job/RAN-Ubuntu18-Image-Builder/)
   - obelix: Ubuntu 20 image build using docker (Note: builds U20 images while pipeline is named U18!)
 
@@ -134,29 +148,6 @@ Webhook
 - [RAN-SA-Module-CN5G](https://jenkins-oai.eurecom.fr/view/RAN/job/RAN-SA-Module-CN5G/)
   - asterix + N310 (gNB), nrmodule2 + Quectel, porcepix w/ OAI 5GC
   - NR 2x2 (standalone)
-- [RAN-SA-OAIUE-N310-X300-CN5G](https://jenkins-oai.eurecom.fr/job/RAN-SA-OAIUE-N310-X300-CN5G/)
-  - asterix + N310 (gNB), obelix + N310 or X300 (5G UE), porcepix w/ OAI 5GC
-  - OTA test with OAIUE using both N310 and X300
 - [RAN-SA-AmariS-CN5G](https://jenkins-oai.eurecom.fr/view/RAN/job/RAN-SA-AmariS-CN5G/)
   - asterix + N310, amariue (1x UE), porcepix w/ OAI 5GC
   - Amarisoft UE simulator: expected to be increased to more UEs
-
-### RAN-CI-develop
-
-***DEFUNCT***: automatically triggered tests, mostly 4G, to be phased out and
-integrated into RAN-Container-Parent
-
-The following defunct pipelines remain to be integrated into RAN-Container-Parent:
-- eNB-CI-IF4p5-FDD-Band7-B210
-  - hutch + B210, nano w/ ltebox + 2x UE
-  - tests IF4.5 split over bandwidths 5, 10, 20 MHz in Band 7
-- eNB-CI-IF4p5-TDD-Band40-B210
-  - starsky + B210, nano w/ ltebox + 2x UE
-  - tests IF4.5 split over bandwidths 5, 10, 20 MHz in Band 40
-- eNB-UE-CI-MONO-FDD-Band7-B200
-  - hutch + B210 (eNB), carabe + B210 (4G UE), nano w/ ltebox
-  - tests OAI 4G for 5 MHz/TM1 with both CN and in noS1 model, MBMS; known to
-    be unstable
-- UE-CI-FDD-Band20-B200
-  - starsky + B210 (sniffer)
-  - Sniff MIB + SIB1 of Orange, SFR

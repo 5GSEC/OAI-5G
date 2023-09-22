@@ -655,17 +655,13 @@ typedef enum idft_size_idx {
 struct {
   adftfunc_t func;
   int size;
-} dft_ftab[]= {
-  FOREACH_DFTSZ(SZ_PTR)
-};
+} const dft_ftab[] = {FOREACH_DFTSZ(SZ_PTR)};
 
 #define SZ_iPTR(Sz)  {idft ## Sz,Sz},
 struct {
   adftfunc_t func;
   int size;
-} idft_ftab[]= {
-  FOREACH_IDFTSZ(SZ_iPTR)
-};
+} const idft_ftab[] = {FOREACH_IDFTSZ(SZ_iPTR)};
 
 #endif
 
@@ -741,12 +737,7 @@ This function performs componentwise multiplication of a vector with a complex s
 
 The function implemented is : \f$\mathbf{y} = \alpha\mathbf{x}\f$
 */
-void rotate_cpx_vector(c16_t *x,
-                       c16_t *alpha,
-                       c16_t *y,
-                       uint32_t N,
-                       uint16_t output_shift);
-
+void rotate_cpx_vector(const c16_t *const x, const c16_t *const alpha, c16_t *y, uint32_t N, uint16_t output_shift);
 
 //cadd_sv.c
 
@@ -851,6 +842,8 @@ c32_t dot_product(const c16_t *x,
 
 double interp(double x, double *xs, double *ys, int count);
 
+void simde_mm128_separate_real_imag_parts(__m128i *out_re, __m128i *out_im, __m128i in0, __m128i in1);
+void simde_mm256_separate_real_imag_parts(__m256i *out_re, __m256i *out_im, __m256i in0, __m256i in1);
 
 #ifdef __cplusplus
 }

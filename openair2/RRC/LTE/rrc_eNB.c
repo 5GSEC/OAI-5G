@@ -3842,7 +3842,7 @@ void rrc_eNB_handover_ue_context_release(
     ue_context_p->ue_context.enb_gtp_ebi[e_rab] = 0;
   }
 
-  gtpv1u_delete_s1u_tunnel(ctxt_pP->module_id, &delete_tunnels);
+  gtpv1u_delete_all_s1u_tunnel(ctxt_pP->module_id, delete_tunnels.rnti);
   struct rrc_ue_s1ap_ids_s *rrc_ue_s1ap_ids = NULL;
   rrc_ue_s1ap_ids = rrc_eNB_S1AP_get_ue_ids(RC.rrc[ctxt_pP->module_id], 0, eNB_ue_s1ap_id);
 
@@ -6835,10 +6835,6 @@ rrc_eNB_decode_dcch(
           /* do NR only if at least one gNB connected */
           if (RC.rrc[ctxt_pP->module_id]->num_gnb_cells != 0)
           {
-            allocate_en_DC_r15(ue_context_p->ue_context.UE_Capability);
-            if (!is_en_dc_supported(ue_context_p->ue_context.UE_Capability)){
-                    LOG_E(RRC, "We did not properly allocate en_DC_r15 for UE_EUTRA_Capability\n");
-            }
             ue_context_p->ue_context.does_nr = is_en_dc_supported(ue_context_p->ue_context.UE_Capability);
           }
           else

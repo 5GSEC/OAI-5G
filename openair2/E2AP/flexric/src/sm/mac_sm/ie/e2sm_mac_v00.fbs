@@ -1,0 +1,134 @@
+// FLATBUFFERS START
+// **************************************************************
+// E2SM_MAC Stats
+// Information Element Definitions
+// 
+// **************************************************************
+
+
+namespace E2SM_MACStats;
+
+//-- ---------------------------------------------------
+//-- Event Trigger Definition OCTET STRING contents
+//-- ---------------------------------------------------
+
+enum TriggerNature: uint8 { oneMs, twoMs, fiveMs }
+table EventTriggerDefinitionFormat1 {
+  triggerNature: TriggerNature;
+}
+
+table EventTrigger {
+  trig: TriggerNature;
+}
+//root_type EventTrigger;
+
+
+
+// -- ---------------------------------------------------
+// -- Action Definition OCTET STRING contents
+// -- ---------------------------------------------------
+
+enum RanParameterTest: uint8 { equal, greaterThan, lessThan, contains, present }
+table RanParameterItem {
+  id: uint32;
+  name: string;
+  test: RanParameterTest;
+  value: string;
+}
+table ActionDefinitionFormat1 {
+  ranParameterList: [RanParameterItem];
+}
+union ActionDefinitionUnion {
+  actionDefF1: ActionDefinitionFormat1
+}
+table ActionDefinition {
+  def: ActionDefinitionUnion;
+}
+//root_type ActionDefinition;
+
+
+
+// -- ---------------------------------------------------
+// -- Indication Header OCTET STRING contents
+// -- ---------------------------------------------------
+
+table IndicationHeaderFormat1 {
+  param: int32;
+}
+union IndicationHeaderUnion {
+  indHeaderF1: IndicationHeaderFormat1
+}
+table IndicationHeader {
+  hdr: IndicationHeaderUnion;
+}
+//root_type IndicationHeader;
+
+
+// -- ---------------------------------------------------
+// -- Indication Message OCTET STRING contents
+// -- ---------------------------------------------------
+
+table IndicationMessage {
+  tx_bytes : uint32_t; 
+  tx_pkts : uint32_t;
+
+}
+//root_type IndicationMessage;
+
+
+
+// -- ---------------------------------------------------
+// -- Call Process ID
+// -- ---------------------------------------------------
+
+// -- Not defined in this E2SM
+
+
+
+// -- ---------------------------------------------------
+// -- Control Header OCTET STRING contents
+// -- ---------------------------------------------------
+
+table ControlHeaderFormat1 {
+  param: int32;
+}
+union ControlHeaderUnion {
+  ctrlHeaderF1: ControlHeaderFormat1
+}
+table ControlHeader {
+  hdr: ControlHeaderUnion;
+}
+//root_type ControlHeader;
+
+
+
+// -- ---------------------------------------------------
+// -- Control Message OCTET STRING contents
+// -- ---------------------------------------------------
+
+
+table ControlMessageFormat1 {
+  param: [uint8];
+}
+union ControlMessageUnion {
+  ctrlMessageF1: ControlMessageFormat1
+}
+table ControlMessage {
+  msg: ControlMessageUnion;
+}
+
+// -- ---------------------------------------------------
+// -- Control Outcome OCTET STRING contents
+// -- ---------------------------------------------------
+
+// -- Not defined in this E2SM
+
+
+
+// -- ---------------------------------------------------
+// -- RAN Function definition OCTET STRING contents
+// -- ---------------------------------------------------
+
+// -- Not defined in this E2SM
+
+

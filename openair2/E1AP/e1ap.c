@@ -36,25 +36,28 @@
 
 #define E1AP_NUM_MSG_HANDLERS 14
 typedef int (*e1ap_message_processing_t)(e1ap_upcp_inst_t *inst, const E1AP_E1AP_PDU_t *message_p);
-e1ap_message_processing_t e1ap_message_processing[E1AP_NUM_MSG_HANDLERS][3] = {
+const e1ap_message_processing_t e1ap_message_processing[E1AP_NUM_MSG_HANDLERS][3] = {
 
-  { 0, 0, 0 }, /* Reset */
-  { 0, 0, 0 }, /* ErrorIndication */
-  { 0, 0, 0 }, /* privateMessage */
-  { e1apCUCP_handle_SETUP_REQUEST, e1apCUUP_handle_SETUP_RESPONSE, e1apCUUP_handle_SETUP_FAILURE }, /* gNBCUUPE1Setup */
-  { 0, 0, 0 }, /* gNBCUCPE1Setup */
-  { 0, 0, 0 }, /* gNBCUUPConfigurationUpdate */
-  { 0, 0, 0 }, /* gNBCUCPConfigurationUpdate */
-  { 0, 0, 0 }, /* E1Release */
-  { e1apCUUP_handle_BEARER_CONTEXT_SETUP_REQUEST, e1apCUCP_handle_BEARER_CONTEXT_SETUP_RESPONSE, e1apCUCP_handle_BEARER_CONTEXT_SETUP_FAILURE }, /* bearerContextSetup */
-  { e1apCUUP_handle_BEARER_CONTEXT_MODIFICATION_REQUEST, 0, 0 }, /* bearerContextModification */
-  { 0, 0, 0 }, /* bearerContextModificationRequired */
-  { e1apCUUP_handle_BEARER_CONTEXT_RELEASE_COMMAND, e1apCUCP_handle_BEARER_CONTEXT_RELEASE_COMPLETE, 0 }, /* bearerContextRelease */
-  { 0, 0, 0 }, /* bearerContextReleaseRequired */
-  { 0, 0, 0 } /* bearerContextInactivityNotification */
+    {0, 0, 0}, /* Reset */
+    {0, 0, 0}, /* ErrorIndication */
+    {0, 0, 0}, /* privateMessage */
+    {e1apCUCP_handle_SETUP_REQUEST, e1apCUUP_handle_SETUP_RESPONSE, e1apCUUP_handle_SETUP_FAILURE}, /* gNBCUUPE1Setup */
+    {0, 0, 0}, /* gNBCUCPE1Setup */
+    {0, 0, 0}, /* gNBCUUPConfigurationUpdate */
+    {0, 0, 0}, /* gNBCUCPConfigurationUpdate */
+    {0, 0, 0}, /* E1Release */
+    {e1apCUUP_handle_BEARER_CONTEXT_SETUP_REQUEST,
+     e1apCUCP_handle_BEARER_CONTEXT_SETUP_RESPONSE,
+     e1apCUCP_handle_BEARER_CONTEXT_SETUP_FAILURE}, /* bearerContextSetup */
+    {e1apCUUP_handle_BEARER_CONTEXT_MODIFICATION_REQUEST, 0, 0}, /* bearerContextModification */
+    {0, 0, 0}, /* bearerContextModificationRequired */
+    {e1apCUUP_handle_BEARER_CONTEXT_RELEASE_COMMAND, e1apCUCP_handle_BEARER_CONTEXT_RELEASE_COMPLETE, 0}, /* bearerContextRelease */
+    {0, 0, 0}, /* bearerContextReleaseRequired */
+    {0, 0, 0} /* bearerContextInactivityNotification */
 };
 
-const char *e1ap_direction2String(int e1ap_dir) {
+const char *const e1ap_direction2String(int e1ap_dir)
+{
   static const char *e1ap_direction_String[] = {
     "", /* Nothing */
     "Initiating message", /* initiating message */
@@ -531,11 +534,11 @@ static int fill_BEARER_CONTEXT_SETUP_REQUEST(e1ap_setup_req_t *setup, e1ap_beare
   ieC2->value.present              = E1AP_BearerContextSetupRequestIEs__value_PR_SecurityInformation;
   ieC2->value.choice.SecurityInformation.securityAlgorithm.cipheringAlgorithm = bearerCxt->cipheringAlgorithm;
   OCTET_STRING_fromBuf(&ieC2->value.choice.SecurityInformation.uPSecuritykey.encryptionKey,
-                       bearerCxt->encryptionKey, strlen(bearerCxt->encryptionKey));
+                       bearerCxt->encryptionKey, 16);
 
   asn1cCallocOne(ieC2->value.choice.SecurityInformation.securityAlgorithm.integrityProtectionAlgorithm, bearerCxt->integrityProtectionAlgorithm);
   asn1cCalloc(ieC2->value.choice.SecurityInformation.uPSecuritykey.integrityProtectionKey, protKey);
-  OCTET_STRING_fromBuf(protKey, bearerCxt->integrityProtectionKey, strlen(bearerCxt->integrityProtectionKey));
+  OCTET_STRING_fromBuf(protKey, bearerCxt->integrityProtectionKey, 16);
   /* mandatory */
   /* c3. UE DL Aggregate Maximum Bit Rate */
   asn1cSequenceAdd(out->protocolIEs.list, E1AP_BearerContextSetupRequestIEs_t, ieC3);
@@ -1095,7 +1098,7 @@ static int fill_BEARER_CONTEXT_MODIFICATION_REQUEST(e1ap_setup_req_t *setupReq, 
   ieC2->id                         = E1AP_ProtocolIE_ID_id_gNB_CU_UP_UE_E1AP_ID;
   ieC2->criticality                = E1AP_Criticality_reject;
   ieC2->value.present              = E1AP_BearerContextModificationRequestIEs__value_PR_GNB_CU_UP_UE_E1AP_ID;
-  ieC2->value.choice.GNB_CU_UP_UE_E1AP_ID = bearerCxt->gNB_cu_cp_ue_id;
+  ieC2->value.choice.GNB_CU_UP_UE_E1AP_ID = bearerCxt->gNB_cu_up_ue_id;
   /* optional */
   /*  */
   asn1cSequenceAdd(out->protocolIEs.list, E1AP_BearerContextModificationRequestIEs_t, ieC3);

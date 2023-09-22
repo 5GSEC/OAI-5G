@@ -43,10 +43,13 @@
 #include "UTIL/OPT/opt.h"
 
 #include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.h"
+#include "F1AP_CauseRadioNetwork.h"
 
 #include "RRC/NR/MESSAGES/asn1_msg.h"
 
 #include "intertask_interface.h"
+#include "openair2/F1AP/f1ap_ids.h"
+#include "F1AP_CauseRadioNetwork.h"
 
 #include "T.h"
 
@@ -811,23 +814,19 @@ int nr_get_pucch_resource(NR_ControlResourceSet_t *coreset,
 }
 
 // This function configures pucch pdu fapi structure
-void nr_configure_pucch(nfapi_nr_pucch_pdu_t* pucch_pdu,
+void nr_configure_pucch(nfapi_nr_pucch_pdu_t *pucch_pdu,
                         NR_ServingCellConfigCommon_t *scc,
                         NR_UE_info_t *UE,
                         uint8_t pucch_resource,
                         uint16_t O_csi,
                         uint16_t O_ack,
                         uint8_t O_sr,
-                        int r_pucch) {
-
+                        int r_pucch)
+{
   NR_PUCCH_Resource_t *pucchres;
-  NR_PUCCH_ResourceSet_t *pucchresset;
   NR_PUCCH_FormatConfig_t *pucchfmt;
-  NR_PUCCH_ResourceId_t *resource_id = NULL;
   NR_UE_UL_BWP_t *current_BWP = &UE->current_UL_BWP;
 
-  int n_list, n_set;
-  uint16_t N2,N3;
   int res_found = 0;
 
   pucch_pdu->bit_len_harq = O_ack;
@@ -883,60 +882,27 @@ void nr_configure_pucch(nfapi_nr_pucch_pdu_t* pucch_pdu,
   pucch_pdu->cyclic_prefix = (current_BWP->cyclicprefix==NULL) ? 0 : *current_BWP->cyclicprefix;
 
   NR_PUCCH_Config_t *pucch_Config = current_BWP->pucch_Config;
-  if (r_pucch<0 || pucch_Config) {
-      LOG_D(NR_MAC,"pucch_acknak: Filling dedicated configuration for PUCCH\n");
+  if (r_pucch < 0 || pucch_Config) {
+    LOG_D(NR_MAC, "pucch_acknak: Filling dedicated configuration for PUCCH\n");
 
-      AssertFatal(pucch_Config->resourceSetToAddModList!=NULL,
-		    "PUCCH resourceSetToAddModList is null\n");
-
-      n_set = pucch_Config->resourceSetToAddModList->list.count;
-      AssertFatal(n_set>0,"PUCCH resourceSetToAddModList is empty\n");
-
-      LOG_D(NR_MAC, "UCI n_set= %d\n", n_set);
-
-      N2 = 2;
-	// procedure to select pucch resource id from resource sets according to
-	// number of uci bits and pucch resource indicator pucch_resource
-	// ( see table 9.2.3.2 in 38.213)
-      for (int i=0; i<n_set; i++) {
-	pucchresset = pucch_Config->resourceSetToAddModList->list.array[i];
-	n_list = pucchresset->resourceList.list.count;
-	if (pucchresset->pucch_ResourceSetId == 0 && O_uci<3) {
-	  if (pucch_resource < n_list)
-            resource_id = pucchresset->resourceList.list.array[pucch_resource];
-          else
-            AssertFatal(1==0,"Couldn't fine pucch resource indicator %d in PUCCH resource set %d for %d UCI bits",pucch_resource,i,O_uci);
-        }
-        if (pucchresset->pucch_ResourceSetId == 1 && O_uci>2) {
-        N3 = pucchresset->maxPayloadSize!= NULL ?  *pucchresset->maxPayloadSize : 1706;
-        if (N2<O_uci && N3>O_uci) {
-          if (pucch_resource < n_list)
-            resource_id = pucchresset->resourceList.list.array[pucch_resource];
-          else
-            AssertFatal(1==0,"Couldn't fine pucch resource indicator %d in PUCCH resource set %d for %d UCI bits",pucch_resource,i,O_uci);
-        }
-        else N2 = N3;
-      }
-    }
-
-    AssertFatal(resource_id!=NULL,"Couldn-t find any matching PUCCH resource in the PUCCH resource sets");
+    int resource_id = get_pucch_resourceid(pucch_Config, O_uci, pucch_resource);
 
     AssertFatal(pucch_Config->resourceToAddModList!=NULL,
                 "PUCCH resourceToAddModList is null\n");
 
-    n_list = pucch_Config->resourceToAddModList->list.count;
-    AssertFatal(n_list>0,"PUCCH resourceToAddModList is empty\n");
+    int n_list = pucch_Config->resourceToAddModList->list.count;
+    AssertFatal(n_list > 0, "PUCCH resourceToAddModList is empty\n");
 
     // going through the list of PUCCH resources to find the one indexed by resource_id
-    for (int i=0; i<n_list; i++) {
+    for (int i = 0; i < n_list; i++) {
       pucchres = pucch_Config->resourceToAddModList->list.array[i];
-      if (pucchres->pucch_ResourceId == *resource_id) {
+      if (pucchres->pucch_ResourceId == resource_id) {
         res_found = 1;
         pucch_pdu->prb_start = pucchres->startingPRB;
         pucch_pdu->rnti = UE->rnti;
         // FIXME why there is only one frequency hopping flag
         // what about inter slot frequency hopping?
-        pucch_pdu->freq_hop_flag = pucchres->intraSlotFrequencyHopping!= NULL ?  1 : 0;
+        pucch_pdu->freq_hop_flag = pucchres->intraSlotFrequencyHopping ? 1 : 0;
         pucch_pdu->second_hop_prb = pucchres->secondHopPRB!= NULL ?  *pucchres->secondHopPRB : 0;
         switch(pucchres->format.present) {
           case NR_PUCCH_Resource__format_PR_format0 :
@@ -961,8 +927,8 @@ void nr_configure_pucch(nfapi_nr_pucch_pdu_t* pucch_pdu,
             pucch_pdu->sr_flag = O_sr;
             pucch_pdu->nr_of_symbols = pucchres->format.choice.format2->nrofSymbols;
             pucch_pdu->start_symbol_index = pucchres->format.choice.format2->startingSymbolIndex;
-            pucch_pdu->data_scrambling_id = pusch_id!= NULL ? *pusch_id : *scc->physCellId;
-            pucch_pdu->dmrs_scrambling_id = id0!= NULL ? *id0 : *scc->physCellId;
+            pucch_pdu->data_scrambling_id = pusch_id ? *pusch_id : *scc->physCellId;
+            pucch_pdu->dmrs_scrambling_id = id0 ? *id0 : *scc->physCellId;
             pucch_pdu->prb_size = compute_pucch_prb_size(2,
                                                          pucchres->format.choice.format2->nrofPRBs,
                                                          O_uci + O_sr,
@@ -976,25 +942,17 @@ void nr_configure_pucch(nfapi_nr_pucch_pdu_t* pucch_pdu,
             pucch_pdu->format_type = 3;
             pucch_pdu->nr_of_symbols = pucchres->format.choice.format3->nrofSymbols;
             pucch_pdu->start_symbol_index = pucchres->format.choice.format3->startingSymbolIndex;
-            pucch_pdu->data_scrambling_id = pusch_id!= NULL ? *pusch_id : *scc->physCellId;
+            pucch_pdu->data_scrambling_id = pusch_id ? *pusch_id : *scc->physCellId;
             if (pucch_Config->format3 == NULL) {
               pucch_pdu->pi_2bpsk = 0;
               pucch_pdu->add_dmrs_flag = 0;
             }
             else {
               pucchfmt = pucch_Config->format3->choice.setup;
-              pucch_pdu->pi_2bpsk = pucchfmt->pi2BPSK!= NULL ?  1 : 0;
-              pucch_pdu->add_dmrs_flag = pucchfmt->additionalDMRS!= NULL ?  1 : 0;
+              pucch_pdu->pi_2bpsk = pucchfmt->pi2BPSK ? 1 : 0;
+              pucch_pdu->add_dmrs_flag = pucchfmt->additionalDMRS ? 1 : 0;
             }
-            int f3_dmrs_symbols;
-            if (pucchres->format.choice.format3->nrofSymbols==4)
-              f3_dmrs_symbols = 1<<pucch_pdu->freq_hop_flag;
-            else {
-              if(pucchres->format.choice.format3->nrofSymbols<10)
-                f3_dmrs_symbols = 2;
-              else
-                f3_dmrs_symbols = 2<<pucch_pdu->add_dmrs_flag;
-            }
+            int f3_dmrs_symbols = get_f3_dmrs_symbols(pucchres, pucch_Config);
             pucch_pdu->prb_size = compute_pucch_prb_size(3,
                                                          pucchres->format.choice.format3->nrofPRBs,
                                                          O_uci + O_sr,
@@ -1017,8 +975,8 @@ void nr_configure_pucch(nfapi_nr_pucch_pdu_t* pucch_pdu,
             }
             else {
               pucchfmt = pucch_Config->format3->choice.setup;
-              pucch_pdu->pi_2bpsk = pucchfmt->pi2BPSK!= NULL ?  1 : 0;
-              pucch_pdu->add_dmrs_flag = pucchfmt->additionalDMRS!= NULL ?  1 : 0;
+              pucch_pdu->pi_2bpsk = pucchfmt->pi2BPSK != NULL;
+              pucch_pdu->add_dmrs_flag = pucchfmt->additionalDMRS != NULL;
             }
             pucch_pdu->bit_len_csi_part1 = O_csi;
             break;
@@ -1027,11 +985,17 @@ void nr_configure_pucch(nfapi_nr_pucch_pdu_t* pucch_pdu,
         }
       }
     }
-    AssertFatal(res_found==1,"No PUCCH resource found corresponding to id %ld\n",*resource_id);
-    LOG_D(NR_MAC,"Configure pucch: pucch_pdu->format_type %d pucch_pdu->bit_len_harq %d, pucch->pdu->bit_len_csi %d\n",pucch_pdu->format_type,pucch_pdu->bit_len_harq,pucch_pdu->bit_len_csi_part1);
-  }
-  else { // this is the default PUCCH configuration, PUCCH format 0 or 1
-    LOG_D(NR_MAC,"pucch_acknak: Filling default PUCCH configuration from Tables (r_pucch %d, pucch_Config %p)\n",r_pucch,pucch_Config);
+    AssertFatal(res_found == 1, "No PUCCH resource found corresponding to id %d\n", resource_id);
+    LOG_D(NR_MAC,
+          "Configure pucch: pucch_pdu->format_type %d pucch_pdu->bit_len_harq %d, pucch->pdu->bit_len_csi %d\n",
+          pucch_pdu->format_type,
+          pucch_pdu->bit_len_harq,
+          pucch_pdu->bit_len_csi_part1);
+  } else { // this is the default PUCCH configuration, PUCCH format 0 or 1
+    LOG_D(NR_MAC,
+          "pucch_acknak: Filling default PUCCH configuration from Tables (r_pucch %d, pucch_Config %p)\n",
+          r_pucch,
+          pucch_Config);
     int rsetindex = *pucch_ConfigCommon->pucch_ResourceCommon;
     int prb_start, second_hop_prb, nr_of_symb, start_symb;
     set_r_pucch_parms(rsetindex,
@@ -1058,7 +1022,6 @@ void nr_configure_pucch(nfapi_nr_pucch_pdu_t* pucch_pdu,
     pucch_pdu->prb_size=1;
   }
 }
-
 
 void set_r_pucch_parms(int rsetindex,
                        int r_pucch,
@@ -1992,22 +1955,7 @@ void delete_nr_ue_data(NR_UE_info_t *UE, NR_COMMON_channels_t *ccPtr, uid_alloca
   destroy_nr_list(&sched_ctrl->retrans_ul_harq);
   uid_linear_allocator_free(uia, UE->uid);
   LOG_I(NR_MAC, "Remove NR rnti 0x%04x\n", UE->rnti);
-  const rnti_t rnti = UE->rnti;
   free(UE);
-
-  /* clear RA process(es?) associated to the UE */
-  for (int cc_id = 0; cc_id < NFAPI_CC_MAX; cc_id++) {
-    for (int i = 0; i < NR_NB_RA_PROC_MAX; i++) {
-      NR_COMMON_channels_t *cc = &ccPtr[cc_id];
-      if (cc->ra[i].rnti == rnti) {
-        LOG_D(NR_MAC, "free RA process %d for rnti %04x\n", i, rnti);
-        /* is it enough? */
-        cc->ra[i].cfra = false;
-        cc->ra[i].rnti = 0;
-        cc->ra[i].crnti = 0;
-      }
-    }
-  }
 }
 
 
@@ -2552,17 +2500,22 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
 
   uint16_t *vrb_map = gNB_mac->common_channels[CC_id].vrb_map;
 
-  UE_info->sched_csirs = false;
+  UE_info->sched_csirs = 0;
 
   UE_iterator(UE_info->list, UE) {
+    NR_UE_DL_BWP_t *dl_bwp = &UE->current_DL_BWP;
+    NR_UE_UL_BWP_t *ul_bwp = &UE->current_UL_BWP;
 
+    // CSI-RS is common to all UEs in a given BWP
+    // therefore we need to schedule only once per BWP
+    // the following condition verifies if CSI-RS
+    // has been already scheduled in this BWP
+    if (UE_info->sched_csirs & (1 << dl_bwp->bwp_id))
+      continue;
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
     if (sched_ctrl->rrc_processing_timer > 0) {
       continue;
     }
-
-    NR_UE_DL_BWP_t *dl_bwp = &UE->current_DL_BWP;
-    NR_UE_UL_BWP_t *ul_bwp = &UE->current_UL_BWP;
 
     if (!ul_bwp->csi_MeasConfig) continue;
 
@@ -2598,8 +2551,9 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
 
         if((frame*n_slots_frame+slot-offset)%period == 0) {
 
-          LOG_D(NR_MAC,"Scheduling CSI-RS in frame %d slot %d Resource ID %ld\n",frame,slot,nzpcsi->nzp_CSI_RS_ResourceId);
-          UE_info->sched_csirs = true;
+          LOG_D(NR_MAC,"Scheduling CSI-RS in frame %d slot %d Resource ID %ld\n",
+                frame, slot, nzpcsi->nzp_CSI_RS_ResourceId);
+          UE_info->sched_csirs |= (1 << dl_bwp->bwp_id);
 
           nfapi_nr_dl_tti_request_pdu_t *dl_tti_csirs_pdu = &dl_req->dl_tti_pdu_list[dl_req->nPDUs];
           memset((void*)dl_tti_csirs_pdu,0,sizeof(nfapi_nr_dl_tti_request_pdu_t));
@@ -2820,9 +2774,8 @@ void nr_mac_update_timers(module_id_t module_id,
         NR_ServingCellConfigCommon_t *scc = RC.nrmac[module_id]->common_channels[0].ServingCellConfigCommon;
 
         LOG_I(NR_MAC,"Modified rnti %04x with CellGroup\n", UE->rnti);
-        process_CellGroup(cg,&UE->UE_sched_ctrl);
+        process_CellGroup(cg, UE);
         NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
-
         configure_UE_BWP(RC.nrmac[module_id], scc, sched_ctrl, NULL, UE, -1, -1);
 
         if (get_softmodem_params()->sa) {
@@ -2917,6 +2870,7 @@ void send_initial_ul_rrc_message(gNB_MAC_INST *mac, int rnti, const uint8_t *sdu
 
   const f1ap_initial_ul_rrc_message_t ul_rrc_msg = {
     /* TODO: add mcc, mnc, cell_id, ..., is not available at MAC yet */
+    .gNB_DU_ue_id = rnti,
     .crnti = rnti,
     .rrc_container = (uint8_t *) sdu,
     .rrc_container_length = sdu_len,
@@ -2992,11 +2946,34 @@ void nr_mac_check_ul_failure(const gNB_MAC_INST *nrmac, int rnti, NR_UE_sched_ct
   /* to trigger only once: trigger when ul_failure_timer == 1, but timer will
    * stop at 0 and we wait for a UE release command from upper layers */
   if (sched_ctrl->ul_failure_timer == 1) {
-    f1ap_ue_context_release_complete_t complete = {
-      .rnti = rnti,
+    f1_ue_data_t ue_data = du_get_f1_ue_data(rnti);
+    f1ap_ue_context_release_req_t request = {
+      .gNB_CU_ue_id = ue_data.secondary_ue,
+      .gNB_DU_ue_id = rnti,
       .cause = F1AP_CAUSE_RADIO_NETWORK,
-      .cause_value = 12, // F1AP_CauseRadioNetwork_rl_failure_others
+      .cause_value = F1AP_CauseRadioNetwork_rl_failure_others,
     };
-    nrmac->mac_rrc.ue_context_release_request(&complete);
+    nrmac->mac_rrc.ue_context_release_request(&request);
   }
+}
+
+void nr_mac_trigger_reconfiguration(const gNB_MAC_INST *nrmac, const NR_UE_info_t *UE)
+{
+  DevAssert(UE->CellGroup != NULL);
+  uint8_t buf[2048];
+  asn_enc_rval_t enc_rval = uper_encode_to_buffer(&asn_DEF_NR_CellGroupConfig, NULL, UE->CellGroup, buf, sizeof(buf));
+  AssertFatal(enc_rval.encoded > 0, "ASN1 encoding of CellGroupConfig failed, failed type %s\n", enc_rval.failed_type->name);
+  du_to_cu_rrc_information_t du2cu = {
+    .cellGroupConfig = buf,
+    .cellGroupConfig_length = (enc_rval.encoded + 7) >> 3,
+  };
+  f1_ue_data_t ue_data = du_get_f1_ue_data(UE->rnti);
+  f1ap_ue_context_modif_required_t required = {
+    .gNB_CU_ue_id = ue_data.secondary_ue,
+    .gNB_DU_ue_id = UE->rnti,
+    .du_to_cu_rrc_information = &du2cu,
+    .cause = F1AP_CAUSE_RADIO_NETWORK,
+    .cause_value = F1AP_CauseRadioNetwork_action_desirable_for_radio_reasons,
+  };
+  nrmac->mac_rrc.ue_context_modification_required(&required);
 }

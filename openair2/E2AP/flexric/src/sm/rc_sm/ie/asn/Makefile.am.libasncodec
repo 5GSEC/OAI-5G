@@ -1,0 +1,686 @@
+ASN_MODULE_SRCS=	\
+	CGI.c	\
+	CoreCPID.c	\
+	InterfaceIdentifier.c	\
+	InterfaceID-NG.c	\
+	InterfaceID-Xn.c	\
+	InterfaceID-F1.c	\
+	InterfaceID-E1.c	\
+	InterfaceID-S1.c	\
+	InterfaceID-X2.c	\
+	InterfaceID-W1.c	\
+	Interface-MessageID.c	\
+	InterfaceType.c	\
+	GroupID.c	\
+	QoSID.c	\
+	RANfunction-Name.c	\
+	RIC-Format-Type.c	\
+	RIC-Style-Type.c	\
+	RIC-Style-Name.c	\
+	RRC-MessageID.c	\
+	RRCclass-LTE.c	\
+	RRCclass-NR.c	\
+	ServingCell-ARFCN.c	\
+	ServingCell-PCI.c	\
+	UEID.c	\
+	UEID-GNB.c	\
+	UEID-GNB-CU-CP-E1AP-ID-List.c	\
+	UEID-GNB-CU-CP-E1AP-ID-Item.c	\
+	UEID-GNB-CU-F1AP-ID-List.c	\
+	UEID-GNB-CU-CP-F1AP-ID-Item.c	\
+	UEID-GNB-DU.c	\
+	UEID-GNB-CU-UP.c	\
+	UEID-NG-ENB.c	\
+	UEID-NG-ENB-DU.c	\
+	UEID-EN-GNB.c	\
+	UEID-ENB.c	\
+	ENB-ID.c	\
+	GlobalENB-ID.c	\
+	GUMMEI.c	\
+	MME-Group-ID.c	\
+	MME-Code.c	\
+	MME-UE-S1AP-ID.c	\
+	QCI.c	\
+	SubscriberProfileIDforRFP.c	\
+	EN-GNB-ID.c	\
+	ENB-UE-X2AP-ID.c	\
+	ENB-UE-X2AP-ID-Extension.c	\
+	E-UTRA-ARFCN.c	\
+	E-UTRA-PCI.c	\
+	E-UTRA-TAC.c	\
+	GlobalenGNB-ID.c	\
+	NGENB-CU-UE-W1AP-ID.c	\
+	NGENB-DU-ID.c	\
+	AMFPointer.c	\
+	AMFRegionID.c	\
+	AMFSetID.c	\
+	AMF-UE-NGAP-ID.c	\
+	EUTRACellIdentity.c	\
+	EUTRA-CGI.c	\
+	FiveQI.c	\
+	GlobalGNB-ID.c	\
+	GlobalNgENB-ID.c	\
+	GNB-ID.c	\
+	GUAMI.c	\
+	IndexToRFSP.c	\
+	NgENB-ID.c	\
+	NRCellIdentity.c	\
+	NR-CGI.c	\
+	PLMNIdentity.c	\
+	QosFlowIdentifier.c	\
+	SD.c	\
+	S-NSSAI.c	\
+	SST.c	\
+	NG-RANnodeUEXnAPID.c	\
+	GlobalNGRANNodeID.c	\
+	GNB-CU-CP-UE-E1AP-ID.c	\
+	GNB-CU-UP-ID.c	\
+	FiveGS-TAC.c	\
+	FreqBandNrItem.c	\
+	GNB-CU-UE-F1AP-ID.c	\
+	GNB-DU-ID.c	\
+	NR-PCI.c	\
+	NR-ARFCN.c	\
+	NRFrequencyBand-List.c	\
+	NRFrequencyBandItem.c	\
+	NRFrequencyInfo.c	\
+	NRFrequencyShift7p5khz.c	\
+	RANUEID.c	\
+	SupportedSULBandList.c	\
+	SupportedSULFreqBandItem.c	\
+	LogicalOR.c	\
+	NeighborCell-List.c	\
+	NeighborCell-Item.c	\
+	NeighborCell-Item-Choice-NR.c	\
+	NeighborCell-Item-Choice-E-UTRA.c	\
+	NeighborRelation-Info.c	\
+	RRC-State.c	\
+	EventTrigger-Cell-Info.c	\
+	EventTrigger-Cell-Info-Item.c	\
+	EventTrigger-Cell-Info-Item-Choice-Individual.c	\
+	EventTrigger-Cell-Info-Item-Choice-Group.c	\
+	EventTrigger-UE-Info.c	\
+	EventTrigger-UE-Info-Item.c	\
+	EventTrigger-UE-Info-Item-Choice-Individual.c	\
+	EventTrigger-UE-Info-Item-Choice-Group.c	\
+	EventTrigger-UEevent-Info.c	\
+	EventTrigger-UEevent-Info-Item.c	\
+	RANParameter-ID.c	\
+	RANParameter-Name.c	\
+	RANParameter-Definition.c	\
+	RANParameter-Definition-Choice.c	\
+	RANParameter-Definition-Choice-LIST.c	\
+	RANParameter-Definition-Choice-LIST-Item.c	\
+	RANParameter-Definition-Choice-STRUCTURE.c	\
+	RANParameter-Definition-Choice-STRUCTURE-Item.c	\
+	RANParameter-Value.c	\
+	RANParameter-ValueType.c	\
+	RANParameter-ValueType-Choice-ElementTrue.c	\
+	RANParameter-ValueType-Choice-ElementFalse.c	\
+	RANParameter-ValueType-Choice-Structure.c	\
+	RANParameter-ValueType-Choice-List.c	\
+	RANParameter-STRUCTURE.c	\
+	RANParameter-STRUCTURE-Item.c	\
+	RANParameter-LIST.c	\
+	RANParameter-Testing.c	\
+	RANParameter-TestingCondition.c	\
+	RANParameter-Testing-Item.c	\
+	RANParameter-Testing-Item-Choice-List.c	\
+	RANParameter-Testing-Item-Choice-Structure.c	\
+	RANParameter-Testing-Item-Choice-ElementTrue.c	\
+	RANParameter-Testing-Item-Choice-ElementFalse.c	\
+	RANParameter-Testing-LIST.c	\
+	RANParameter-Testing-STRUCTURE.c	\
+	RAN-CallProcess-ID.c	\
+	RIC-CallProcessType-ID.c	\
+	RIC-CallProcessType-Name.c	\
+	RIC-CallProcessBreakpoint-ID.c	\
+	RIC-CallProcessBreakpoint-Name.c	\
+	RIC-ControlAction-ID.c	\
+	RIC-ControlAction-Name.c	\
+	RIC-EventTriggerCondition-ID.c	\
+	RIC-EventTrigger-UE-ID.c	\
+	RIC-EventTrigger-UEevent-ID.c	\
+	RIC-EventTrigger-Cell-ID.c	\
+	RIC-InsertIndication-ID.c	\
+	RIC-InsertIndication-Name.c	\
+	RIC-PolicyAction.c	\
+	RIC-PolicyAction-RANParameter-Item.c	\
+	E2SM-RC-EventTrigger.c	\
+	E2SM-RC-EventTrigger-Format1.c	\
+	E2SM-RC-EventTrigger-Format1-Item.c	\
+	MessageType-Choice.c	\
+	MessageType-Choice-NI.c	\
+	MessageType-Choice-RRC.c	\
+	E2SM-RC-EventTrigger-Format2.c	\
+	E2SM-RC-EventTrigger-Format3.c	\
+	E2SM-RC-EventTrigger-Format3-Item.c	\
+	E2SM-RC-EventTrigger-Format4.c	\
+	E2SM-RC-EventTrigger-Format4-Item.c	\
+	TriggerType-Choice.c	\
+	TriggerType-Choice-RRCstate.c	\
+	TriggerType-Choice-RRCstate-Item.c	\
+	TriggerType-Choice-UEID.c	\
+	TriggerType-Choice-L2state.c	\
+	E2SM-RC-EventTrigger-Format5.c	\
+	E2SM-RC-ActionDefinition.c	\
+	E2SM-RC-ActionDefinition-Format1.c	\
+	E2SM-RC-ActionDefinition-Format1-Item.c	\
+	E2SM-RC-ActionDefinition-Format2.c	\
+	E2SM-RC-ActionDefinition-Format2-Item.c	\
+	E2SM-RC-ActionDefinition-Format3.c	\
+	E2SM-RC-ActionDefinition-Format3-Item.c	\
+	E2SM-RC-ActionDefinition-Format4.c	\
+	E2SM-RC-ActionDefinition-Format4-Style-Item.c	\
+	E2SM-RC-ActionDefinition-Format4-Indication-Item.c	\
+	E2SM-RC-ActionDefinition-Format4-RANP-Item.c	\
+	E2SM-RC-IndicationHeader.c	\
+	E2SM-RC-IndicationHeader-Format1.c	\
+	E2SM-RC-IndicationHeader-Format2.c	\
+	E2SM-RC-IndicationHeader-Format3.c	\
+	E2SM-RC-IndicationMessage.c	\
+	E2SM-RC-IndicationMessage-Format1.c	\
+	E2SM-RC-IndicationMessage-Format1-Item.c	\
+	E2SM-RC-IndicationMessage-Format2.c	\
+	E2SM-RC-IndicationMessage-Format2-Item.c	\
+	E2SM-RC-IndicationMessage-Format2-RANParameter-Item.c	\
+	E2SM-RC-IndicationMessage-Format3.c	\
+	E2SM-RC-IndicationMessage-Format3-Item.c	\
+	E2SM-RC-IndicationMessage-Format4.c	\
+	E2SM-RC-IndicationMessage-Format4-ItemUE.c	\
+	E2SM-RC-IndicationMessage-Format4-ItemCell.c	\
+	E2SM-RC-IndicationMessage-Format5.c	\
+	E2SM-RC-IndicationMessage-Format5-Item.c	\
+	E2SM-RC-IndicationMessage-Format6.c	\
+	E2SM-RC-IndicationMessage-Format6-Style-Item.c	\
+	E2SM-RC-IndicationMessage-Format6-Indication-Item.c	\
+	E2SM-RC-IndicationMessage-Format6-RANP-Item.c	\
+	E2SM-RC-CallProcessID.c	\
+	E2SM-RC-CallProcessID-Format1.c	\
+	E2SM-RC-ControlHeader.c	\
+	E2SM-RC-ControlHeader-Format1.c	\
+	E2SM-RC-ControlHeader-Format2.c	\
+	E2SM-RC-ControlMessage.c	\
+	E2SM-RC-ControlMessage-Format1.c	\
+	E2SM-RC-ControlMessage-Format1-Item.c	\
+	E2SM-RC-ControlMessage-Format2.c	\
+	E2SM-RC-ControlMessage-Format2-Style-Item.c	\
+	E2SM-RC-ControlMessage-Format2-ControlAction-Item.c	\
+	E2SM-RC-ControlOutcome.c	\
+	E2SM-RC-ControlOutcome-Format1.c	\
+	E2SM-RC-ControlOutcome-Format1-Item.c	\
+	E2SM-RC-ControlOutcome-Format2.c	\
+	E2SM-RC-ControlOutcome-Format2-Style-Item.c	\
+	E2SM-RC-ControlOutcome-Format2-ControlOutcome-Item.c	\
+	E2SM-RC-ControlOutcome-Format2-RANP-Item.c	\
+	E2SM-RC-ControlOutcome-Format3.c	\
+	E2SM-RC-ControlOutcome-Format3-Item.c	\
+	E2SM-RC-RANFunctionDefinition.c	\
+	RANFunctionDefinition-EventTrigger.c	\
+	RANFunctionDefinition-EventTrigger-Style-Item.c	\
+	L2Parameters-RANParameter-Item.c	\
+	UEIdentification-RANParameter-Item.c	\
+	CellIdentification-RANParameter-Item.c	\
+	RANFunctionDefinition-EventTrigger-CallProcess-Item.c	\
+	RANFunctionDefinition-EventTrigger-Breakpoint-Item.c	\
+	CallProcessBreakpoint-RANParameter-Item.c	\
+	RANFunctionDefinition-Report.c	\
+	RANFunctionDefinition-Report-Item.c	\
+	Report-RANParameter-Item.c	\
+	RANFunctionDefinition-Insert.c	\
+	RANFunctionDefinition-Insert-Item.c	\
+	RANFunctionDefinition-Insert-Indication-Item.c	\
+	InsertIndication-RANParameter-Item.c	\
+	RANFunctionDefinition-Control.c	\
+	RANFunctionDefinition-Control-Item.c	\
+	ControlOutcome-RANParameter-Item.c	\
+	RANFunctionDefinition-Control-Action-Item.c	\
+	ControlAction-RANParameter-Item.c	\
+	RANFunctionDefinition-Policy.c	\
+	RANFunctionDefinition-Policy-Item.c	\
+	RANFunctionDefinition-Policy-Action-Item.c	\
+	PolicyAction-RANParameter-Item.c	\
+	PolicyCondition-RANParameter-Item.c	\
+	EXTERNAL.c
+
+ASN_MODULE_HDRS=	\
+	CGI.h	\
+	CoreCPID.h	\
+	InterfaceIdentifier.h	\
+	InterfaceID-NG.h	\
+	InterfaceID-Xn.h	\
+	InterfaceID-F1.h	\
+	InterfaceID-E1.h	\
+	InterfaceID-S1.h	\
+	InterfaceID-X2.h	\
+	InterfaceID-W1.h	\
+	Interface-MessageID.h	\
+	InterfaceType.h	\
+	GroupID.h	\
+	QoSID.h	\
+	RANfunction-Name.h	\
+	RIC-Format-Type.h	\
+	RIC-Style-Type.h	\
+	RIC-Style-Name.h	\
+	RRC-MessageID.h	\
+	RRCclass-LTE.h	\
+	RRCclass-NR.h	\
+	ServingCell-ARFCN.h	\
+	ServingCell-PCI.h	\
+	UEID.h	\
+	UEID-GNB.h	\
+	UEID-GNB-CU-CP-E1AP-ID-List.h	\
+	UEID-GNB-CU-CP-E1AP-ID-Item.h	\
+	UEID-GNB-CU-F1AP-ID-List.h	\
+	UEID-GNB-CU-CP-F1AP-ID-Item.h	\
+	UEID-GNB-DU.h	\
+	UEID-GNB-CU-UP.h	\
+	UEID-NG-ENB.h	\
+	UEID-NG-ENB-DU.h	\
+	UEID-EN-GNB.h	\
+	UEID-ENB.h	\
+	ENB-ID.h	\
+	GlobalENB-ID.h	\
+	GUMMEI.h	\
+	MME-Group-ID.h	\
+	MME-Code.h	\
+	MME-UE-S1AP-ID.h	\
+	QCI.h	\
+	SubscriberProfileIDforRFP.h	\
+	EN-GNB-ID.h	\
+	ENB-UE-X2AP-ID.h	\
+	ENB-UE-X2AP-ID-Extension.h	\
+	E-UTRA-ARFCN.h	\
+	E-UTRA-PCI.h	\
+	E-UTRA-TAC.h	\
+	GlobalenGNB-ID.h	\
+	NGENB-CU-UE-W1AP-ID.h	\
+	NGENB-DU-ID.h	\
+	AMFPointer.h	\
+	AMFRegionID.h	\
+	AMFSetID.h	\
+	AMF-UE-NGAP-ID.h	\
+	EUTRACellIdentity.h	\
+	EUTRA-CGI.h	\
+	FiveQI.h	\
+	GlobalGNB-ID.h	\
+	GlobalNgENB-ID.h	\
+	GNB-ID.h	\
+	GUAMI.h	\
+	IndexToRFSP.h	\
+	NgENB-ID.h	\
+	NRCellIdentity.h	\
+	NR-CGI.h	\
+	PLMNIdentity.h	\
+	QosFlowIdentifier.h	\
+	SD.h	\
+	S-NSSAI.h	\
+	SST.h	\
+	NG-RANnodeUEXnAPID.h	\
+	GlobalNGRANNodeID.h	\
+	GNB-CU-CP-UE-E1AP-ID.h	\
+	GNB-CU-UP-ID.h	\
+	FiveGS-TAC.h	\
+	FreqBandNrItem.h	\
+	GNB-CU-UE-F1AP-ID.h	\
+	GNB-DU-ID.h	\
+	NR-PCI.h	\
+	NR-ARFCN.h	\
+	NRFrequencyBand-List.h	\
+	NRFrequencyBandItem.h	\
+	NRFrequencyInfo.h	\
+	NRFrequencyShift7p5khz.h	\
+	RANUEID.h	\
+	SupportedSULBandList.h	\
+	SupportedSULFreqBandItem.h	\
+	LogicalOR.h	\
+	NeighborCell-List.h	\
+	NeighborCell-Item.h	\
+	NeighborCell-Item-Choice-NR.h	\
+	NeighborCell-Item-Choice-E-UTRA.h	\
+	NeighborRelation-Info.h	\
+	RRC-State.h	\
+	EventTrigger-Cell-Info.h	\
+	EventTrigger-Cell-Info-Item.h	\
+	EventTrigger-Cell-Info-Item-Choice-Individual.h	\
+	EventTrigger-Cell-Info-Item-Choice-Group.h	\
+	EventTrigger-UE-Info.h	\
+	EventTrigger-UE-Info-Item.h	\
+	EventTrigger-UE-Info-Item-Choice-Individual.h	\
+	EventTrigger-UE-Info-Item-Choice-Group.h	\
+	EventTrigger-UEevent-Info.h	\
+	EventTrigger-UEevent-Info-Item.h	\
+	RANParameter-ID.h	\
+	RANParameter-Name.h	\
+	RANParameter-Definition.h	\
+	RANParameter-Definition-Choice.h	\
+	RANParameter-Definition-Choice-LIST.h	\
+	RANParameter-Definition-Choice-LIST-Item.h	\
+	RANParameter-Definition-Choice-STRUCTURE.h	\
+	RANParameter-Definition-Choice-STRUCTURE-Item.h	\
+	RANParameter-Value.h	\
+	RANParameter-ValueType.h	\
+	RANParameter-ValueType-Choice-ElementTrue.h	\
+	RANParameter-ValueType-Choice-ElementFalse.h	\
+	RANParameter-ValueType-Choice-Structure.h	\
+	RANParameter-ValueType-Choice-List.h	\
+	RANParameter-STRUCTURE.h	\
+	RANParameter-STRUCTURE-Item.h	\
+	RANParameter-LIST.h	\
+	RANParameter-Testing.h	\
+	RANParameter-TestingCondition.h	\
+	RANParameter-Testing-Item.h	\
+	RANParameter-Testing-Item-Choice-List.h	\
+	RANParameter-Testing-Item-Choice-Structure.h	\
+	RANParameter-Testing-Item-Choice-ElementTrue.h	\
+	RANParameter-Testing-Item-Choice-ElementFalse.h	\
+	RANParameter-Testing-LIST.h	\
+	RANParameter-Testing-STRUCTURE.h	\
+	RAN-CallProcess-ID.h	\
+	RIC-CallProcessType-ID.h	\
+	RIC-CallProcessType-Name.h	\
+	RIC-CallProcessBreakpoint-ID.h	\
+	RIC-CallProcessBreakpoint-Name.h	\
+	RIC-ControlAction-ID.h	\
+	RIC-ControlAction-Name.h	\
+	RIC-EventTriggerCondition-ID.h	\
+	RIC-EventTrigger-UE-ID.h	\
+	RIC-EventTrigger-UEevent-ID.h	\
+	RIC-EventTrigger-Cell-ID.h	\
+	RIC-InsertIndication-ID.h	\
+	RIC-InsertIndication-Name.h	\
+	RIC-PolicyAction.h	\
+	RIC-PolicyAction-RANParameter-Item.h	\
+	E2SM-RC-EventTrigger.h	\
+	E2SM-RC-EventTrigger-Format1.h	\
+	E2SM-RC-EventTrigger-Format1-Item.h	\
+	MessageType-Choice.h	\
+	MessageType-Choice-NI.h	\
+	MessageType-Choice-RRC.h	\
+	E2SM-RC-EventTrigger-Format2.h	\
+	E2SM-RC-EventTrigger-Format3.h	\
+	E2SM-RC-EventTrigger-Format3-Item.h	\
+	E2SM-RC-EventTrigger-Format4.h	\
+	E2SM-RC-EventTrigger-Format4-Item.h	\
+	TriggerType-Choice.h	\
+	TriggerType-Choice-RRCstate.h	\
+	TriggerType-Choice-RRCstate-Item.h	\
+	TriggerType-Choice-UEID.h	\
+	TriggerType-Choice-L2state.h	\
+	E2SM-RC-EventTrigger-Format5.h	\
+	E2SM-RC-ActionDefinition.h	\
+	E2SM-RC-ActionDefinition-Format1.h	\
+	E2SM-RC-ActionDefinition-Format1-Item.h	\
+	E2SM-RC-ActionDefinition-Format2.h	\
+	E2SM-RC-ActionDefinition-Format2-Item.h	\
+	E2SM-RC-ActionDefinition-Format3.h	\
+	E2SM-RC-ActionDefinition-Format3-Item.h	\
+	E2SM-RC-ActionDefinition-Format4.h	\
+	E2SM-RC-ActionDefinition-Format4-Style-Item.h	\
+	E2SM-RC-ActionDefinition-Format4-Indication-Item.h	\
+	E2SM-RC-ActionDefinition-Format4-RANP-Item.h	\
+	E2SM-RC-IndicationHeader.h	\
+	E2SM-RC-IndicationHeader-Format1.h	\
+	E2SM-RC-IndicationHeader-Format2.h	\
+	E2SM-RC-IndicationHeader-Format3.h	\
+	E2SM-RC-IndicationMessage.h	\
+	E2SM-RC-IndicationMessage-Format1.h	\
+	E2SM-RC-IndicationMessage-Format1-Item.h	\
+	E2SM-RC-IndicationMessage-Format2.h	\
+	E2SM-RC-IndicationMessage-Format2-Item.h	\
+	E2SM-RC-IndicationMessage-Format2-RANParameter-Item.h	\
+	E2SM-RC-IndicationMessage-Format3.h	\
+	E2SM-RC-IndicationMessage-Format3-Item.h	\
+	E2SM-RC-IndicationMessage-Format4.h	\
+	E2SM-RC-IndicationMessage-Format4-ItemUE.h	\
+	E2SM-RC-IndicationMessage-Format4-ItemCell.h	\
+	E2SM-RC-IndicationMessage-Format5.h	\
+	E2SM-RC-IndicationMessage-Format5-Item.h	\
+	E2SM-RC-IndicationMessage-Format6.h	\
+	E2SM-RC-IndicationMessage-Format6-Style-Item.h	\
+	E2SM-RC-IndicationMessage-Format6-Indication-Item.h	\
+	E2SM-RC-IndicationMessage-Format6-RANP-Item.h	\
+	E2SM-RC-CallProcessID.h	\
+	E2SM-RC-CallProcessID-Format1.h	\
+	E2SM-RC-ControlHeader.h	\
+	E2SM-RC-ControlHeader-Format1.h	\
+	E2SM-RC-ControlHeader-Format2.h	\
+	E2SM-RC-ControlMessage.h	\
+	E2SM-RC-ControlMessage-Format1.h	\
+	E2SM-RC-ControlMessage-Format1-Item.h	\
+	E2SM-RC-ControlMessage-Format2.h	\
+	E2SM-RC-ControlMessage-Format2-Style-Item.h	\
+	E2SM-RC-ControlMessage-Format2-ControlAction-Item.h	\
+	E2SM-RC-ControlOutcome.h	\
+	E2SM-RC-ControlOutcome-Format1.h	\
+	E2SM-RC-ControlOutcome-Format1-Item.h	\
+	E2SM-RC-ControlOutcome-Format2.h	\
+	E2SM-RC-ControlOutcome-Format2-Style-Item.h	\
+	E2SM-RC-ControlOutcome-Format2-ControlOutcome-Item.h	\
+	E2SM-RC-ControlOutcome-Format2-RANP-Item.h	\
+	E2SM-RC-ControlOutcome-Format3.h	\
+	E2SM-RC-ControlOutcome-Format3-Item.h	\
+	E2SM-RC-RANFunctionDefinition.h	\
+	RANFunctionDefinition-EventTrigger.h	\
+	RANFunctionDefinition-EventTrigger-Style-Item.h	\
+	L2Parameters-RANParameter-Item.h	\
+	UEIdentification-RANParameter-Item.h	\
+	CellIdentification-RANParameter-Item.h	\
+	RANFunctionDefinition-EventTrigger-CallProcess-Item.h	\
+	RANFunctionDefinition-EventTrigger-Breakpoint-Item.h	\
+	CallProcessBreakpoint-RANParameter-Item.h	\
+	RANFunctionDefinition-Report.h	\
+	RANFunctionDefinition-Report-Item.h	\
+	Report-RANParameter-Item.h	\
+	RANFunctionDefinition-Insert.h	\
+	RANFunctionDefinition-Insert-Item.h	\
+	RANFunctionDefinition-Insert-Indication-Item.h	\
+	InsertIndication-RANParameter-Item.h	\
+	RANFunctionDefinition-Control.h	\
+	RANFunctionDefinition-Control-Item.h	\
+	ControlOutcome-RANParameter-Item.h	\
+	RANFunctionDefinition-Control-Action-Item.h	\
+	ControlAction-RANParameter-Item.h	\
+	RANFunctionDefinition-Policy.h	\
+	RANFunctionDefinition-Policy-Item.h	\
+	RANFunctionDefinition-Policy-Action-Item.h	\
+	PolicyAction-RANParameter-Item.h	\
+	PolicyCondition-RANParameter-Item.h	\
+	EXTERNAL.h
+
+ASN_MODULE_HDRS+=ANY.h
+ASN_MODULE_SRCS+=ANY.c
+ASN_MODULE_HDRS+=OCTET_STRING.h
+ASN_MODULE_HDRS+=OPEN_TYPE.h
+ASN_MODULE_SRCS+=OPEN_TYPE.c
+ASN_MODULE_HDRS+=constr_CHOICE.h
+ASN_MODULE_HDRS+=BOOLEAN.h
+ASN_MODULE_SRCS+=BOOLEAN.c
+ASN_MODULE_HDRS+=GraphicString.h
+ASN_MODULE_SRCS+=GraphicString.c
+ASN_MODULE_HDRS+=INTEGER.h
+ASN_MODULE_SRCS+=INTEGER.c
+ASN_MODULE_HDRS+=NativeEnumerated.h
+ASN_MODULE_SRCS+=NativeEnumerated.c
+ASN_MODULE_HDRS+=NativeInteger.h
+ASN_MODULE_SRCS+=NativeInteger.c
+ASN_MODULE_HDRS+=NativeReal.h
+ASN_MODULE_SRCS+=NativeReal.c
+ASN_MODULE_HDRS+=REAL.h
+ASN_MODULE_HDRS+=OBJECT_IDENTIFIER.h
+ASN_MODULE_SRCS+=OBJECT_IDENTIFIER.c
+ASN_MODULE_HDRS+=asn_codecs_prim.h
+ASN_MODULE_HDRS+=ObjectDescriptor.h
+ASN_MODULE_SRCS+=ObjectDescriptor.c
+ASN_MODULE_HDRS+=PrintableString.h
+ASN_MODULE_SRCS+=PrintableString.c
+ASN_MODULE_SRCS+=REAL.c
+ASN_MODULE_HDRS+=asn_SEQUENCE_OF.h
+ASN_MODULE_SRCS+=asn_SEQUENCE_OF.c
+ASN_MODULE_HDRS+=asn_SET_OF.h
+ASN_MODULE_SRCS+=asn_SET_OF.c
+ASN_MODULE_SRCS+=constr_CHOICE.c
+ASN_MODULE_HDRS+=constr_SEQUENCE.h
+ASN_MODULE_SRCS+=constr_SEQUENCE.c
+ASN_MODULE_HDRS+=constr_SEQUENCE_OF.h
+ASN_MODULE_SRCS+=constr_SEQUENCE_OF.c
+ASN_MODULE_HDRS+=constr_SET_OF.h
+ASN_MODULE_SRCS+=constr_SET_OF.c
+ASN_MODULE_HDRS+=asn_application.h
+ASN_MODULE_SRCS+=asn_application.c
+ASN_MODULE_HDRS+=asn_ioc.h
+ASN_MODULE_HDRS+=asn_system.h
+ASN_MODULE_HDRS+=asn_codecs.h
+ASN_MODULE_HDRS+=asn_internal.h
+ASN_MODULE_SRCS+=asn_internal.c
+ASN_MODULE_HDRS+=asn_bit_data.h
+ASN_MODULE_SRCS+=asn_bit_data.c
+ASN_MODULE_SRCS+=OCTET_STRING.c
+ASN_MODULE_HDRS+=BIT_STRING.h
+ASN_MODULE_SRCS+=BIT_STRING.c
+ASN_MODULE_SRCS+=asn_codecs_prim.c
+ASN_MODULE_HDRS+=ber_tlv_length.h
+ASN_MODULE_SRCS+=ber_tlv_length.c
+ASN_MODULE_HDRS+=ber_tlv_tag.h
+ASN_MODULE_SRCS+=ber_tlv_tag.c
+ASN_MODULE_HDRS+=constr_TYPE.h
+ASN_MODULE_SRCS+=constr_TYPE.c
+ASN_MODULE_HDRS+=constraints.h
+ASN_MODULE_SRCS+=constraints.c
+ASN_MODULE_HDRS+=ber_decoder.h
+ASN_MODULE_HDRS+=der_encoder.h
+ASN_MODULE_SRCS+=ber_decoder.c
+ASN_MODULE_SRCS+=der_encoder.c
+ASN_MODULE_SRCS+=ANY_ber.c
+ASN_MODULE_SRCS+=BOOLEAN_ber.c
+ASN_MODULE_SRCS+=INTEGER_ber.c
+ASN_MODULE_SRCS+=NativeInteger_ber.c
+ASN_MODULE_SRCS+=NativeReal_ber.c
+ASN_MODULE_SRCS+=OCTET_STRING_ber.c
+ASN_MODULE_SRCS+=OPEN_TYPE_ber.c
+ASN_MODULE_SRCS+=asn_codecs_prim_ber.c
+ASN_MODULE_SRCS+=constr_CHOICE_ber.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_OF_ber.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_ber.c
+ASN_MODULE_SRCS+=constr_SET_OF_ber.c
+ASN_MODULE_HDRS+=xer_support.h
+ASN_MODULE_HDRS+=xer_decoder.h
+ASN_MODULE_HDRS+=xer_encoder.h
+ASN_MODULE_SRCS+=xer_support.c
+ASN_MODULE_SRCS+=xer_decoder.c
+ASN_MODULE_SRCS+=xer_encoder.c
+ASN_MODULE_SRCS+=ANY_xer.c
+ASN_MODULE_SRCS+=BIT_STRING_xer.c
+ASN_MODULE_SRCS+=BOOLEAN_xer.c
+ASN_MODULE_SRCS+=INTEGER_xer.c
+ASN_MODULE_SRCS+=NativeEnumerated_xer.c
+ASN_MODULE_SRCS+=NativeInteger_xer.c
+ASN_MODULE_SRCS+=NativeReal_xer.c
+ASN_MODULE_SRCS+=OBJECT_IDENTIFIER_xer.c
+ASN_MODULE_SRCS+=OCTET_STRING_xer.c
+ASN_MODULE_SRCS+=OPEN_TYPE_xer.c
+ASN_MODULE_SRCS+=REAL_xer.c
+ASN_MODULE_SRCS+=asn_codecs_prim_xer.c
+ASN_MODULE_SRCS+=constr_CHOICE_xer.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_OF_xer.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_xer.c
+ASN_MODULE_SRCS+=constr_SET_OF_xer.c
+ASN_MODULE_HDRS+=per_decoder.h
+ASN_MODULE_HDRS+=per_encoder.h
+ASN_MODULE_HDRS+=per_support.h
+ASN_MODULE_HDRS+=per_opentype.h
+ASN_MODULE_SRCS+=per_decoder.c
+ASN_MODULE_SRCS+=per_encoder.c
+ASN_MODULE_SRCS+=per_support.c
+ASN_MODULE_SRCS+=per_opentype.c
+ASN_MODULE_HDRS+=uper_decoder.h
+ASN_MODULE_HDRS+=uper_encoder.h
+ASN_MODULE_HDRS+=uper_support.h
+ASN_MODULE_HDRS+=uper_opentype.h
+ASN_MODULE_SRCS+=uper_decoder.c
+ASN_MODULE_SRCS+=uper_encoder.c
+ASN_MODULE_SRCS+=uper_support.c
+ASN_MODULE_SRCS+=uper_opentype.c
+ASN_MODULE_SRCS+=ANY_uper.c
+ASN_MODULE_SRCS+=BIT_STRING_uper.c
+ASN_MODULE_SRCS+=BOOLEAN_uper.c
+ASN_MODULE_SRCS+=INTEGER_uper.c
+ASN_MODULE_SRCS+=NativeEnumerated_uper.c
+ASN_MODULE_SRCS+=NativeInteger_uper.c
+ASN_MODULE_SRCS+=NativeReal_uper.c
+ASN_MODULE_SRCS+=OCTET_STRING_uper.c
+ASN_MODULE_SRCS+=OPEN_TYPE_uper.c
+ASN_MODULE_SRCS+=REAL_uper.c
+ASN_MODULE_SRCS+=constr_CHOICE_uper.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_OF_uper.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_uper.c
+ASN_MODULE_SRCS+=constr_SET_OF_uper.c
+ASN_MODULE_HDRS+=aper_decoder.h
+ASN_MODULE_HDRS+=aper_encoder.h
+ASN_MODULE_HDRS+=aper_support.h
+ASN_MODULE_HDRS+=aper_opentype.h
+ASN_MODULE_SRCS+=aper_decoder.c
+ASN_MODULE_SRCS+=aper_encoder.c
+ASN_MODULE_SRCS+=aper_support.c
+ASN_MODULE_SRCS+=aper_opentype.c
+ASN_MODULE_SRCS+=ANY_aper.c
+ASN_MODULE_SRCS+=BOOLEAN_aper.c
+ASN_MODULE_SRCS+=INTEGER_aper.c
+ASN_MODULE_SRCS+=NativeEnumerated_aper.c
+ASN_MODULE_SRCS+=NativeInteger_aper.c
+ASN_MODULE_SRCS+=NativeReal_aper.c
+ASN_MODULE_SRCS+=OCTET_STRING_aper.c
+ASN_MODULE_SRCS+=OPEN_TYPE_aper.c
+ASN_MODULE_SRCS+=REAL_aper.c
+ASN_MODULE_SRCS+=constr_CHOICE_aper.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_OF_aper.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_aper.c
+ASN_MODULE_SRCS+=constr_SET_OF_aper.c
+ASN_MODULE_SRCS+=BIT_STRING_print.c
+ASN_MODULE_SRCS+=BOOLEAN_print.c
+ASN_MODULE_SRCS+=INTEGER_print.c
+ASN_MODULE_SRCS+=NativeInteger_print.c
+ASN_MODULE_SRCS+=NativeReal_print.c
+ASN_MODULE_SRCS+=OBJECT_IDENTIFIER_print.c
+ASN_MODULE_SRCS+=OCTET_STRING_print.c
+ASN_MODULE_SRCS+=REAL_print.c
+ASN_MODULE_SRCS+=constr_CHOICE_print.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_print.c
+ASN_MODULE_SRCS+=constr_SET_OF_print.c
+ASN_MODULE_HDRS+=asn_random_fill.h
+ASN_MODULE_SRCS+=asn_random_fill.c
+ASN_MODULE_SRCS+=BIT_STRING_rfill.c
+ASN_MODULE_SRCS+=BOOLEAN_rfill.c
+ASN_MODULE_SRCS+=INTEGER_rfill.c
+ASN_MODULE_SRCS+=NativeInteger_rfill.c
+ASN_MODULE_SRCS+=NativeReal_rfill.c
+ASN_MODULE_SRCS+=OBJECT_IDENTIFIER_rfill.c
+ASN_MODULE_SRCS+=OCTET_STRING_rfill.c
+ASN_MODULE_SRCS+=REAL_rfill.c
+ASN_MODULE_SRCS+=constr_CHOICE_rfill.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_rfill.c
+ASN_MODULE_SRCS+=constr_SET_OF_rfill.c
+ASN_MODULE_HDRS+=jer_encoder.h
+ASN_MODULE_SRCS+=jer_encoder.c
+ASN_MODULE_SRCS+=ANY_jer.c
+ASN_MODULE_SRCS+=BIT_STRING_jer.c
+ASN_MODULE_SRCS+=BOOLEAN_jer.c
+ASN_MODULE_SRCS+=INTEGER_jer.c
+ASN_MODULE_SRCS+=NativeEnumerated_jer.c
+ASN_MODULE_SRCS+=NativeInteger_jer.c
+ASN_MODULE_SRCS+=NativeReal_jer.c
+ASN_MODULE_SRCS+=OBJECT_IDENTIFIER_jer.c
+ASN_MODULE_SRCS+=OCTET_STRING_jer.c
+ASN_MODULE_SRCS+=REAL_jer.c
+ASN_MODULE_SRCS+=constr_CHOICE_jer.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_OF_jer.c
+ASN_MODULE_SRCS+=constr_SEQUENCE_jer.c
+ASN_MODULE_SRCS+=constr_SET_OF_jer.c
+
+ASN_MODULE_CFLAGS=-DASN_DISABLE_OER_SUPPORT 
+
+lib_LTLIBRARIES+=libasncodec.la
+libasncodec_la_SOURCES=$(ASN_MODULE_SRCS) $(ASN_MODULE_HDRS)
+libasncodec_la_CPPFLAGS=-I$(top_srcdir)/
+libasncodec_la_CFLAGS=$(ASN_MODULE_CFLAGS)
+libasncodec_la_LDFLAGS=-lm

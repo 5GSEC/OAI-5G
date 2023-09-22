@@ -48,7 +48,7 @@
 //#undef FRAME_LENGTH_COMPLEX_SAMPLES //there are two conflicting definitions, so we better make sure we don't use it at all
 
 #include "radio/COMMON/common_lib.h"
-#include "radio/ETHERNET/USERSPACE/LIB/if_defs.h"
+#include "radio/ETHERNET/if_defs.h"
 
 //#undef FRAME_LENGTH_COMPLEX_SAMPLES //there are two conflicting definitions, so we better make sure we don't use it at all
 
@@ -133,7 +133,6 @@ double sample_rate=30.72e6;
 double bw = 10.0e6;
 
 uint8_t dci_Format = 0;
-uint8_t agregation_Level =0xFF;
 
 uint8_t nb_antenna_tx = 1;
 uint8_t nb_antenna_rx = 1;

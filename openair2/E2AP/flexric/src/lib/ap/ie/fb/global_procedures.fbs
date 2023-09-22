@@ -1,0 +1,78 @@
+include "ie_definitions.fbs";
+
+namespace e2ap;
+
+table ErrorIndication {
+  ricRequestId: RicRequestId;
+  ranFunctionId: uint16;
+  cause: Cause;
+  criticalityDiagnostics: CriticalityDiagnostics;
+}
+
+table E2SetupRequest {
+  id: GlobalE2NodeId;
+  ranFunctions: [RanFunction];
+  e2NodeComponentConfigurationUpdateList: [E2NodeCompConfUpdateItem];
+}
+table RanFunction {
+  id: uint16;
+  definition: [uint8];
+  revision: uint16;
+  oid: string;
+}
+table E2NodeCompConfUpdateItem {
+  type: E2NodeCompType;
+  id: E2NodeCompId;
+  update: E2NodeCompConfUpdate;
+}
+
+table E2SetupResponse {
+  globalRicId: GlobalRicId;
+  acceptedRanFunctions: [uint16];
+  rejectedRanFunctions: [RejectedRanFunction];
+  updateAck: [E2NodeCompConfUpdateAckItem];
+}
+table RejectedRanFunction {
+  ranFunctionId: uint16;
+  cause: Cause;
+}
+table E2NodeCompConfUpdateAckItem {
+  type: E2NodeCompType;
+  id: E2NodeCompId;
+  updateAck: E2NodeCompConfUpdateAck;
+}
+
+table E2SetupFailure {
+  cause: Cause;
+  timeToWait: uint32;
+  criticalityDiagnostics: CriticalityDiagnostics;
+  transportLayerInformation: TransportLayerInformation;
+}
+
+table ResetRequest {
+  cause: Cause;
+}
+
+table ResetResponse {
+  criticalityDiagnostics: CriticalityDiagnostics;
+}
+
+/* RicServiceUpdate not implemented */
+
+/* RicServiceUpdateAcknowledge not implemented */
+
+/* RicServiceUpdateFailure not implemented */
+
+/* RicServiceQuery not implemented */
+
+/* E2NodeConfigurationUpdate not implemented */
+
+/* E2NodeConfigurationUpdateAcknowledge not implemented */
+
+/* E2NodeConfigurationUpdateFailure not implemented */
+
+/* E2ConnectionUpdate not implemented */
+
+/* E2ConnectionUpdateAcknowledge not implemented */
+
+/* E2ConnectionUpdateFailure not implemented */

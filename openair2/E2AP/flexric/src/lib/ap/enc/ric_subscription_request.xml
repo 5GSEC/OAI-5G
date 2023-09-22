@@ -1,0 +1,55 @@
+<E2AP-PDU>
+    <initiatingMessage>
+        <procedureCode>8</procedureCode>
+        <criticality><ignore/></criticality>
+        <value>
+            <RICsubscriptionRequest>
+                <protocolIEs>
+                    <RICsubscriptionRequest-IEs>
+                        <id>29</id>
+                        <criticality><reject/></criticality>
+                        <value>
+                            <RICrequestID>
+                                <ricRequestorID>3</ricRequestorID>
+                                <ricInstanceID>0</ricInstanceID>
+                            </RICrequestID>
+                        </value>
+                    </RICsubscriptionRequest-IEs>
+                    <RICsubscriptionRequest-IEs>
+                        <id>5</id>
+                        <criticality><reject/></criticality>
+                        <value>
+                            <RANfunctionID>1</RANfunctionID>
+                        </value>
+                    </RICsubscriptionRequest-IEs>
+                    <RICsubscriptionRequest-IEs>
+                        <id>30</id>
+                        <criticality><reject/></criticality>
+                        <value>
+                            <RICsubscriptionDetails>
+                                <ricEventTriggerDefinition>00</ricEventTriggerDefinition>
+                                <ricAction-ToBeSetup-List>
+                                    <ProtocolIE-SingleContainer>
+                                        <id>19</id>
+                                        <criticality><ignore/></criticality>
+                                        <value>
+                                            <RICaction-ToBeSetup-Item>
+                                                <ricActionID>1</ricActionID>
+                                                <ricActionType><report/></ricActionType>
+                                                <ricActionDefinition>
+                                                    00 00 80 08 00 05 4D 31 FE A1 A0 6E 10 05 00 00
+                                                    00 00 00
+                                                </ricActionDefinition>
+                                            </RICaction-ToBeSetup-Item>
+                                        </value>
+                                    </ProtocolIE-SingleContainer>
+                                </ricAction-ToBeSetup-List>
+                            </RICsubscriptionDetails>
+                        </value>
+                    </RICsubscriptionRequest-IEs>
+                </protocolIEs>
+            </RICsubscriptionRequest>
+        </value>
+    </initiatingMessage>
+</E2AP-PDU>
+

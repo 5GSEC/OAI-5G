@@ -40,6 +40,7 @@
 #include "nr_rlc/nr_rlc_oai_api.h"
 #include "RRC/NR/MESSAGES/asn1_msg.h"
 //#include "RRC/L2_INTERFACE/openair_rrc_L2_interface.h"
+#include "openair2/F1AP/f1ap_ids.h"
 
 #include "common/ran_context.h"
 #include "executables/softmodem-common.h"
@@ -240,6 +241,9 @@ void mac_top_init_gNB(ngran_node_t node_type)
 
       RC.nrmac[i]->first_MIB = true;
 
+      RC.nrmac[i]->cset0_bwp_start = 0;
+      RC.nrmac[i]->cset0_bwp_size = 0;
+
       pthread_mutex_init(&RC.nrmac[i]->sched_lock, NULL);
 
       pthread_mutex_init(&RC.nrmac[i]->UE_info.mutex, NULL);
@@ -280,7 +284,7 @@ void mac_top_init_gNB(ngran_node_t node_type)
        * will output the packets at a local interface, which is in line with
        * the noS1 mode.  Hence, below, we simply hardcode ENB_FLAG_NO */
       // setup PDCP, RLC
-      nr_pdcp_add_drbs(ENB_FLAG_NO, 0x1234, 0, rbconfig->drb_ToAddModList, 0, NULL, NULL, &rlc_bearer_list);
+      nr_pdcp_add_drbs(ENB_FLAG_NO, 0x1234, rbconfig->drb_ToAddModList, 0, NULL, NULL, &rlc_bearer_list);
       nr_rlc_add_drb(0x1234, rbconfig->drb_ToAddModList->list.array[0]->drb_Identity, rlc_rbconfig);
 
       // free memory
@@ -297,6 +301,8 @@ void mac_top_init_gNB(ngran_node_t node_type)
     nrmac->if_inst = NR_IF_Module_init(i);
     memset(&nrmac->UE_info, 0, sizeof(nrmac->UE_info));
   }
+
+  du_init_f1_ue_data();
 
   srand48(0);
 }

@@ -1,0 +1,246 @@
+namespace e2ap;
+
+// 9.2.1
+enum RicRequestCause: uint8 {
+  RanFunctionIdInvalid = 0,
+  ActionNotSupported = 1,
+  ExcessiveActions = 2,
+  DuplicateAction = 3,
+  DuplicateEventTrigger = 4,
+  FunctionResourceLimit = 5,
+  RicRequestIdUnknown = 6,
+  InconsistentActionSubsequentActionSequence = 7,
+  ControlMessageInvalid = 8,
+  RicCallProcessIdInvalid = 9,
+  RicReqUnspecified = 10
+}
+table RicRequest {
+  ricRequestCause: RicRequestCause;
+}
+enum RicServiceCause: uint8 {
+  FunctionNotRequired = 0,
+  ExcessiveFunctions = 1,
+  RicResourceLimit = 2
+}
+table RicService {
+  ricServiceCause: RicServiceCause;
+}
+enum TransportLayerCause: uint8 {
+  Unspecified = 0,
+  TransportResourceUnavailable = 1
+}
+table TransportLayer {
+  transportLayerCause: TransportLayerCause;
+}
+enum ProtocolCause: uint8 {
+  TransferSyntaxError = 0,
+  AbstractSyntaxErrorReject = 1,
+  AbstractSyntaxErrorIgnoreAndNotify = 2,
+  MessageNotCompatibleWithReceiverState = 3,
+  SemanticError = 4,
+  AbstractSyntaxErrorFalselyConstructedMessage = 5,
+  ProtUnspecified = 6
+}
+table Protocol {
+  protocolCause: ProtocolCause;
+}
+enum MiscellaneousCause: uint8 {
+  ControlProcessingOverload = 0,
+  HardwareFailure = 1,
+  OMIntervention = 2,
+  MiscUnspecified = 3
+}
+table Misc {
+  miscellaneousCause: MiscellaneousCause;
+}
+union Cause {
+  ricRequest: RicRequest,
+  ricService: RicService,
+  transportLayer: TransportLayer,
+  protocol: Protocol,
+  misc: Misc
+}
+
+// 9.2.2
+enum Criticality: uint8 { Reject, Ignore, Notify }
+enum TypeOfError: uint8 { NotUnderstood, Missing }
+table IECriticalityDiagnostics {
+  criticality: Criticality;
+  ieId: uint16;
+  typeOfError: TypeOfError;
+}
+enum TriggeringMessage: uint8 { InitiatingMessage, SuccessfulOutcome, UnsuccessfulOutcome }
+enum ProcedureCriticality: uint8 { Reject, Ignore, Notify }
+table CriticalityDiagnostics {
+  procedureCode: uint8;
+  triggeringMessage: TriggeringMessage;
+  procedureCriticality: ProcedureCriticality;
+  ieCriticalityDiagnostics: [IECriticalityDiagnostics];
+}
+
+// 9.2.3
+/* NOT NEEDED/USED: see union Message */
+
+// 9.2.4
+table GlobalRicId {
+  plmn: Plmn;
+  nearRtRicId: uint32;
+}
+
+// 9.2.5
+/* TimeToWait defined in-line as uint32 */
+
+// 9.2.6
+union GlobalE2NodeId {
+  gNB: GNB,
+  engNB: EngNB,
+  ngeNB: NgeNB,
+  eNB: ENB
+}
+
+// 9.2.7
+struct RicRequestId {
+  ricRequestorId: uint16;
+  ricInstanceId: uint16;
+}
+
+// 9.2.8
+/* RanFunctionId defined in-line as uint16 */
+
+// 9.2.9
+/* RicEventTriggerDefinition defined in-line as [uint8] */
+
+// 9.2.10
+/* RicActionId defined in-line as uint8 */
+
+// 9.2.11
+enum RicActionType: uint8 { Report, Insert, Policy }
+
+// 9.2.12
+/* RicActionDefinition defined in-line as [uint8] */
+
+// 9.2.13
+enum RicSubsequentActionType: uint8 { Continue, Halt }
+table RicSubsequentAction {
+  type: RicSubsequentActionType;
+  timeToWait: uint32;
+}
+
+// 9.2.14
+/* RicIndicationSequenceNumber defined in-line as uint16 */
+
+// 9.2.15 
+enum RicIndicationType: uint8 { Report, Insert }
+
+// 9.2.16
+/* RicIndicationMessage defined in-line as [uint8] */
+
+// 9.2.17
+/* RicIndicationheader defined in-line as [uint8] */
+
+// 9.2.18
+/* RicCallProcessId defined in-line as [uint8] */
+
+// 9.2.19
+/* RicControlMessage defined in-line as [uint8] */
+
+// 9.2.20
+/* RicControlHeader defined in-line as [uint8] */
+
+// 9.2.21
+enum RicControlAckRequest: uint8 { NoAck, Ack, NAck }
+
+// 9.2.22
+enum RicControlStatus: uint8 { Success, Rejected, Failed }
+
+// 9.2.23
+/* RanFunctionDefinition defined in-line */
+
+// 9.2.24
+/* RanFunctionRevision defined in-line as uint16 */
+
+// 9.2.25
+/* RicControlOutcome defined in-line as [uint8] */
+
+// 9.2.26
+enum E2NodeCompType: uint8 { gNB, gNB_CU_UP, gNB_DU, en_gNB, eNB, ng_eNB }
+
+// 9.2.27
+union E2NodeCompConfUpdate {
+  gnb: gnbE2NodeCompConfUpdate,
+  en_gnb: en_gnbE2NodeCompConfUpdate,
+  ng_enb: ng_enbE2NodeCompConfUpdate,
+  enb: enbE2NodeCompConfUpdate
+}
+table gnbE2NodeCompConfUpdate {
+  ngap_gnb_cu_cp: [uint8];
+  xnap_gnb_cu_cp: [uint8];
+  e1ap_gnb_cu_cp: [uint8];
+  f1ap_gnb_cu_cp: [uint8];
+}
+table en_gnbE2NodeCompConfUpdate {
+  x2ap_en_gnb: [uint8];
+}
+table ng_enbE2NodeCompConfUpdate {
+  ngap_ng_enb: [uint8];
+  xap_ng_enb: [uint8];
+}
+table enbE2NodeCompConfUpdate {
+  s1ap_enb: [uint8];
+  x2ap_enb: [uint8];
+}
+
+// 9.2.28
+enum E2NodeCompConfUpdateAckOutcome: uint8 { Success, Failure }
+table E2NodeCompConfUpdateAck {
+  outcome: E2NodeCompConfUpdateAckOutcome;
+  cause: Cause;
+}
+
+// 9.2.29
+table TransportLayerInformation {
+  transportLayerAddress: [uint8];
+  transportLayerPort: uint16;
+}
+
+// 9.2.30
+/* TnlAssociationUsage: TODO */
+
+// 9.2.31
+/* RanFunctionOid defined in-line as string */
+
+// 9.2.32
+union E2NodeCompId {
+  gnb_cu_up: E2NCId,
+  gnb_du: E2NCId
+}
+struct E2NCId { id: uint64; }
+
+// additional definitions
+struct Plmn {
+  mcc: uint16;
+  mnc: uint16;
+  mnc_digit_length: uint8;
+}
+
+table GNB {
+  plmn: Plmn;
+  id: uint32;
+  cu_up_id: uint64;
+  du_id: uint64;
+}
+
+struct EngNB {
+  plmn: Plmn;
+  id: uint32;
+}
+
+struct NgeNB {
+  plmn: Plmn;
+  id: uint32;
+}
+
+struct ENB {
+  plmn: Plmn;
+  id: uint32;
+}

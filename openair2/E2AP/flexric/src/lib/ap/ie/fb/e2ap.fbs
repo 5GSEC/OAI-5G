@@ -1,0 +1,39 @@
+include "functional_procedures.fbs";
+include "global_procedures.fbs";
+
+namespace e2ap;
+
+union Message {
+  subscriptionRequest: RicSubscriptionRequest,
+  subscriptionResponse: RicSubscriptionResponse,
+  subscriptionFailure: RicSubscriptionFailure,
+  subscriptionDeleteRequest: RicSubscriptionDeleteRequest,
+  subscriptionDeleteResponse: RicSubscriptionDeleteResponse,
+  subscriptionDeleteFailure: RicSubscriptionDeleteFailure,
+  indication: RicIndication,
+  controlRequest: RicControlRequest,
+  controlAcknowledge: RicControlAcknowledge,
+  controlFailure: RicControlFailure,
+  errorIndication: ErrorIndication,
+  setupRequest: E2SetupRequest,
+  setupResponse: E2SetupResponse,
+  setupFailure: E2SetupFailure,
+  resetRequest: ResetRequest,
+  resetResponse: ResetResponse
+  //serviceUpdate: RicServiceUpdate
+  //serviceUpdateAcknowledge: RicServiceUpdateAcknowledge
+  //serviceUpdateFailure: RicServiceUpdateFailure
+  //serviceQuery: RicServiceQuery
+  //nodeConfigurationUpdate: E2NodeConfigurationUpdate
+  //nodeConfigurationUpdateAcknowledge: E2NodeConfigurationUpdateAcknowledge
+  //nodeConfigurationUpdateFailure: E2NodeConfigurationUpdateFailure
+  //connectionUpdate: E2ConnectionUpdate
+  //connectionUpdateAcknowledge: E2ConnectionUpdateAcknowledge
+  //connectionUpdateFailure: E2ConnectionUpdateFailure
+}
+
+table E2Message {
+  msg: Message;
+}
+
+root_type E2Message;

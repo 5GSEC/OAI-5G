@@ -47,15 +47,14 @@
 #include "assertions.h"
 #include "T.h"
 
-char nr_dci_format_string[8][30] = {
-  "NR_DL_DCI_FORMAT_1_0",
-  "NR_DL_DCI_FORMAT_1_1",
-  "NR_DL_DCI_FORMAT_2_0",
-  "NR_DL_DCI_FORMAT_2_1",
-  "NR_DL_DCI_FORMAT_2_2",
-  "NR_DL_DCI_FORMAT_2_3",
-  "NR_UL_DCI_FORMAT_0_0",
-  "NR_UL_DCI_FORMAT_0_1"};
+static const char nr_dci_format_string[8][30] = {"NR_DL_DCI_FORMAT_1_0",
+                                                 "NR_DL_DCI_FORMAT_1_1",
+                                                 "NR_DL_DCI_FORMAT_2_0",
+                                                 "NR_DL_DCI_FORMAT_2_1",
+                                                 "NR_DL_DCI_FORMAT_2_2",
+                                                 "NR_DL_DCI_FORMAT_2_3",
+                                                 "NR_UL_DCI_FORMAT_0_0",
+                                                 "NR_UL_DCI_FORMAT_0_1"};
 
 //#define DEBUG_DCI_DECODING 1
 
@@ -671,8 +670,6 @@ int32_t nr_rx_pdcch(PHY_VARS_NR_UE *ue,
                     fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15,
                     c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]) {
 
-  uint32_t frame = proc->frame_rx;
-  uint32_t slot  = proc->nr_slot_rx;
   NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
 
   uint8_t log2_maxh, aarx;
@@ -730,11 +727,10 @@ int32_t nr_rx_pdcch(PHY_VARS_NR_UE *ue,
     log2_maxh = (log2_approx(avgs) / 2) + 5;  //+frame_parms->nb_antennas_rx;
 
 #ifdef UE_DEBUG_TRACE
-    LOG_D(PHY,"slot %d: pdcch log2_maxh = %d (%d,%d)\n",slot,log2_maxh,avgP[0],avgs);
+    LOG_D(PHY, "slot %d: pdcch log2_maxh = %d (%d,%d)\n", proc->nr_slot_rx, log2_maxh, avgP[0], avgs);
 #endif
 #if T_TRACER
-    T(T_UE_PHY_PDCCH_ENERGY, T_INT(0), T_INT(0), T_INT(frame%1024), T_INT(slot),
-      T_INT(avgP[0]), T_INT(avgP[1]), T_INT(avgP[2]), T_INT(avgP[3]));
+    T(T_UE_PHY_PDCCH_ENERGY, T_INT(0), T_INT(0), T_INT(proc->frame_rx % 1024), T_INT(proc->nr_slot_rx), T_INT(avgP[0]), T_INT(avgP[1]), T_INT(avgP[2]), T_INT(avgP[3]));
 #endif
     LOG_D(PHY,"we enter nr_pdcch_channel_compensation(log2_maxh=%d)\n",log2_maxh);
     LOG_D(PHY,"in nr_pdcch_channel_compensation(rxdataF_ext x dl_ch_estimates_ext -> rxdataF_comp)\n");
@@ -748,7 +744,7 @@ int32_t nr_rx_pdcch(PHY_VARS_NR_UE *ue,
                                   log2_maxh,
                                   n_rb); // log2_maxh+I0_shift
 
-    UEscopeCopy(ue, pdcchRxdataF_comp, rxdataF_comp, sizeof(struct complex16), frame_parms->nb_antennas_rx, rx_size);
+    UEscopeCopy(ue, pdcchRxdataF_comp, rxdataF_comp, sizeof(struct complex16), frame_parms->nb_antennas_rx, rx_size, 0);
 
     if (frame_parms->nb_antennas_rx > 1) {
       LOG_D(PHY,"we enter nr_pdcch_detection_mrc(frame_parms->nb_antennas_rx=%d)\n", frame_parms->nb_antennas_rx);
@@ -764,7 +760,7 @@ int32_t nr_rx_pdcch(PHY_VARS_NR_UE *ue,
                  s,
                  n_rb);
 
-    UEscopeCopy(ue, pdcchLlr, llr, sizeof(int16_t), 1, llr_size);
+    UEscopeCopy(ue, pdcchLlr, llr, sizeof(int16_t), 1, llr_size, 0);
 
 #if T_TRACER
     
@@ -803,7 +799,8 @@ void nr_pdcch_unscrambling(int16_t *e_rx,
                            uint16_t scrambling_RNTI,
                            uint32_t length,
                            uint16_t pdcch_DMRS_scrambling_id,
-                           int16_t *z2) {
+                           int16_t *z2)
+{
   int i;
   uint8_t reset;
   uint32_t x1 = 0, x2 = 0, s = 0;
@@ -812,7 +809,7 @@ void nr_pdcch_unscrambling(int16_t *e_rx,
   reset = 1;
   // x1 is set in first call to lte_gold_generic
   n_id = pdcch_DMRS_scrambling_id;
-  x2 = ((rnti<<16) + n_id); //mod 2^31 is implicit //this is c_init in 38.211 v15.1.0 Section 7.3.2.3
+  x2 = ((rnti << 16) + n_id) % (1U << 31); // this is c_init in 38.211 v15.1.0 Section 7.3.2.3
 
   LOG_D(PHY,"PDCCH Unscrambling x2 %x : scrambling_RNTI %x\n", x2, rnti);
 
@@ -889,7 +886,8 @@ uint8_t nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
            break;
         }
       }
-      if (dci_found==1) continue;
+      if (dci_found == 1)
+        continue;
       int dci_length = rel15->dci_length_options[k];
       uint64_t dci_estimation[2]= {0};
 
@@ -923,8 +921,7 @@ uint8_t nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
         if (mb > (ue->dci_thres+30)) {
           LOG_W(PHY,"DCI false positive. Dropping DCI index %d. Mismatched bits: %d/%d. Current DCI threshold: %d\n",j,mb,L*108,ue->dci_thres);
           continue;
-        }
-        else {
+        } else {
           dci_ind->SFN = proc->frame_rx;
           dci_ind->slot = proc->nr_slot_rx;
           dci_ind->dci_list[dci_ind->number_of_dcis].rnti = n_rnti;

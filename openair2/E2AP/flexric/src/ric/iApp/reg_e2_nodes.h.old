@@ -1,0 +1,33 @@
+#ifndef REGISTERED_E2_NODES_IAPP_H
+#define REGISTERED_E2_NODES_IAPP_H 
+
+#include "../util/alg_ds/ds/assoc_container/assoc_generic.h"
+
+#include "../lib/ap/e2ap_types/e2_node_connected.h"
+#include "../lib/msg_hand/reg_e2_nodes.h"
+
+
+#include <stddef.h>
+#include <stdint.h>
+#include <pthread.h>
+
+typedef struct{
+  reg_e2_nodes_t base; 
+} reg_e2_nodes_iapp_t;
+
+typedef struct{
+  size_t len;
+  e2_node_connected_t* n;
+  // Array connected E2 Nodes
+} arr_conn_e2_nodes_t;
+
+void init_reg_e2_node_iapp(reg_e2_nodes_iapp_t* i); 
+
+void free_reg_e2_node_iapp(reg_e2_nodes_iapp_t* i); 
+
+void add_reg_e2_node_iapp(reg_e2_nodes_iapp_t* i, global_e2_node_id_t const* id, size_t len, ran_function_t const ran_func[len]);
+
+arr_conn_e2_nodes_t nodes_reg_e2_node_iapp(reg_e2_nodes_iapp_t* i, size_t len, ran_function_t ran_func[len]);
+
+#endif
+

@@ -21,6 +21,7 @@
 
 #include "nr_modulation.h"
 #include "PHY/NR_REFSIG/nr_mod_table.h"
+#include "executables/softmodem-common.h"
 
 //Table 6.3.1.5-1 Precoding Matrix W 1 layer 2 antenna ports 'n' = -1 and 'o' = -j
 const char nr_W_1l_2p[6][2][1] = {
@@ -120,10 +121,7 @@ void nr_modulation(uint32_t *in,
   uint8_t* in_bytes = (uint8_t*) in;
   uint64_t* in64 = (uint64_t*) in;
   int64_t* out64 = (int64_t*) out;
-  uint8_t idx;
-  uint32_t i,j;
-  uint32_t bit_cnt;
-  uint64_t x,x1,x2;
+  uint32_t i;
 
 #if defined(__SSE2__)
   __m128i *nr_mod_table128;
@@ -144,7 +142,7 @@ void nr_modulation(uint32_t *in,
     i = i*8/2;
     nr_mod_table32 = (int32_t*) nr_qpsk_mod_table;
     while (i<length/2) {
-      idx = ((in_bytes[(i*2)/8]>>((i*2)&0x7)) & mask);
+      const int idx = ((in_bytes[(i * 2) / 8] >> ((i * 2) & 0x7)) & mask);
       out32[i] = nr_mod_table32[idx];
       i++;
     }
@@ -153,7 +151,7 @@ void nr_modulation(uint32_t *in,
   case 2:
     nr_mod_table32 = (int32_t*) nr_qpsk_mod_table;
     for (i=0; i<length/mod_order; i++) {
-      idx = ((in[i*2/32]>>((i*2)&0x1f)) & mask);
+      const int idx = ((in[i * 2 / 32] >> ((i * 2) & 0x1f)) & mask);
       out32[i] = nr_mod_table32[idx];
     }
     return;
@@ -166,66 +164,68 @@ void nr_modulation(uint32_t *in,
     // the bits that are left out
     i = i*8/4;
     while (i<length/4) {
-      idx = ((in_bytes[(i*4)/8]>>((i*4)&0x7)) & mask);
+      const int idx = ((in_bytes[(i * 4) / 8] >> ((i * 4) & 0x7)) & mask);
       out32[i] = nr_16qam_mod_table[idx];
       i++;
     }
     return;
 
   case 6:
-    j = 0;
-    for (i=0; i<length/192; i++) {
-      x = in64[i*3];
-      x1 = x&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x>>12)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x>>24)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x>>36)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x>>48)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x2 = (x>>60);
-      x = in64[i*3+1];
+    for (i = 0; i < length - 3 * 64; i += 3 * 64) {
+      uint64_t x = *in64++;
+      uint64_t x1 = x & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x >> 12) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x >> 24) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x >> 36) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x >> 48) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      uint64_t x2 = (x >> 60);
+      x = *in64++;
       x2 |= x<<4;
-      x1 = x2&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x2>>12)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x2>>24)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x2>>36)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x2>>48)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
+      x1 = x2 & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x2 >> 12) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x2 >> 24) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x2 >> 36) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x2 >> 48) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
       x2 = ((x>>56)&0xf0) | (x2>>60);
-      x = in64[i*3+2];
+      x = *in64++;
       x2 |= x<<8;
-      x1 = x2&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x2>>12)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x2>>24)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x2>>36)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (x2>>48)&4095;
-      out64[j++] = nr_64qam_mod_table[x1];
+      x1 = x2 & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x2 >> 12) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x2 >> 24) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x2 >> 36) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (x2 >> 48) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
       x2 = ((x>>52)&0xff0) | (x2>>60);
-      out64[j++] = nr_64qam_mod_table[x2];
+      *out64++ = nr_64qam_mod_table[x2];
     }
-    i *= 24;
-    bit_cnt = i * 8;
-    while (bit_cnt < length) {
-      uint32_t xx;
-      memcpy(&xx, in_bytes+i, sizeof(xx));
-      x1 = xx & 4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      x1 = (xx >> 12) & 4095;
-      out64[j++] = nr_64qam_mod_table[x1];
-      i += 3;
-      bit_cnt += 24;
+    while (i + 24 <= length) {
+      uint32_t xx = 0;
+      memcpy(&xx, in_bytes + i / 8, 3);
+      uint64_t x1 = xx & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      x1 = (xx >> 12) & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
+      i += 24;
+    }
+    if (i != length) {
+      uint32_t xx = 0;
+      memcpy(&xx, in_bytes + i / 8, 2);
+      uint64_t x1 = xx & 0xfff;
+      *out64++ = nr_64qam_mod_table[x1];
     }
     return;
 
@@ -599,6 +599,7 @@ void init_symbol_rotation(NR_DL_FRAME_PARMS *fp) {
 
   uint64_t dl_CarrierFreq = fp->dl_CarrierFreq;
   uint64_t ul_CarrierFreq = fp->ul_CarrierFreq;
+  uint64_t sl_CarrierFreq = fp->sl_CarrierFreq;
   double f[2] = {(double)dl_CarrierFreq, (double)ul_CarrierFreq};
 
   const int nsymb = fp->symbols_per_slot * fp->slots_per_frame/10;
@@ -612,6 +613,10 @@ void init_symbol_rotation(NR_DL_FRAME_PARMS *fp) {
     double f0 = f[ll];
     LOG_D(PHY, "Doing symbol rotation calculation for gNB TX/RX, f0 %f Hz, Nsymb %d\n", f0, nsymb);
     c16_t *symbol_rotation = fp->symbol_rotation[ll];
+    if (get_softmodem_params()->sl_mode == 2) {
+      f0 = (double)sl_CarrierFreq;
+      symbol_rotation = fp->symbol_rotation[link_type_sl];
+    }
 
     double tl = 0.0;
     double poff = 0.0;

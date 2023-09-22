@@ -40,6 +40,7 @@
 #include "UTIL/OPT/opt.h"
 #include "RRC/NR/nr_rrc_config.h"
 #include "common/utils/nr/nr_common.h"
+#include "openair1/PHY/defs_nr_common.h"
 
 
 #define ENABLE_MAC_PAYLOAD_DEBUG
@@ -99,10 +100,9 @@ static void fill_ssb_vrb_map(NR_COMMON_channels_t *cc, int rbStart, int ssb_subc
               "240kHZ subcarrier won't work with current VRB map because a single SSB might be across 2 slots\n");
 
   uint16_t *vrb_map = cc[CC_id].vrb_map;
-
   const int extra_prb = ssb_subcarrier_offset > 0;
-  for (int rb = 0; rb < 20+extra_prb; rb++)
-    vrb_map[rbStart + rb] = SL_to_bitmap(symStart, 4);
+  for (int rb = 0; rb < 20 + extra_prb; rb++)
+    vrb_map[rbStart + rb] = SL_to_bitmap(symStart % NR_SYMBOLS_PER_SLOT, 4);
 }
 
 void schedule_nr_mib(module_id_t module_idP, frame_t frameP, sub_frame_t slotP, nfapi_nr_dl_tti_request_t *DL_req)
@@ -290,8 +290,10 @@ static uint32_t schedule_control_sib1(module_id_t module_id,
     gNB_mac->sched_ctrlCommon = calloc(1,sizeof(*gNB_mac->sched_ctrlCommon));
     gNB_mac->sched_ctrlCommon->search_space = calloc(1,sizeof(*gNB_mac->sched_ctrlCommon->search_space));
     gNB_mac->sched_ctrlCommon->coreset = calloc(1,sizeof(*gNB_mac->sched_ctrlCommon->coreset));
-    fill_searchSpaceZero(gNB_mac->sched_ctrlCommon->search_space,type0_PDCCH_CSS_config);
-    fill_coresetZero(gNB_mac->sched_ctrlCommon->coreset,type0_PDCCH_CSS_config);
+    fill_searchSpaceZero(gNB_mac->sched_ctrlCommon->search_space,
+                         nr_slots_per_frame[*scc->ssbSubcarrierSpacing],
+                         type0_PDCCH_CSS_config);
+    fill_coresetZero(gNB_mac->sched_ctrlCommon->coreset, type0_PDCCH_CSS_config);
     gNB_mac->cset0_bwp_start = type0_PDCCH_CSS_config->cset_start_rb;
     gNB_mac->cset0_bwp_size = type0_PDCCH_CSS_config->num_rbs;
     gNB_mac->sched_ctrlCommon->sched_pdcch = set_pdcch_structure(NULL,
@@ -606,6 +608,10 @@ void schedule_nr_sib1(module_id_t module_idP,
       TX_req->Slot = slotP;
 
       type0_PDCCH_CSS_config->active = false;
+
+      T(T_GNB_MAC_DL_PDU_WITH_DATA, T_INT(module_idP), T_INT(CC_id),
+        T_INT(0xffff), T_INT(frameP), T_INT(slotP), T_INT(0 /* harq_pid */),
+        T_BUFFER(sib1_payload, TBS));
     }
   }
 }

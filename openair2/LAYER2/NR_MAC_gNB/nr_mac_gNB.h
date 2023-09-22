@@ -46,19 +46,19 @@
 #define NR_SCHED_LOCK(lock)                                        \
   do {                                                             \
     int rc = pthread_mutex_lock(lock);                             \
-    AssertFatal(rc == 0, "error while locking scheduler mutex\n"); \
+    AssertFatal(rc == 0, "error while locking scheduler mutex, pthread_mutex_lock() returned %d\n", rc); \
   } while (0)
 
 #define NR_SCHED_UNLOCK(lock)                                      \
   do {                                                             \
     int rc = pthread_mutex_unlock(lock);                           \
-    AssertFatal(rc == 0, "error while locking scheduler mutex\n"); \
+    AssertFatal(rc == 0, "error while locking scheduler mutex, pthread_mutex_unlock() returned %d\n", rc); \
   } while (0)
 
 #define NR_SCHED_ENSURE_LOCKED(lock)\
   do {\
     int rc = pthread_mutex_trylock(lock); \
-    AssertFatal(rc == EBUSY, "this function should be called with the scheduler mutex locked\n");\
+    AssertFatal(rc == EBUSY, "this function should be called with the scheduler mutex locked, pthread_mutex_trylock() returned %d\n", rc);\
   } while (0)
 
 /* Commmon */
@@ -204,8 +204,6 @@ typedef struct {
   NR_CellGroupConfig_t *CellGroup;
   /// Preambles for contention-free access
   NR_preamble_ue_t preambles;
-  /// NSA: the UEs C-RNTI to use
-  rnti_t crnti;
   /// CFRA flag
   bool cfra;
   // BWP for RA
@@ -660,6 +658,7 @@ typedef struct NR_bler_options {
 typedef struct nr_mac_rrc_ul_if_s {
   ue_context_setup_response_func_t ue_context_setup_response;
   ue_context_modification_response_func_t ue_context_modification_response;
+  ue_context_modification_required_func_t ue_context_modification_required;
   ue_context_release_request_func_t ue_context_release_request;
   ue_context_release_complete_func_t ue_context_release_complete;
   initial_ul_rrc_message_transfer_func_t initial_ul_rrc_message_transfer;
@@ -675,7 +674,11 @@ typedef struct {
   NR_UE_DL_BWP_t current_DL_BWP;
   NR_UE_UL_BWP_t current_UL_BWP;
   NR_mac_stats_t mac_stats;
+  /// currently active CellGroupConfig
   NR_CellGroupConfig_t *CellGroup;
+  /// CellGroupConfig that is to be activated after the next reconfiguration
+  NR_CellGroupConfig_t *reconfigCellGroup;
+  bool expect_reconfiguration;
   char cg_buf[32768]; /* arbitrary size */
   asn_enc_rval_t enc_rval;
   // UE selected beam index
@@ -691,7 +694,8 @@ typedef struct {
   // last element always NULL
   pthread_mutex_t mutex;
   NR_UE_info_t *list[MAX_MOBILES_PER_GNB+1];
-  bool sched_csirs;
+  // bitmap of CSI-RS already scheduled in current slot
+  int sched_csirs;
   uid_allocator_t uid_allocator;
 } NR_UEs_t;
 

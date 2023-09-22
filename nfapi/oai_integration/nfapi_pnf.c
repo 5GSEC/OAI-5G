@@ -83,7 +83,6 @@ nfapi_nr_pdu_t *tx_data_request[1023][20][10]; //[frame][slot][max_num_pdus]
 uint8_t tx_pdus[32][8][4096];
 
 nfapi_ue_release_request_body_t release_rntis;
-uint16_t phy_antenna_capability_values[] = { 1, 2, 4, 8, 16 };
 
 nfapi_nr_pnf_param_response_t g_pnf_param_resp;
 
@@ -880,7 +879,6 @@ int config_request(nfapi_pnf_config_t *config, nfapi_pnf_phy_config_t *phy, nfap
 
   if (req->sch_config.physical_cell_id.tl.tag == NFAPI_SCH_CONFIG_PHYSICAL_CELL_ID_TAG) {
     fp->Nid_cell = req->sch_config.physical_cell_id.value;
-    fp->nushift = fp->Nid_cell%6;
     num_tlv++;
   }
 
@@ -1050,8 +1048,7 @@ int nr_config_request(nfapi_pnf_config_t *config, nfapi_pnf_phy_config_t *phy, n
   }
 
   if (req->cell_config.phy_cell_id.tl.tag == NFAPI_NR_CONFIG_PHY_CELL_ID_TAG) {
-    fp->Nid_cell = req->cell_config.phy_cell_id.value; //sch_config.physical_cell_id.value;
-    fp->nushift = fp->Nid_cell%6;
+    fp->Nid_cell = req->cell_config.phy_cell_id.value; // sch_config.physical_cell_id.value;
     num_tlv++;
   }
 

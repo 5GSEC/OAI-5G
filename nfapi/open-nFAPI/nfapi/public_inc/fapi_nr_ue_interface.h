@@ -49,6 +49,12 @@ typedef struct {
   uint32_t sr;
 } fapi_nr_uci_pdu_rel15_t;
 
+typedef enum {
+ RLM_no_monitoring = 0,
+ RLM_out_of_sync = 1,
+ RLM_in_sync = 2
+} rlm_t;
+
 typedef struct {
   uint32_t rsrp;
   int rsrp_dBm;
@@ -56,6 +62,7 @@ typedef struct {
   uint8_t i1;
   uint8_t i2;
   uint8_t cqi;
+  rlm_t radiolink_monitoring;
 } fapi_nr_csirs_measurements_t;
 
 typedef struct {
@@ -125,6 +132,7 @@ typedef struct {
   uint16_t cell_id;
   uint16_t ssb_start_subcarrier;
   short rsrp_dBm;
+  rlm_t radiolink_monitoring; // -1 no monitoring, 0 out_of_sync, 1 in_sync
 } fapi_nr_ssb_pdu_t;
 
 typedef struct {
@@ -434,6 +442,9 @@ typedef struct {
   uint16_t start_rb;
   uint16_t number_symbols;
   uint16_t start_symbol;
+  // TODO this is a workaround to make it work
+  // implementation is also a bunch of workarounds
+  uint16_t rb_offset;
   uint16_t dlDmrsSymbPos;  
   uint8_t dmrsConfigType;
   uint8_t prb_bundling_size_ind;
@@ -560,7 +571,9 @@ typedef struct {
 typedef struct 
 {
   uint16_t dl_bandwidth;//Carrier bandwidth for DL in MHz [38.104, sec 5.3.2] Values: 5, 10, 15, 20, 25, 30, 40,50, 60, 70, 80,90,100,200,400
+  uint16_t sl_bandwidth; //Carrier bandwidth for SL in MHz [38.101, sec 5.3.5] Values: 10, 20, 30, and 40
   uint32_t dl_frequency; //Absolute frequency of DL point A in KHz [38.104, sec5.2 and 38.211 sec 4.4.4.2] Value: 450000 -> 52600000
+  uint32_t sl_frequency; //Absolute frequency of SL point A in KHz [38.331, sec6.3.5 and 38.211 sec 8.2.7]
   uint16_t dl_k0[5];//𝑘_{0}^{𝜇} for each of the numerologies [38.211, sec 5.3.1] Value: 0 ->23699
   uint16_t dl_grid_size[5];//Grid size 𝑁_{𝑔𝑟𝑖𝑑}^{𝑠𝑖𝑧𝑒,𝜇} for each of the numerologies [38.211, sec 4.4.2] Value: 0->275 0 = this numerology not used
   uint16_t num_tx_ant;//Number of Tx antennas
@@ -568,6 +581,7 @@ typedef struct
   uint32_t uplink_frequency;//Absolute frequency of UL point A in KHz [38.104, sec5.2 and 38.211 sec 4.4.4.2] Value: 450000 -> 52600000
   uint16_t ul_k0[5];//𝑘0 𝜇 for each of the numerologies [38.211, sec 5.3.1] Value: : 0 ->23699
   uint16_t ul_grid_size[5];//Grid size 𝑁𝑔𝑟𝑖𝑑 𝑠𝑖𝑧𝑒,𝜇 for each of the numerologies [38.211, sec 4.4.2]. Value: 0->275 0 = this numerology not used
+  uint16_t sl_grid_size[5];
   uint16_t num_rx_ant;//
   uint8_t  frequency_shift_7p5khz;//Indicates presence of 7.5KHz frequency shift. Value: 0 = false 1 = true
 
@@ -622,13 +636,12 @@ typedef struct
 
 typedef struct 
 {
-  fapi_nr_max_num_of_symbol_per_slot_t* max_num_of_symbol_per_slot_list;
+  fapi_nr_max_num_of_symbol_per_slot_t *max_num_of_symbol_per_slot_list;
 
 } fapi_nr_max_tdd_periodicity_t;
 
 typedef struct 
 {
-  uint8_t tdd_period;//DL UL Transmission Periodicity. Value:0: ms0p5 1: ms0p625 2: ms1 3: ms1p25 4: ms2 5: ms2p5 6: ms5 7: ms10 8: ms3 9: ms4
   uint8_t tdd_period_in_slots;
   fapi_nr_max_tdd_periodicity_t* max_tdd_periodicity_list;
 
@@ -669,7 +682,8 @@ typedef struct {
   fapi_nr_cell_config_t cell_config;
   fapi_nr_ssb_config_t ssb_config;
   fapi_nr_ssb_table_t ssb_table;
-  fapi_nr_tdd_table_t tdd_table;
+  fapi_nr_tdd_table_t tdd_table_1;
+  fapi_nr_tdd_table_t *tdd_table_2;
   fapi_nr_prach_config_t prach_config;
 
 } fapi_nr_config_request_t;

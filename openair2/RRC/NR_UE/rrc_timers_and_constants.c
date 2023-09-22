@@ -21,6 +21,106 @@
 
 #include "openair2/RRC/NR_UE/rrc_proto.h"
 
+void nr_rrc_SI_timers(NR_UE_RRC_SI_INFO *SInfo)
+{
+  // delete any stored version of a SIB after 3 hours
+  // from the moment it was successfully confirmed as valid
+  if (SInfo->sib1 && SInfo->sib1_timer >= 0) {
+    SInfo->sib1_timer += 10;
+    if (SInfo->sib1_timer > 10800000)
+      SInfo->sib1_timer = -1;
+  }
+  if (SInfo->sib2 && SInfo->sib2_timer >= 0) {
+    SInfo->sib2_timer += 10;
+    if (SInfo->sib2_timer > 10800000)
+      SInfo->sib2_timer = -1;
+  }
+  if (SInfo->sib3 && SInfo->sib3_timer >= 0) {
+    SInfo->sib3_timer += 10;
+    if (SInfo->sib3_timer > 10800000)
+      SInfo->sib3_timer = -1;
+  }
+  if (SInfo->sib4 && SInfo->sib4_timer >= 0) {
+    SInfo->sib4_timer += 10;
+    if (SInfo->sib4_timer > 10800000)
+      SInfo->sib4_timer = -1;
+  }
+  if (SInfo->sib5 && SInfo->sib5_timer >= 0) {
+    SInfo->sib5_timer += 10;
+    if (SInfo->sib5_timer > 10800000)
+      SInfo->sib5_timer = -1;
+  }
+  if (SInfo->sib6 && SInfo->sib6_timer >= 0) {
+    SInfo->sib6_timer += 10;
+    if (SInfo->sib6_timer > 10800000)
+      SInfo->sib6_timer = -1;
+  }
+  if (SInfo->sib7 && SInfo->sib7_timer >= 0) {
+    SInfo->sib7_timer += 10;
+    if (SInfo->sib7_timer > 10800000)
+      SInfo->sib7_timer = -1;
+  }
+  if (SInfo->sib8 && SInfo->sib8_timer >= 0) {
+    SInfo->sib8_timer += 10;
+    if (SInfo->sib8_timer > 10800000)
+      SInfo->sib8_timer = -1;
+  }
+  if (SInfo->sib9 && SInfo->sib9_timer >= 0) {
+    SInfo->sib9_timer += 10;
+    if (SInfo->sib9_timer > 10800000)
+      SInfo->sib9_timer = -1;
+
+  }
+  if (SInfo->sib10 && SInfo->sib10_timer >= 0) {
+    SInfo->sib10_timer += 10;
+    if (SInfo->sib10_timer > 10800000)
+      SInfo->sib10_timer = -1;
+  }
+  if (SInfo->sib11 && SInfo->sib11_timer >= 0) {
+    SInfo->sib11_timer += 10;
+    if (SInfo->sib11_timer > 10800000)
+      SInfo->sib11_timer = -1;
+  }
+  if (SInfo->sib12 && SInfo->sib12_timer >= 0) {
+    SInfo->sib12_timer += 10;
+    if (SInfo->sib12_timer > 10800000)
+      SInfo->sib12_timer = -1;
+  }
+  if (SInfo->sib13 && SInfo->sib13_timer >= 0) {
+    SInfo->sib13_timer += 10;
+    if (SInfo->sib13_timer > 10800000)
+      SInfo->sib13_timer = -1;
+  }
+  if (SInfo->sib14 && SInfo->sib14_timer >= 0) {
+    SInfo->sib14_timer += 10;
+    if (SInfo->sib14_timer > 10800000)
+      SInfo->sib14_timer = -1;
+  }
+}
+
+void nr_rrc_handle_timers(NR_UE_Timers_Constants_t *timers)
+{
+  // T304
+  if (timers->T304_active == true) {
+    timers->T304_cnt += 10;
+    if(timers->T304_cnt >= timers->T304_k) {
+      // TODO
+      // For T304 of MCG, in case of the handover from NR or intra-NR
+      // handover, initiate the RRC re-establishment procedure;
+      // In case of handover to NR, perform the actions defined in the
+      // specifications applicable for the source RAT.
+    }
+  }
+  if (timers->T310_active == true) {
+    timers->T310_cnt += 10;
+    if(timers->T310_cnt >= timers->T310_k) {
+      // TODO
+      // handle detection of radio link failure
+      // as described in 5.3.10.3 of 38.331
+      AssertFatal(false, "Radio link failure! Not handled yet!\n");
+    }
+  }
+}
 
 void nr_rrc_set_T304(NR_UE_Timers_Constants_t *tac, NR_ReconfigurationWithSync_t *reconfigurationWithSync)
 {
@@ -399,6 +499,43 @@ void nr_rrc_handle_SetupRelease_RLF_TimersAndConstants(NR_UE_RRC_INST_t *rrc,
       break;
     default :
       AssertFatal(false, "Invalid rlf_TimersAndConstants\n");
+  }
+}
+
+void handle_rlf_sync(NR_UE_Timers_Constants_t *tac,
+                     nr_sync_msg_t sync_msg)
+{
+  if (sync_msg == IN_SYNC) {
+    tac->N310_cnt = 0;
+    if (tac->T310_active) {
+      tac->N311_cnt++;
+      // Upon receiving N311 consecutive "in-sync" indications
+      if (tac->N311_cnt >= tac->N311_k) {
+        // stop timer T310
+        tac->T310_active = false;
+        tac->T310_cnt = 0;
+        tac->N311_cnt = 0;
+      }
+    }
+  }
+  else {
+    // OUT_OF_SYNC
+    tac->N311_cnt = 0;
+    if(tac->T300_active ||
+       tac->T301_active ||
+       tac->T304_active ||
+       tac->T310_active ||
+       tac->T311_active ||
+       tac->T319_active)
+      return;
+    tac->N310_cnt++;
+    // upon receiving N310 consecutive "out-of-sync" indications
+    if (tac->N310_cnt >= tac->N310_k) {
+      // start timer T310
+        tac->T310_active = true;
+        tac->T310_cnt = 0;
+        tac->N310_cnt = 0;
+    }
   }
 }
 

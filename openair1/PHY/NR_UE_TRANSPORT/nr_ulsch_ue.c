@@ -107,12 +107,13 @@ void nr_pusch_codeword_scrambling(uint8_t *in,
 }
 
 void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
-                            unsigned char harq_pid,
-                            uint32_t frame,
-                            uint8_t slot,
-                            int gNB_id,
-                            nr_phy_data_tx_t *phy_data) {
-
+                            const unsigned char harq_pid,
+                            const uint32_t frame,
+                            const uint8_t slot,
+                            const int gNB_id,
+                            nr_phy_data_tx_t *phy_data,
+                            c16_t **txdataF)
+{
   LOG_D(PHY,"nr_ue_ulsch_procedures hard_id %d %d.%d\n",harq_pid,frame,slot);
 
   int8_t Wf[2], Wt[2];
@@ -122,14 +123,23 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
   int sample_offsetF, N_RE_prime;
 
   NR_DL_FRAME_PARMS *frame_parms = &UE->frame_parms;
-  c16_t **txdataF = UE->common_vars.txdataF;
 
   int      N_PRB_oh = 0; // higher layer (RRC) parameter xOverhead in PUSCH-ServingCellConfig
   uint16_t number_dmrs_symbols = 0;
 
   NR_UE_ULSCH_t *ulsch_ue = &phy_data->ulsch;
   NR_UL_UE_HARQ_t *harq_process_ul_ue = &UE->ul_harq_processes[harq_pid];
-  nfapi_nr_ue_pusch_pdu_t *pusch_pdu = &ulsch_ue->pusch_pdu;
+  const nfapi_nr_ue_pusch_pdu_t *pusch_pdu = &ulsch_ue->pusch_pdu;
+
+  uint32_t tb_size;
+  // MCS > limit -> retransmission
+  // Take TB size from previois transmission
+  if (pusch_pdu->target_code_rate == 0)
+    tb_size = harq_process_ul_ue->tb_size;
+  else {
+    tb_size = pusch_pdu->pusch_data.tb_size;
+    harq_process_ul_ue->tb_size = tb_size;
+  }
 
   int start_symbol          = pusch_pdu->start_symbol_index;
   uint16_t ul_dmrs_symb_pos = pusch_pdu->ul_dmrs_symb_pos;
@@ -170,10 +180,10 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
 
   trace_NRpdu(DIRECTION_UPLINK,
               harq_process_ul_ue->a,
-              pusch_pdu->pusch_data.tb_size,
+              tb_size,
               WS_C_RNTI, rnti, frame, slot, 0, 0);
 
-  if (nr_ulsch_encoding(UE, ulsch_ue, frame_parms, harq_pid, G) == -1)
+  if (nr_ulsch_encoding(UE, ulsch_ue, frame_parms, harq_pid, tb_size, G) == -1)
     return;
 
 
@@ -184,8 +194,9 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
   ///////////
 
   uint32_t available_bits = G;
-  uint32_t scrambled_output[(available_bits>>5)+1];
-  memset(scrambled_output, 0, ((available_bits>>5)+1)*sizeof(uint32_t));
+  // +1 because size can be not modulo 4
+  uint32_t scrambled_output[available_bits / (8 * sizeof(uint32_t)) + 1];
+  memset(scrambled_output, 0, sizeof(scrambled_output));
 
   nr_pusch_codeword_scrambling(harq_process_ul_ue->f,
                                available_bits,
@@ -585,63 +596,28 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
 
   ///////////
   ////////////////////////////////////////////////////////////////////////
-
 }
 
-
 uint8_t nr_ue_pusch_common_procedures(PHY_VARS_NR_UE *UE,
-                                      uint8_t slot,
-                                      NR_DL_FRAME_PARMS *frame_parms,
-                                      uint8_t n_antenna_ports) {
+                                      const uint8_t slot,
+                                      const NR_DL_FRAME_PARMS *frame_parms,
+                                      const uint8_t n_antenna_ports,
+                                      c16_t **txdataF)
+{
+  const int tx_offset = frame_parms->get_samples_slot_timestamp(slot, frame_parms, 0);
 
-  int tx_offset, ap;
-  c16_t **txdata;
-  c16_t **txdataF;
-
-  /////////////////////////IFFT///////////////////////
-  ///////////
-
-  tx_offset = frame_parms->get_samples_slot_timestamp(slot, frame_parms, 0);
-
-  // clear the transmit data array for the current subframe
-  /*for (int aa=0; aa<UE->frame_parms.nb_antennas_tx; aa++) {
-	  memset(&UE->common_vars.txdata[aa][tx_offset],0,UE->frame_parms.samples_per_slot*sizeof(int32_t));
-	  //memset(&UE->common_vars.txdataF[aa][tx_offset],0,UE->frame_parms.samples_per_slot*sizeof(int32_t));
-  }*/
-
-
-  txdata = UE->common_vars.txdata;
-  txdataF = UE->common_vars.txdataF;
-
-  int symb_offset = (slot%frame_parms->slots_per_subframe)*frame_parms->symbols_per_slot;
-  for(ap = 0; ap < n_antenna_ports; ap++) {
-    for (int s=0;s<NR_NUMBER_OF_SYMBOLS_PER_SLOT;s++){
-      c16_t *this_symbol = &txdataF[ap][frame_parms->ofdm_symbol_size * s];
-      c16_t rot=frame_parms->symbol_rotation[1][s + symb_offset];
-      LOG_D(PHY,"rotating txdataF symbol %d (%d) => (%d.%d)\n",
-	    s,
-	    s + symb_offset,
-	    rot.r, rot.i);
-
-      if (frame_parms->N_RB_UL & 1) {
-        rotate_cpx_vector(this_symbol, &rot, this_symbol,
-                          (frame_parms->N_RB_UL + 1) * 6, 15);
-        rotate_cpx_vector(this_symbol + frame_parms->first_carrier_offset - 6,
-                          &rot,
-                          this_symbol + frame_parms->first_carrier_offset - 6,
-                          (frame_parms->N_RB_UL + 1) * 6, 15);
-      } else {
-        rotate_cpx_vector(this_symbol, &rot, this_symbol,
-                          frame_parms->N_RB_UL * 6, 15);
-        rotate_cpx_vector(this_symbol + frame_parms->first_carrier_offset,
-                          &rot,
-                          this_symbol + frame_parms->first_carrier_offset,
-                          frame_parms->N_RB_UL * 6, 15);
-      }
-    }
+  c16_t **txdata = UE->common_vars.txData;
+  for(int ap = 0; ap < n_antenna_ports; ap++) {
+    apply_nr_rotation_TX(frame_parms,
+                         txdataF[ap],
+                         frame_parms->symbol_rotation[1],
+                         slot,
+                         frame_parms->N_RB_UL,
+                         0,
+                         NR_NUMBER_OF_SYMBOLS_PER_SLOT);
   }
 
-  for (ap = 0; ap < n_antenna_ports; ap++) {
+  for (int ap = 0; ap < n_antenna_ports; ap++) {
     if (frame_parms->Ncp == 1) { // extended cyclic prefix
       PHY_ofdm_mod((int *)txdataF[ap],
                    (int *)&txdata[ap][tx_offset],

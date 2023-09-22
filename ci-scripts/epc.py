@@ -166,6 +166,8 @@ class EPCManagement():
 			mySSH.command('echo ' + self.Password + ' | sudo -S ./run_mme 2>&1 | stdbuf -o0 tee -a mme_' + self.testCase_id + '.log &', 'MME app initialization complete', 100)
 		elif re.match('ltebox', self.Type, re.IGNORECASE):
 			mySSH.command('cd /opt/ltebox/tools', '\$', 5)
+			# Clean-up the logs from previous runs
+			mySSH.command('echo ' + self.Password + ' | sudo -S rm -f ../var/log/*.0', '\$', 5)
 			mySSH.command('echo ' + self.Password + ' | sudo -S ./start_mme', '\$', 5)
 		else:
 			logging.error('This option should not occur!')
@@ -641,7 +643,7 @@ class EPCManagement():
 		mySSH = SSH.SSHConnection()
 		mySSH.open(self.IPAddress, self.UserName, self.Password)
 		mySSH.command('docker-compose --version', '\$', 5)
-		result = re.search('docker-compose version 1', mySSH.getBefore())
+		result = re.search('docker-compose version 1|Docker Compose version v2', mySSH.getBefore())
 		if result is None:
 			mySSH.close()
 			HTML.CreateHtmlTestRow(self.Type, 'KO', CONST.INVALID_PARAMETER)
@@ -657,6 +659,7 @@ class EPCManagement():
 		mySSH.command('if [ -d ' + self.SourceCodePath + '/scripts ]; then echo ' + self.Password + ' | sudo -S rm -Rf ' + self.SourceCodePath + '/scripts ; fi', '\$', 5)
 		mySSH.command('if [ -d ' + self.SourceCodePath + '/logs ]; then echo ' + self.Password + ' | sudo -S rm -Rf ' + self.SourceCodePath + '/logs ; fi', '\$', 5)
 		mySSH.command('mkdir -p ' + self.SourceCodePath + '/scripts ' + self.SourceCodePath + '/logs', '\$', 5)
+		mySSH.command('rm -f ' + self.SourceCodePath + '/*.log', '\$', 5)
 
 		# deploying and configuring the cassandra database
 		# container names and services are currently hard-coded.

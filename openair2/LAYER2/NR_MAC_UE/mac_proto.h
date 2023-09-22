@@ -47,27 +47,7 @@ void nr_ue_init_mac(module_id_t module_idP);
    \param mac           mac instance */
 void nr_ue_mac_default_configs(NR_UE_MAC_INST_t *mac);
 
-/**\brief decode mib pdu in NR_UE, from if_module ul_ind with P7 tx_ind message
-   \param module_id      module id
-   \param cc_id          component carrier id
-   \param gNB_index      gNB index
-   \param phy_data       PHY structure to be filled in by the callee in the FAPI call (L1 caller -> indication to L2 -> FAPI call to L1 callee)
-   \param extra_bits     extra bits for frame calculation
-   \param l_ssb_equal_64 check if ssb number of candicate is equal 64, 1=equal; 0=non equal. Reference 38.212 7.1.1
-   \param pduP           pointer to pdu
-   \param pdu_length     length of pdu
-   \param cell_id        cell id */
-int8_t nr_ue_decode_mib(
-    module_id_t module_id, 
-    int cc_id, 
-    uint8_t gNB_index,
-    void *phy_data, 
-    uint8_t extra_bits, 
-    uint32_t ssb_length, 
-    uint32_t ssb_index,
-    void *pduP,
-    uint16_t ssb_start_subcarrier,
-    uint16_t cell_id );
+void nr_ue_decode_mib(module_id_t module_id, int cc_id);
 
 /**\brief decode SIB1 and other SIs pdus in NR_UE, from if_module dl_ind
    \param module_id      module id
@@ -106,10 +86,11 @@ void nr_rrc_mac_config_req_mcg(module_id_t module_id,
 void nr_rrc_mac_config_req_mib(module_id_t module_id,
                                int cc_idP,
                                NR_MIB_t *mibP,
-                               bool sched_sib1);
+                               int sched_sib1);
 
 void nr_rrc_mac_config_req_sib1(module_id_t module_id,
                                 int cc_idP,
+                                struct NR_SI_SchedulingInfo *si_SchedulingInfo,
                                 NR_ServingCellConfigCommonSIB_t *scc);
 
 /**\brief initialization NR UE MAC instance(s), total number of MAC instance based on NB_NR_UE_MAC_INST*/
@@ -257,8 +238,6 @@ void config_dci_pdu(NR_UE_MAC_INST_t *mac,
 
 void ue_dci_configuration(NR_UE_MAC_INST_t *mac, fapi_nr_dl_config_request_t *dl_config, const frame_t frame, const int slot);
 
-NR_BWP_DownlinkCommon_t *get_bwp_downlink_common(NR_UE_MAC_INST_t *mac, NR_BWP_Id_t dl_bwp_id);
-
 uint8_t nr_ue_get_sdu(module_id_t module_idP,
                       int cc_id,
                       frame_t frameP,
@@ -266,10 +245,6 @@ uint8_t nr_ue_get_sdu(module_id_t module_idP,
                       uint8_t gNB_index,
                       uint8_t *ulsch_buffer,
                       uint16_t buflen);
-
-void set_tdd_config_nr_ue(fapi_nr_config_request_t *cfg,
-                          int mu,
-                          NR_TDD_UL_DL_ConfigCommon_t *tdd_config);
 
 void set_harq_status(NR_UE_MAC_INST_t *mac,
                      uint8_t pucch_id,
@@ -324,7 +299,6 @@ and fills the PRACH PDU per each FD occasion.
 @param slotP Slot index
 @returns void
 */
-void nr_ue_prach_scheduler(module_id_t module_idP, frame_t frameP, sub_frame_t slotP);
 void nr_ue_pucch_scheduler(module_id_t module_idP, frame_t frameP, int slotP, void *phy_data);
 void nr_schedule_csirs_reception(NR_UE_MAC_INST_t *mac, int frame, int slot);
 void nr_schedule_csi_for_im(NR_UE_MAC_INST_t *mac, int frame, int slot);
@@ -340,16 +314,6 @@ void nr_ue_msg3_scheduler(NR_UE_MAC_INST_t *mac,
                           frame_t current_frame,
                           sub_frame_t current_slot,
                           uint8_t Msg3_tda_id);
-
-void nr_ue_sib1_scheduler(module_id_t module_idP,
-                          int cc_id,
-                          uint16_t ssb_start_symbol,
-                          uint16_t frame,
-                          uint8_t ssb_subcarrier_offset,
-                          uint32_t ssb_index,
-                          uint16_t ssb_start_subcarrier,
-                          frequency_range_t frequency_range,
-                          void *phy_data);
 
 /* \brief Function called by PHY to process the received RAR and check that the preamble matches what was sent by the gNB. It provides the timing advance and t-CRNTI.
 @param Mod_id Index of UE instance

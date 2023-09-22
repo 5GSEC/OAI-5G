@@ -1,0 +1,14 @@
+# For using it: i.e., TSAN_OPTIONS="suppressions=blck_lst.txt" ./build/examples/ric/nearRT-RIC 
+
+# Ignore exactly this function (the names are mangled)
+signal:stop_and_exit 
+
+
+## Ignore MyFooBar(void) if it is in C++:
+#fun:_Z8MyFooBarv
+## Ignore all function containing MyFooBar
+#fun:*MyFooBar*
+## Ignore the whole file
+#src:file_with_tricky_code.cc
+
+

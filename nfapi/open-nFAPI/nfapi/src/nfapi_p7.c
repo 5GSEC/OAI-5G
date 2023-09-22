@@ -3292,20 +3292,20 @@ static uint8_t pack_nr_uci_pucch_0_1(void* tlv, uint8_t **ppWritePackedMsg, uint
 	if (!push16(value->rssi, ppWritePackedMsg, end))
 		return 0;
 	if (value->pduBitmap & 0x01) { //SR
-		if (!push8(value->sr->sr_indication, ppWritePackedMsg, end))
+		if (!push8(value->sr.sr_indication, ppWritePackedMsg, end))
 			return 0;
-		if (!push8(value->sr->sr_confidence_level, ppWritePackedMsg, end))
+		if (!push8(value->sr.sr_confidence_level, ppWritePackedMsg, end))
 			return 0;
 	}
 
 	if (((value->pduBitmap >> 1) & 0x01)) { //HARQ
-		if (!push8(value->harq->num_harq, ppWritePackedMsg, end))
+		if (!push8(value->harq.num_harq, ppWritePackedMsg, end))
 			return 0;
-		if (!push8(value->harq->harq_confidence_level, ppWritePackedMsg, end))
+		if (!push8(value->harq.harq_confidence_level, ppWritePackedMsg, end))
 			return 0;
-		for (int i = 0; i < value->harq->num_harq; i++)
+		for (int i = 0; i < value->harq.num_harq; i++)
 		{
-			if (!push8(value->harq->harq_list[i].harq_value, ppWritePackedMsg, end))
+			if (!push8(value->harq.harq_list[i].harq_value, ppWritePackedMsg, end))
 				return 0;
 		}
 	}
@@ -3437,13 +3437,15 @@ int nfapi_nr_p7_message_pack(void *pMessageBuf, void *pPackedBuf, uint32_t packe
 	nfapi_p7_message_header_t *pMessageHeader = pMessageBuf;
 	uint8_t *pWritePackedMessage = pPackedBuf;
 	uint8_t *pPackedLengthField = &pWritePackedMessage[4];
-	uint8_t *end = pPackedBuf + packedBufLen;
 
 	if (pMessageBuf == NULL || pPackedBuf == NULL)
 	{
 		NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 Pack supplied pointers are null\n");
 		return -1;
 	}
+
+        uint8_t *end = (uint8_t *)pPackedBuf + packedBufLen;
+
 	// process the header
 	if(!(push16(pMessageHeader->phy_id, &pWritePackedMessage, end) &&
 		 push16(pMessageHeader->message_id, &pWritePackedMessage, end) &&
@@ -3587,12 +3589,13 @@ int nfapi_p7_message_pack(void *pMessageBuf, void *pPackedBuf, uint32_t packedBu
   nfapi_p7_message_header_t *pMessageHeader = pMessageBuf;
   uint8_t *pWritePackedMessage = pPackedBuf;
   uint8_t *pPackedLengthField = &pWritePackedMessage[4];
-  uint8_t *end = pPackedBuf + packedBufLen;
 
   if (pMessageBuf == NULL || pPackedBuf == NULL) {
     NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 Pack supplied pointers are null\n");
     return -1;
   }
+
+  uint8_t *end = (uint8_t *)pPackedBuf + packedBufLen;
 
   // process the header
   if(!(push16(pMessageHeader->phy_id, &pWritePackedMessage, end) &&
@@ -6072,41 +6075,23 @@ static uint8_t unpack_nr_uci_pucch_0_1(nfapi_nr_uci_pucch_pdu_format_0_1_t *valu
 		 ))
 		  return 0;
 	if (value->pduBitmap & 0x01) { //SR
-		value->sr = nfapi_p7_allocate(sizeof(*value->sr), config);
-		if (value->sr == NULL)
-		{
-			NFAPI_TRACE(NFAPI_TRACE_ERROR, "%s failed to allocate sr pdu\n", __FUNCTION__);
-			return 0;
-		}
-		if(!(pull8(ppReadPackedMsg, &value->sr->sr_indication, end) &&
-	 	 pull8(ppReadPackedMsg, &value->sr->sr_confidence_level, end) 
+		if(!(pull8(ppReadPackedMsg, &value->sr.sr_indication, end) &&
+	 pull8(ppReadPackedMsg, &value->sr.sr_confidence_level, end)
 		 ))
 		  return 0;
 	}
 
 	if (((value->pduBitmap >> 1) & 0x01)) { //HARQ
 
-                value->harq = nfapi_p7_allocate(sizeof(*value->harq), config);
-                if (value->harq == NULL)
-                {
-                        NFAPI_TRACE(NFAPI_TRACE_ERROR, "%s failed to allocate nr_harq pdu\n", __FUNCTION__);
-                        return 0;
-                }
-                if (!(pull8(ppReadPackedMsg, &value->harq->num_harq, end) &&
-                        pull8(ppReadPackedMsg, &value->harq->harq_confidence_level, end)
+
+                if (!(pull8(ppReadPackedMsg, &value->harq.num_harq, end) &&
+                        pull8(ppReadPackedMsg, &value->harq.harq_confidence_level, end)
                         ))
                         return 0;
-                value->harq->harq_list = NULL;
-                if (value->harq->num_harq > 0) {
-                        value->harq->harq_list = nfapi_p7_allocate(sizeof(*value->harq->harq_list) * value->harq->num_harq, config);
-                        if (value->harq->harq_list == NULL)
-                        {
-                                NFAPI_TRACE(NFAPI_TRACE_ERROR, "%s failed to allocate harq ind pdu list (count:%d)\n",
-                                                __FUNCTION__, value->harq->num_harq);
-                                return 0;
-                        }
-                        for (int i = 0; i < value->harq->num_harq; i++) {
-                                if (!pull8(ppReadPackedMsg, &value->harq->harq_list[i].harq_value, end)) {
+                if (value->harq.num_harq > 0) {
+
+                        for (int i = 0; i < value->harq.num_harq; i++) {
+                                if (!pull8(ppReadPackedMsg, &value->harq.harq_list[i].harq_value, end)) {
                                         return 0;
                                 }
                         }
@@ -7797,12 +7782,13 @@ static int check_nr_unpack_length(nfapi_nr_phy_msg_type_e msgId, uint32_t unpack
 int nfapi_p7_message_header_unpack(void *pMessageBuf, uint32_t messageBufLen, void *pUnpackedBuf, uint32_t unpackedBufLen, nfapi_p7_codec_config_t *config) {
   nfapi_p7_message_header_t *pMessageHeader = pUnpackedBuf;
   uint8_t *pReadPackedMessage = pMessageBuf;
-  uint8_t *end = pMessageBuf + messageBufLen;
 
   if (pMessageBuf == NULL || pUnpackedBuf == NULL) {
     NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 header unpack supplied pointers are null\n");
     return -1;
   }
+
+  uint8_t *end = (uint8_t *)pMessageBuf + messageBufLen;
 
   if (messageBufLen < NFAPI_P7_HEADER_LENGTH || unpackedBufLen < sizeof(nfapi_p7_message_header_t)) {
     NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 header unpack supplied message buffer is too small %d, %d\n", messageBufLen, unpackedBufLen);
@@ -7825,12 +7811,13 @@ int nfapi_p7_message_unpack(void *pMessageBuf, uint32_t messageBufLen, void *pUn
   int result = 0;
   nfapi_p7_message_header_t *pMessageHeader = (nfapi_p7_message_header_t *)pUnpackedBuf;
   uint8_t *pReadPackedMessage = pMessageBuf;
-  uint8_t *end = pMessageBuf + messageBufLen;
 
   if (pMessageBuf == NULL || pUnpackedBuf == NULL) {
     NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 unpack supplied pointers are null\n");
     return -1;
   }
+
+  uint8_t *end = (uint8_t *)pMessageBuf + messageBufLen;
 
   if (messageBufLen < NFAPI_P7_HEADER_LENGTH || unpackedBufLen < sizeof(nfapi_p7_message_header_t)) {
     NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 unpack supplied message buffer is too small %d, %d\n", messageBufLen, unpackedBufLen);
@@ -8061,13 +8048,14 @@ int nfapi_nr_p7_message_unpack(void *pMessageBuf, uint32_t messageBufLen, void *
 	int result = 0;
 	nfapi_p7_message_header_t *pMessageHeader = (nfapi_p7_message_header_t*)pUnpackedBuf;
 	uint8_t *pReadPackedMessage = pMessageBuf;
-	uint8_t *end = pMessageBuf + messageBufLen;
 
 	if (pMessageBuf == NULL || pUnpackedBuf == NULL)
 	{
 		NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 unpack supplied pointers are null\n");
 		return -1;
 	}
+
+        uint8_t *end = (uint8_t*)pMessageBuf + messageBufLen;
 
 	if (messageBufLen < NFAPI_P7_HEADER_LENGTH || unpackedBufLen < sizeof(nfapi_p7_message_header_t))
 	{

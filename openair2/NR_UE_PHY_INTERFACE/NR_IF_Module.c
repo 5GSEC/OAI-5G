@@ -45,7 +45,7 @@
 #include "openair2/RRC/NR_UE/rrc_vars.h"
 #include "openair2/GNB_APP/L1_nr_paramdef.h"
 #include "openair2/GNB_APP/gnb_paramdef.h"
-#include "radio/ETHERNET/USERSPACE/LIB/if_defs.h"
+#include "radio/ETHERNET/if_defs.h"
 #include <stdio.h>
 #include "openair2/GNB_APP/MACRLC_nr_paramdef.h"
 
@@ -327,35 +327,37 @@ static void fill_mib_in_rx_ind(nfapi_nr_dl_tti_request_pdu_t *pdu_list, fapi_nr_
 
 static bool is_my_dci(NR_UE_MAC_INST_t *mac, nfapi_nr_dl_dci_pdu_t *received_pdu)
 {
-    /* For multiple UEs, we need to be able to filter the rx'd messages by
-       the RNTI. The filtering is different between NSA mode and SA mode.
-       NSA mode has a two step CFRA procedure and SA has a 4 step procedure.
-       We only need to check if the rx'd RNTI doesnt match the CRNTI if the RAR
-       has been processed already, in NSA mode.
-       In SA, depending on the RA state, we can have a SIB (0xffff), RAR (0x10b),
-       Msg3 (TC_RNTI) or an actual DCI message (CRNTI). When we get Msg3, the
-       MAC instance of the UE still has a CRNTI = 0. We should only check if the
-       CRNTI doesnt match the received RNTI in SA mode if Msg3 has been processed
-       already. Only once the RA procedure succeeds is the CRNTI value updated
-       to the TC_RNTI. */
-    if (get_softmodem_params()->nsa)
-    {
-        if (received_pdu->RNTI != mac->crnti &&
-            (received_pdu->RNTI != mac->ra.ra_rnti || mac->ra.RA_RAPID_found))
-            return false;
-    }
-    if (get_softmodem_params()->sa)
-    {
-        if (received_pdu->RNTI != mac->crnti && mac->ra.ra_state == RA_SUCCEEDED)
-            return false;
-        if (received_pdu->RNTI != mac->ra.t_crnti && mac->ra.ra_state == WAIT_CONTENTION_RESOLUTION)
-            return false;
-        if (received_pdu->RNTI != 0x10b && mac->ra.ra_state == WAIT_RAR)
-            return false;
-        if (received_pdu->RNTI != 0xFFFF && mac->ra.ra_state <= GENERATE_PREAMBLE)
-            return false;
-    }
-    return true;
+  /* For multiple UEs, we need to be able to filter the rx'd messages by
+     the RNTI. The filtering is different between NSA mode and SA mode.
+     NSA mode has a two step CFRA procedure and SA has a 4 step procedure.
+     We only need to check if the rx'd RNTI doesnt match the CRNTI if the RAR
+     has been processed already, in NSA mode.
+     In SA, depending on the RA state, we can have a SIB (0xffff), RAR (0x10b),
+     Msg3 (TC_RNTI) or an actual DCI message (CRNTI). When we get Msg3, the
+     MAC instance of the UE still has a CRNTI = 0. We should only check if the
+     CRNTI doesnt match the received RNTI in SA mode if Msg3 has been processed
+     already. Only once the RA procedure succeeds is the CRNTI value updated
+     to the TC_RNTI. */
+  if (get_softmodem_params()->nsa) {
+    if (received_pdu->RNTI != mac->crnti &&
+        (received_pdu->RNTI != mac->ra.ra_rnti || mac->ra.RA_RAPID_found))
+      return false;
+  }
+  if (get_softmodem_params()->sa) {
+    if (mac->state == UE_NOT_SYNC)
+      return false;
+    if (received_pdu->RNTI == 0xFFFF && mac->phy_config_request_sent)
+      return false;
+    if (received_pdu->RNTI != mac->crnti && mac->ra.ra_state == RA_SUCCEEDED)
+      return false;
+    if (received_pdu->RNTI != mac->ra.t_crnti && mac->ra.ra_state == WAIT_CONTENTION_RESOLUTION)
+      return false;
+    if (received_pdu->RNTI != 0x10b && mac->ra.ra_state == WAIT_RAR)
+      return false;
+    if (received_pdu->RNTI != 0xFFFF && mac->ra.ra_state <= GENERATE_PREAMBLE)
+      return false;
+  }
+  return true;
 }
 
 static void copy_dl_tti_req_to_dl_info(nr_downlink_indication_t *dl_info, nfapi_nr_dl_tti_request_t *dl_tti_request)
@@ -674,6 +676,7 @@ static void fill_dci_from_dl_config(nr_downlink_indication_t*dl_ind, fapi_nr_dl_
   }
 }
 
+// This piece of code is not used in "normal" ue, but in "fapi mode"
 void check_and_process_dci(nfapi_nr_dl_tti_request_t *dl_tti_request,
                            nfapi_nr_tx_data_request_t *tx_data_request,
                            nfapi_nr_ul_dci_request_t *ul_dci_request,
@@ -734,25 +737,22 @@ void check_and_process_dci(nfapi_nr_dl_tti_request_t *dl_tti_request,
     nr_ue_dl_scheduler(&mac->dl_info);
     nr_ue_dl_indication(&mac->dl_info);
 
-    if (pthread_mutex_unlock(&mac->mutex_dl_info)) abort();
-
-    // If we filled dl_info AFTER we got the slot indication, we want to check if we should fill tx_req:
-    nr_uplink_indication_t ul_info;
-    memset(&ul_info, 0, sizeof(ul_info));
+    if (pthread_mutex_unlock(&mac->mutex_dl_info))
+      abort();
     int slots_per_frame = 20; //30 kHZ subcarrier spacing
     int slot_ahead = 2; // TODO: Make this dynamic
-    ul_info.frame_rx = frame;
-    ul_info.slot_rx = slot;
-    ul_info.slot_tx = (slot + slot_ahead) % slots_per_frame;
-    ul_info.frame_tx = (ul_info.slot_rx + slot_ahead >= slots_per_frame) ? ul_info.frame_rx + 1 : ul_info.frame_rx;
-    if (mac->scc || mac->scc_SIB) {
-        if (is_nr_UL_slot(mac->scc ?
-                          mac->scc->tdd_UL_DL_ConfigurationCommon :
-                          mac->scc_SIB->tdd_UL_DL_ConfigurationCommon,
-                          ul_info.slot_tx,
-                          mac->frame_type) && mac->ra.ra_state != RA_SUCCEEDED) {
-            nr_ue_ul_scheduler(&ul_info);
-        }
+
+    if (is_nr_UL_slot(mac->tdd_UL_DL_ConfigurationCommon,
+                      (slot + slot_ahead) % slots_per_frame,
+                      mac->frame_type)
+        && mac->ra.ra_state != RA_SUCCEEDED) {
+      // If we filled dl_info AFTER we got the slot indication, we want to check if we should fill tx_req:
+      nr_uplink_indication_t ul_info = {
+            .frame_rx = frame,
+            .slot_rx = slot,
+            .slot_tx = (slot + slot_ahead) % slots_per_frame,
+            .frame_tx = (ul_info.slot_rx + slot_ahead >= slots_per_frame) ? ul_info.frame_rx + 1 : ul_info.frame_rx};
+      nr_ue_ul_scheduler(&ul_info);
     }
 }
 
@@ -1037,31 +1037,23 @@ int handle_bcch_bch(module_id_t module_id, int cc_id,
                     unsigned int gNB_index, void *phy_data, uint8_t *pduP,
                     unsigned int additional_bits,
                     uint32_t ssb_index, uint32_t ssb_length,
-                    uint16_t ssb_start_subcarrier, uint16_t cell_id){
-
-  return nr_ue_decode_mib(module_id,
-                          cc_id,
-                          gNB_index,
-                          phy_data,
-                          additional_bits,
-                          ssb_length,  //  Lssb = 64 is not support
-                          ssb_index,
-                          pduP,
-                          ssb_start_subcarrier,
-                          cell_id);
-
-}
-
-void handle_bch_failure(NR_UE_MAC_INST_t *mac)
+                    uint16_t ssb_start_subcarrier, uint16_t cell_id)
 {
-  mac->ssb_measurements.consecutive_bch_failures++;
-  //TODO handle this properly by scheduling re-synchronization
-  AssertFatal(mac->ssb_measurements.consecutive_bch_failures < 100,
-              "Radio link failure caused by 100 consecutive PBCH detection failures.\n");
+  NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
+  mac->mib_ssb = ssb_index;
+  mac->physCellId = cell_id;
+  mac->mib_additional_bits = additional_bits;
+  if(ssb_length == 64)
+    mac->frequency_range = FR2;
+  else
+    mac->frequency_range = FR1;
+  nr_mac_rrc_data_ind_ue(module_id, cc_id, gNB_index, 0, 0, 0, NR_BCCH_BCH, (uint8_t *) pduP, 3);    //  fixed 3 bytes MIB PDU
+  return 0;
 }
 
 //  L2 Abstraction Layer
-int handle_bcch_dlsch(module_id_t module_id, int cc_id, unsigned int gNB_index, uint8_t ack_nack, uint8_t *pduP, uint32_t pdu_len){
+int handle_bcch_dlsch(module_id_t module_id, int cc_id, unsigned int gNB_index, uint8_t ack_nack, uint8_t *pduP, uint32_t pdu_len)
+{
   return nr_ue_decode_BCCH_DL_SCH(module_id, cc_id, gNB_index, ack_nack, pduP, pdu_len);
 }
 
@@ -1098,7 +1090,17 @@ int8_t handle_dlsch(nr_downlink_indication_t *dl_info, int pdu_id)
   return 0;
 }
 
-int8_t handle_csirs_measurements(module_id_t module_id, frame_t frame, int slot, fapi_nr_csirs_measurements_t *csirs_measurements) {
+void handle_rlm(rlm_t rlm_result, int frame, module_id_t module_id)
+{
+  if (rlm_result == RLM_no_monitoring)
+    return;
+  bool is_sync = rlm_result == RLM_in_sync ? true : false;
+  nr_mac_rrc_sync_ind(module_id, frame, is_sync);
+}
+
+int8_t handle_csirs_measurements(module_id_t module_id, frame_t frame, int slot, fapi_nr_csirs_measurements_t *csirs_measurements)
+{
+  handle_rlm(csirs_measurements->radiolink_monitoring, frame, module_id);
   return nr_ue_process_csirs_measurements(module_id, frame, slot, csirs_measurements);
 }
 
@@ -1129,8 +1131,7 @@ int nr_ue_ul_indication(nr_uplink_indication_t *ul_info)
   LOG_T(NR_MAC, "In %s():%d not calling scheduler mac->ra.ra_state = %d\n",
         __FUNCTION__, __LINE__, mac->ra.ra_state);
 
-  NR_TDD_UL_DL_ConfigCommon_t *tdd_UL_DL_ConfigurationCommon = mac->scc != NULL ? mac->scc->tdd_UL_DL_ConfigurationCommon : mac->scc_SIB->tdd_UL_DL_ConfigurationCommon;
-  if (mac->phy_config_request_sent && is_nr_UL_slot(tdd_UL_DL_ConfigurationCommon, ul_info->slot_tx, mac->frame_type))
+  if (mac->phy_config_request_sent && is_nr_UL_slot(mac->tdd_UL_DL_ConfigurationCommon, ul_info->slot_tx, mac->frame_type))
     nr_ue_ul_scheduler(ul_info);
 
   pthread_mutex_unlock(&mac_IF_mutex);
@@ -1144,11 +1145,9 @@ int nr_ue_dl_indication(nr_downlink_indication_t *dl_info)
   uint32_t ret_mask = 0x0;
   module_id_t module_id = dl_info->module_id;
   NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
-
   if ((!dl_info->dci_ind && !dl_info->rx_ind)) {
     // UL indication to schedule DCI reception
-    if (mac->phy_config_request_sent)
-      nr_ue_dl_scheduler(dl_info);
+    nr_ue_dl_scheduler(dl_info);
   } else {
     // UL indication after reception of DCI or DL PDU
     if (dl_info && dl_info->dci_ind && dl_info->dci_ind->number_of_dcis) {
@@ -1166,8 +1165,8 @@ int nr_ue_dl_indication(nr_downlink_indication_t *dl_info)
           continue;
         fapi_nr_dci_indication_pdu_t *dci_index = dl_info->dci_ind->dci_list+i;
 
-        /* The check below filters out UL_DCIs (format 7) which are being processed as DL_DCIs. */
-        if (dci_index->dci_format == 7 && mac->ra.ra_state == RA_SUCCEEDED) {
+        /* The check below filters out UL_DCIs which are being processed as DL_DCIs. */
+        if (dci_index->dci_format != NR_DL_DCI_FORMAT_1_0 && dci_index->dci_format != NR_DL_DCI_FORMAT_1_1) {
           LOG_D(NR_MAC, "We are filtering a UL_DCI to prevent it from being treated like a DL_DCI\n");
           continue;
         }
@@ -1197,6 +1196,9 @@ int nr_ue_dl_indication(nr_downlink_indication_t *dl_info)
 
         switch(rx_indication_body.pdu_type){
           case FAPI_NR_RX_PDU_TYPE_SSB:
+            handle_rlm(rx_indication_body.ssb_pdu.radiolink_monitoring,
+                       dl_info->frame,
+                       dl_info->module_id);
             if(rx_indication_body.ssb_pdu.decoded_pdu) {
               handle_ssb_meas(mac,
                               rx_indication_body.ssb_pdu.ssb_index,
@@ -1209,8 +1211,6 @@ int nr_ue_dl_indication(nr_downlink_indication_t *dl_info)
                                            rx_indication_body.ssb_pdu.ssb_start_subcarrier,
                                            rx_indication_body.ssb_pdu.cell_id)) << FAPI_NR_RX_PDU_TYPE_SSB;
             }
-            else
-              handle_bch_failure(mac);
             break;
           case FAPI_NR_RX_PDU_TYPE_SIB:
             ret_mask |= (handle_bcch_dlsch(dl_info->module_id,
@@ -1224,6 +1224,10 @@ int nr_ue_dl_indication(nr_downlink_indication_t *dl_info)
             break;
           case FAPI_NR_RX_PDU_TYPE_RAR:
             ret_mask |= (handle_dlsch(dl_info, i)) << FAPI_NR_RX_PDU_TYPE_RAR;
+            if (!dl_info->rx_ind->rx_indication_body[i].pdsch_pdu.ack_nack)
+              LOG_W(PHY, "Received a RAR-Msg2 but LDPC decode failed\n");
+            else
+              LOG_I(PHY, "RAR-Msg2 decoded\n");
             break;
           case FAPI_NR_CSIRS_IND:
             ret_mask |= (handle_csirs_measurements(dl_info->module_id,
@@ -1242,8 +1246,8 @@ int nr_ue_dl_indication(nr_downlink_indication_t *dl_info)
   return ret_mask;
 }
 
-nr_ue_if_module_t *nr_ue_if_module_init(uint32_t module_id){
-
+nr_ue_if_module_t *nr_ue_if_module_init(uint32_t module_id)
+{
   if (nr_ue_if_module_inst[module_id] == NULL) {
     nr_ue_if_module_inst[module_id] = (nr_ue_if_module_t *)malloc(sizeof(nr_ue_if_module_t));
     memset((void*)nr_ue_if_module_inst[module_id],0,sizeof(nr_ue_if_module_t));
