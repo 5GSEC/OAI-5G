@@ -63,7 +63,7 @@
 {                                                                                       \
   int _nAttacks = 0;                                                                    \
                                                                                         \
-  if (tmsi_blind_dos_rrc /* != 0 */ && blind_dos_attack == 0)                           \
+  if (blind_dos_attack == 0)                           \
     blind_dos_attack = 100;                                                             \
                                                                                         \
   printf("\n************************ ATTACK CLI **********************************\n"); \
