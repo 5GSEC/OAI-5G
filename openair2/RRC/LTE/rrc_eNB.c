@@ -850,15 +850,15 @@ rrc_eNB_free_UE(
     return;
   }
 
-  // SECSM: reset rrc msg counter
-  int ue_id = getRrcMsgIndex(rnti);
-  if (ue_rrc_counter > 0 && ue_id != -1) {
-    LOG_I(RRC, "[SECSM] Releasing UE RRC msg buffer at index %d\n", ue_id);
-    ue_rrc_msg[ue_id].active = 0;
-    ue_rrc_msg[ue_id].rnti = 0;
-    ue_rrc_msg[ue_id].msgCount = 0;
-    --ue_rrc_counter;
-  }
+  // SECSM: reset rrc msg counter, TODO: use a timer based approach to relase it
+  // int ue_id = getRrcMsgIndex(rnti);
+  // if (ue_rrc_counter > 0 && ue_id != -1) {
+  //   LOG_I(RRC, "[SECSM] Releasing UE RRC msg buffer at index %d\n", ue_id);
+  //   ue_rrc_msg[ue_id].active = 0;
+  //   ue_rrc_msg[ue_id].rnti = 0;
+  //   ue_rrc_msg[ue_id].msgCount = 0;
+  //   --ue_rrc_counter;
+  // }
 
   if(EPC_MODE_ENABLED) {
     if ((ue_context_pP->ue_context.ul_failure_timer >= 20000) && (mac_eNB_get_rrc_status(enb_mod_idP, rnti) >= RRC_CONNECTED)) {
