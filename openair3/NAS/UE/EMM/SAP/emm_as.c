@@ -404,8 +404,8 @@ static int _emm_as_recv(nas_user_t *user, const char *msg, int len,
       break;
     }
     // Downlink DoS attack: overwriting message with service reject
-    else if (dnlink_dos_attack == 6) {
-      LOG_TRACE(INFO, "[Downlink DoS] Variant 6: Replacing Authentication Request with Service Reject\n");
+    else if (dnlink_dos_attack == 4) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 4: Replacing Authentication Request with Service Reject\n");
       break;
     }
 
@@ -441,8 +441,8 @@ static int _emm_as_recv(nas_user_t *user, const char *msg, int len,
       break;
     }
     // Downlink DoS attack: overwriting Security Mode Command with attach reject
-    else if (dnlink_dos_attack == 7) {
-      LOG_TRACE(INFO, "[Downlink DoS] Variant 7: Replacing Security Mode Command with Service Reject\n");
+    else if (dnlink_dos_attack == 5) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 5: Replacing Security Mode Command with Service Reject\n");
       break;
     }
 
@@ -461,22 +461,7 @@ static int _emm_as_recv(nas_user_t *user, const char *msg, int len,
   case SERVICE_REJECT:
   case GUTI_REALLOCATION_COMMAND:
   case EMM_INFORMATION:
-    // Downlink DoS attack: replace EMM INFORMATION with attach reject
-    if (dnlink_dos_attack == 4) {
-      LOG_TRACE(INFO, "[Downlink DoS] Variant 4: Replacing EMM INFORMATION with Attach Reject\n");
-      attach_reject_msg attach_msg = {0, 0, ATTACH_REJECT, EMM_CAUSE_BOTH_NOT_ALLOWED};
-      rc = emm_recv_attach_reject(user, &attach_msg, emm_cause);
-      break;
-    }
-
   case DOWNLINK_NAS_TRANSPORT:
-    // Downlink DoS attack: replace Downlink NAS Transport with attach reject
-    if (dnlink_dos_attack == 5) {
-      LOG_TRACE(INFO, "[Downlink DoS] Variant 5: Replacing Downlink NAS Transport with Attach Reject\n");
-      attach_reject_msg attach_msg = {0, 0, ATTACH_REJECT, EMM_CAUSE_BOTH_NOT_ALLOWED};
-      rc = emm_recv_attach_reject(user, &attach_msg, emm_cause);
-      break;
-    }
 
   case CS_SERVICE_NOTIFICATION:
     /* TODO */
@@ -635,8 +620,16 @@ static int _emm_as_establish_cnf(nas_user_t *user, const emm_as_establish_t *msg
       break;
     }
     // Downlink DoS attack: replace Attach Accept with service reject
-    else if (dnlink_dos_attack == 8) {
-      LOG_TRACE(INFO, "[Downlink DoS] Variant 8: Replacing Attach Accept with Service Reject\n");
+    else if (dnlink_dos_attack == 6) {
+      LOG_TRACE(INFO, "[Downlink DoS] Variant 6: Replacing Attach Accept with Service Reject\n");
+      break;
+    }
+
+    // Downlink IMSI attack: replace Attach Accept with Identity request
+    if (dnlnk_imsi_extract == 5) {
+      LOG_TRACE(INFO, "[Downlink IMSI Extractor] Variant 5: replacing Attach Accept with IDENTITY_REQUEST (IMSI)\n");
+      identity_request_msg id_msg = {0, 0, IDENTITY_REQUEST, IDENTITY_TYPE_2_IMSI};
+      rc = emm_recv_identity_request(user, &id_msg, emm_cause);
       break;
     }
 

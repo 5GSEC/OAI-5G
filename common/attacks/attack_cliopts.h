@@ -83,12 +83,12 @@
       blind_dos_attack = 0;                                                             \
     }                                                                                   \
   }                                                                                     \
-  _CHECK_CLI_MODE_ATTACK  (dnlink_dos_attack,  "Downlink DoS", 8);                      \
+  _CHECK_CLI_MODE_ATTACK  (dnlink_dos_attack,  "Downlink DoS", 6);                      \
   _CHECK_CLI_LEVEL_ATTACK (uplink_dos_attack,  "Uplink DoS");                           \
   _CHECK_CLI_COUNT_ATTACK (rep_conn_end_count, "Repeated connection setup complete");   \
   _CHECK_CLI_LEVEL_ATTACK (auth_sync_attack,   "Auth sync failure");                    \
   _CHECK_CLI_MODE_ATTACK  (null_cipher_integ,  "Null cipher integrity", 2);             \
-  _CHECK_CLI_MODE_ATTACK  (dnlnk_imsi_extract, "Downlink IMSI extractor", 4);           \
+  _CHECK_CLI_MODE_ATTACK  (dnlnk_imsi_extract, "Downlink IMSI extractor", 5);           \
   _CHECK_CLI_LEVEL_ATTACK (uplnk_imsi_extract, "Uplink IMSI extractor");                \
                                                                                         \
   if (_nAttacks == 0) {                                                                 \
