@@ -3237,6 +3237,16 @@ void rrc_eNB_generate_defaultRRCConnectionReconfiguration(const protocol_ctxt_t 
     dedicatedInfoNASList = NULL;
   }
 
+  // SECSM
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  // decocde NAS content
+  if (dedicatedInfoNASList != NULL) {
+    // we only decode the first NAS item
+    uint8_t *pdu_buf = dedicatedInfoNASList->list.array[0]->buf;
+    uint32_t length = dedicatedInfoNASList->list.array[0]->size;
+    addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
+  }
+
   measurements_enabled = RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_x2 ||
                          RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_measurement_reports;
   memset(buffer, 0, sizeof(buffer));
