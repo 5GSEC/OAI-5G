@@ -679,8 +679,8 @@ static int e2sm_kpm_gp_timer_expiry(
                     break;
                 }
             }
-            if (prev_msg_counter[i] == msgCount + totalNasMsg && status == prev_state[i])
-                continue; // message count and status have not been changed, don't update this UE
+            if (prev_msg_counter[i] == msgCount + totalNasMsg)
+                continue; // message count has not been changed, don't update this UE
 
             RIC_AGENT_INFO("[SECSM] Report UE ID: %x, RNTI: %x, RRC Status:%x, IMSI:%ld, random_id: %ld\n", initial_id, rnti, status, imsi, random_id);
 
