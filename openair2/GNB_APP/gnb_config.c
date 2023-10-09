@@ -1183,8 +1183,14 @@ void RCconfig_NRRRC(MessageDef *msg_p, uint32_t i, gNB_RRC_INST *rrc) {
       rrc->sctp_in_streams                       = (uint16_t)*(SCTPParams[GNB_SCTP_INSTREAMS_IDX].uptr);
       rrc->sctp_out_streams                      = (uint16_t)*(SCTPParams[GNB_SCTP_OUTSTREAMS_IDX].uptr);
     }
+#ifdef ENABLE_RIC_AGENT
+    else if (strcmp(*(GNBParamList.paramarray[i][GNB_LOCAL_S_ADDRESS_IDX].strptr), "127.0.0.1") != 0) {
+      // For ONOS-RIC agent: always store local address to use for disabling SCTP multihoming
+      rrc->eth_params_s.my_addr = strdup(*(GNBParamList.paramarray[i][GNB_LOCAL_S_ADDRESS_IDX].strptr));
+    }
+#endif
 
-   
+
 
     rrc->nr_cellid        = (uint64_t)*(GNBParamList.paramarray[i][GNB_NRCELLID_IDX].u64ptr);
 

@@ -1544,8 +1544,14 @@ static int nr_rrc_gNB_decode_ccch(module_id_t module_id, rnti_t rnti, const uint
              * the current one must be removed from MAC/PHY (zombie UE)
              */
             if ((ue_context_p = rrc_gNB_ue_context_random_exist(gnb_rrc_inst, random_value))) {
-              LOG_W(NR_RRC, "new UE rnti (coming with random value) is already there, removing UE %x from MAC/PHY\n", rnti);
-              AssertFatal(false, "not implemented\n");
+	      NR_UE_info_t *UE = find_nr_UE (&RC.nrmac[0]->UE_info, ue_context_p->ue_context.rnti);
+	      if (UE != (NR_UE_info_t *) NULL) {
+		LOG_E(NR_RRC, "new UE rnti 0x%04x with same random value 0x%lx; existing UE 0x%04x, state %d, find_nr_UE: %p\n",
+		      rnti, random_value, ue_context_p->ue_context.rnti, ue_context_p->ue_context.StatusRrc, UE);
+		AssertFatal(false, "not implemented\n");
+	      }
+	      // Look-up of the RNTI failed -- this entry is OBE (presumably safer to remove than trying to re-use the existing entry)
+	      rrc_gNB_remove_ue_context (RC.nrrrc[0], ue_context_p);
             }
 
             ue_context_p = rrc_gNB_create_ue_context(rnti, gnb_rrc_inst, random_value);

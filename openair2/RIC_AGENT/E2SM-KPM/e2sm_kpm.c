@@ -647,7 +647,7 @@ static int e2sm_kpm_gp_timer_expiry(
                 imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
                 // populate other fields
                 status = ue_context_p->ue_context.StatusRrc;
-                initial_id = ue_context_p->ue_context.ue_initial_id;
+                // initial_id = ue_context_p->ue_context.ue_initial_id; *NOT* set in 5G
                 cipher_alg = ue_context_p->ue_context.ciphering_algorithm;
                 integrity_alg = ue_context_p->ue_context.integrity_algorithm;
                 // failure_timer = ue_context_p->ue_context.ul_failure_timer;

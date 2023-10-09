@@ -227,27 +227,32 @@ static int ric_agent_connect(ranid_t ranid)
     strncpy(req->remote_address.ipv4_address, e2_conf[ranid]->remote_ipv4_addr,
             sizeof(req->remote_address.ipv4_address));
     req->remote_address.ipv4_address[sizeof(req->remote_address.ipv4_address)-1] = '\0';
+    char *my_addr=(char *)NULL;
 #if DISABLE_SCTP_MULTIHOMING
     // Comment out if testing with loopback
-    req->local_address.ipv4 = 1;
     if (is_lte()) {
         // 4G LTE
-        strncpy(req->local_address.ipv4_address, RC.rrc[0]->eth_params_s.my_addr,
-                sizeof(req->local_address.ipv4_address));
+        my_addr = RC.rrc[0]->eth_params_s.my_addr;
     }
     else if (is_nr()) {
         // 5G NR
-        strncpy(req->local_address.ipv4_address, RC.nrrrc[0]->eth_params_s.my_addr,
-                sizeof(req->local_address.ipv4_address));
+        my_addr = RC.nrrrc[0]->eth_params_s.my_addr;
     }
-    req->local_address.ipv4_address[sizeof(req->local_address.ipv4_address)-1] = '\0';
+    if (my_addr && (strcmp(my_addr,"127.0.0.1") != 0)) {
+        req->local_address.ipv4 = 1;
+	strncpy (req->local_address.ipv4_address, my_addr, sizeof(req->local_address.ipv4_address));
+	req->local_address.ipv4_address[sizeof(req->local_address.ipv4_address)-1] = '\0';
+    } else {
+	RIC_AGENT_ERROR("Missing local-end address to disable SCTP multihoming!!!\n");
+    }
 #endif
+    if (!my_addr) my_addr="<unbound>";
     req->ulp_cnx_id = 1;
 
     ric = ric_agent_info[ranid];
 
-    RIC_AGENT_INFO("ranid %u connecting to RIC at %s:%u with IP %s\n",
-            ranid,req->remote_address.ipv4_address, req->port, req->local_address.ipv4_address);
+    RIC_AGENT_INFO("ranid %u connecting to RIC at %s:%u with IP %s (my addr: %s)\n",
+		   ranid,req->remote_address.ipv4_address, req->port, req->local_address.ipv4_address, my_addr);
     itti_send_msg_to_task(TASK_SCTP, ranid, msg);
 
     return 0;
@@ -462,8 +467,14 @@ void *ric_agent_task(void *args)
     uint8_t *outbuf = NULL;
     uint32_t outlen = 0;
     uint32_t assoc_id = 0;
+    int nb_inst = 0;
+    if (is_nr()) {
+      nb_inst = RC.nb_nr_inst;
+    } else if (is_lte()) {
+      nb_inst = RC.nb_inst;
+    }
 
-    RIC_AGENT_INFO("starting CU E2 agent task\n");
+    RIC_AGENT_INFO("starting CU E2 agent task; nb_inst %d\n", nb_inst);
 
     e2sm_kpm_init();
 
@@ -471,9 +482,10 @@ void *ric_agent_task(void *args)
     e2sm_rsm_init(e2_conf[0]->e2node_type);
 #endif
 
-    for (i = 0; i < RC.nb_inst; ++i) {
+    for (i = 0; i < nb_inst; ++i) {
         if (e2_conf[i]->enabled) {
             timer_setup(5, 0, TASK_RIC_AGENT, i, TIMER_PERIODIC, NULL, &ric_agent_info[i]->ric_connect_timer_id);
+	    RIC_AGENT_INFO("timer_setup for CU E2 agent %d timer id %ld\n", i, ric_agent_info[i]->ric_connect_timer_id);
         }
     }
 
@@ -586,7 +598,7 @@ void RCconfig_ric_agent(void)
 
     if (is_nr()) {
         // 5G NR: separate CU and DU
-        RIC_AGENT_INFO("RCconfig_ric_agent: NR node type %d\n", RC.nrrrc[0]->node_type);
+        RIC_AGENT_INFO("RCconfig_ric_agent: NR node type %d nb_inst %d\n", RC.nrrrc[0]->node_type, RC.nb_nr_inst);
         nb_inst = RC.nb_nr_inst;
         if (NODE_IS_CU(RC.nrrrc[0]->node_type))
         {
@@ -636,8 +648,9 @@ void RCconfig_ric_agent(void)
         /* Get RIC configuration. */
         config_get(ric_params, sizeof(ric_params)/sizeof(paramdef_t), buf);
         
-        if (ric_params[RIC_CONFIG_IDX_ENABLED].strptr != NULL
-                && strcmp(*ric_params[RIC_CONFIG_IDX_ENABLED].strptr, "yes") == 0) 
+        if ( (ric_params[RIC_CONFIG_IDX_ENABLED].strptr != (char **) NULL) &&
+	     (*ric_params[RIC_CONFIG_IDX_ENABLED].strptr != (char *) NULL) &&
+	     strcmp(*ric_params[RIC_CONFIG_IDX_ENABLED].strptr, "yes") == 0)
         {
             e2_conf[i] = (e2_conf_t *)calloc(1,sizeof(e2_conf_t));
             // NR
@@ -677,12 +690,14 @@ void RCconfig_ric_agent(void)
                 e2_conf[i]->mcc = RC.nrrrc[i]->configuration.mcc[0];
                 e2_conf[i]->mnc = RC.nrrrc[i]->configuration.mnc[0];
                 e2_conf[i]->mnc_digit_length = RC.nrrrc[i]->configuration.mnc_digit_length[0];
-                if (*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr != NULL)
+                if ( (ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr != (char **) NULL) &&
+		     (*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr != (char *) NULL) )
                     e2_conf[i]->remote_ipv4_addr = strdup(*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr);
                 else
                     RIC_AGENT_ERROR("remote_ipv4_addr not provided in the config file\n");
                 
-                if (*ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr != NULL)
+                if ( (ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr != (uint32_t *) NULL) &&
+		     (*ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr != 0) )
                     e2_conf[i]->remote_port = *ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr;
                 else
                     RIC_AGENT_ERROR("remote_port not provided in the config file\n");
@@ -708,12 +723,14 @@ void RCconfig_ric_agent(void)
                 e2_conf[i]->mnc_digit_length = RC.rrc[i]->configuration.mnc_digit_length[0];
 
                 e2_conf[i]->e2node_type = E2NODE_TYPE_ENB;
-                if (*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr != NULL)
+                if ( (ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr != (char **) NULL) &&
+		     (*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr != (char *) NULL) )
                    e2_conf[i]->remote_ipv4_addr = strdup(*ric_params[RIC_CONFIG_IDX_REMOTE_IPV4_ADDR].strptr);
                 else
                     RIC_AGENT_ERROR("remote_ipv4_addr not provided in the config file\n");
 
-                if (*ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr != NULL)
+                if ( (ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr != (uint32_t *) NULL) &&
+		     (*ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr != 0) )
                     e2_conf[i]->remote_port = *ric_params[RIC_CONFIG_IDX_REMOTE_PORT].uptr;
                 else
                     RIC_AGENT_ERROR("remote_port not provided in the config file\n");
