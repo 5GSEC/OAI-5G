@@ -850,15 +850,15 @@ rrc_eNB_free_UE(
     return;
   }
 
-  // SECSM: reset rrc msg counter
-  int ue_id = getRrcMsgIndex(rnti);
-  if (ue_rrc_counter > 0 && ue_id != -1) {
-    LOG_I(RRC, "[SECSM] Releasing UE RRC msg buffer at index %d\n", ue_id);
-    ue_rrc_msg[ue_id].active = 0;
-    ue_rrc_msg[ue_id].rnti = 0;
-    ue_rrc_msg[ue_id].msgCount = 0;
-    --ue_rrc_counter;
-  }
+  // SECSM: reset rrc msg counter, TODO: use a timer based approach to relase it
+  // int ue_id = getRrcMsgIndex(rnti);
+  // if (ue_rrc_counter > 0 && ue_id != -1) {
+  //   LOG_I(RRC, "[SECSM] Releasing UE RRC msg buffer at index %d\n", ue_id);
+  //   ue_rrc_msg[ue_id].active = 0;
+  //   ue_rrc_msg[ue_id].rnti = 0;
+  //   ue_rrc_msg[ue_id].msgCount = 0;
+  //   --ue_rrc_counter;
+  // }
 
   if(EPC_MODE_ENABLED) {
     if ((ue_context_pP->ue_context.ul_failure_timer >= 20000) && (mac_eNB_get_rrc_status(enb_mod_idP, rnti) >= RRC_CONNECTED)) {
@@ -3235,6 +3235,16 @@ void rrc_eNB_generate_defaultRRCConnectionReconfiguration(const protocol_ctxt_t 
   if (dedicatedInfoNASList->list.count == 0) {
     free(dedicatedInfoNASList);
     dedicatedInfoNASList = NULL;
+  }
+
+  // SECSM
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  // decocde NAS content
+  if (dedicatedInfoNASList != NULL) {
+    // we only decode the first NAS item
+    uint8_t *pdu_buf = dedicatedInfoNASList->list.array[0]->buf;
+    uint32_t length = dedicatedInfoNASList->list.array[0]->size;
+    addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
   }
 
   measurements_enabled = RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_x2 ||

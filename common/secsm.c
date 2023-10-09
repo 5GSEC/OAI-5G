@@ -135,7 +135,7 @@ struct nasMsg decodeNasMsg(uint8_t* buffer, uint32_t length) {
     if (msgId == 0)
       msgId = emm_header->message_type;
     // decode EMM error code for reject message
-    if (msgId == 68 || msgId == 78 || msgId == 92 || msgId == 96) { // Attach/Service Reject, Auth failure, security mode reject
+    if (msgId == 68 || msgId == 78 || msgId == 92 || msgId == 95) { // Attach/Service Reject, Auth failure, security mode reject
       DECODE_U8(buffer+size, emm_cause, size);
       LOG_I(RRC, "[SECSM] Decoding EMM cause: %d\n", emm_cause);
     }

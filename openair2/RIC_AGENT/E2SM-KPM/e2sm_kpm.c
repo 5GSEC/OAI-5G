@@ -590,80 +590,82 @@ static int e2sm_kpm_gp_timer_expiry(
             if (RC.rrc != NULL) {
                 // 4G LTE
                 struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid],rnti);
-                if (!ue_context_p) {
-                    RIC_AGENT_ERROR("[SECSM] RRC eNB UE context not found for UE %x", rnti);
-                    continue;
+                if (ue_context_p) {
+                    // populate imsi
+                    imsi  = ue_context_p->ue_context.imsi.digit15;
+                    imsi += ue_context_p->ue_context.imsi.digit14 * 10;              // pow(10, 1)
+                    imsi += ue_context_p->ue_context.imsi.digit13 * 100;             // pow(10, 2)
+                    imsi += ue_context_p->ue_context.imsi.digit12 * 1000;            // pow(10, 3)
+                    imsi += ue_context_p->ue_context.imsi.digit11 * 10000;           // pow(10, 4)
+                    imsi += ue_context_p->ue_context.imsi.digit10 * 100000;          // pow(10, 5)
+                    imsi += ue_context_p->ue_context.imsi.digit9  * 1000000;         // pow(10, 6)
+                    imsi += ue_context_p->ue_context.imsi.digit8  * 10000000;        // pow(10, 7)
+                    imsi += ue_context_p->ue_context.imsi.digit7  * 100000000;       // pow(10, 8)
+                    imsi += ue_context_p->ue_context.imsi.digit6  * 1000000000;      // pow(10, 9)
+                    imsi += ue_context_p->ue_context.imsi.digit5  * 10000000000;     // pow(10, 10)
+                    imsi += ue_context_p->ue_context.imsi.digit4  * 100000000000;    // pow(10, 11)
+                    imsi += ue_context_p->ue_context.imsi.digit3  * 1000000000000;   // pow(10, 12)
+                    imsi += ue_context_p->ue_context.imsi.digit2  * 10000000000000;  // pow(10, 13)
+                    imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
+                    // populate other fields
+                    status = ue_context_p->ue_context.StatusRrc;
+                    initial_id = ue_context_p->ue_context.ue_initial_id;
+                    cipher_alg = ue_context_p->ue_context.ciphering_algorithm;
+                    integrity_alg = ue_context_p->ue_context.integrity_algorithm;
+                    // failure_timer = ue_context_p->ue_context.ul_failure_timer;
+                    release_timer = ue_context_p->ue_context.ue_release_timer;
+                    if (ue_context_p->ue_context.Initialue_identity_s_TMSI.presence == TRUE)
+                        tmsi_m = ue_context_p->ue_context.Initialue_identity_s_TMSI.m_tmsi;
+                    random_id = ue_context_p->ue_context.random_ue_identity;
+                    establish_cause = ue_context_p->ue_context.establishment_cause;
                 }
-                // populate imsi
-                imsi  = ue_context_p->ue_context.imsi.digit15;
-                imsi += ue_context_p->ue_context.imsi.digit14 * 10;              // pow(10, 1)
-                imsi += ue_context_p->ue_context.imsi.digit13 * 100;             // pow(10, 2)
-                imsi += ue_context_p->ue_context.imsi.digit12 * 1000;            // pow(10, 3)
-                imsi += ue_context_p->ue_context.imsi.digit11 * 10000;           // pow(10, 4)
-                imsi += ue_context_p->ue_context.imsi.digit10 * 100000;          // pow(10, 5)
-                imsi += ue_context_p->ue_context.imsi.digit9  * 1000000;         // pow(10, 6)
-                imsi += ue_context_p->ue_context.imsi.digit8  * 10000000;        // pow(10, 7)
-                imsi += ue_context_p->ue_context.imsi.digit7  * 100000000;       // pow(10, 8)
-                imsi += ue_context_p->ue_context.imsi.digit6  * 1000000000;      // pow(10, 9)
-                imsi += ue_context_p->ue_context.imsi.digit5  * 10000000000;     // pow(10, 10)
-                imsi += ue_context_p->ue_context.imsi.digit4  * 100000000000;    // pow(10, 11)
-                imsi += ue_context_p->ue_context.imsi.digit3  * 1000000000000;   // pow(10, 12)
-                imsi += ue_context_p->ue_context.imsi.digit2  * 10000000000000;  // pow(10, 13)
-                imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
-                // populate other fields
-                status = ue_context_p->ue_context.StatusRrc;
-                initial_id = ue_context_p->ue_context.ue_initial_id;
-                cipher_alg = ue_context_p->ue_context.ciphering_algorithm;
-                integrity_alg = ue_context_p->ue_context.integrity_algorithm;
-                // failure_timer = ue_context_p->ue_context.ul_failure_timer;
-                release_timer = ue_context_p->ue_context.ue_release_timer;
-                if (ue_context_p->ue_context.Initialue_identity_s_TMSI.presence == TRUE)
-                    tmsi_m = ue_context_p->ue_context.Initialue_identity_s_TMSI.m_tmsi;
-                random_id = ue_context_p->ue_context.random_ue_identity;
-                establish_cause = ue_context_p->ue_context.establishment_cause;
+                else {
+                    // UE context not found, still need to check if there are some messages left to report
+                    RIC_AGENT_INFO("[SECSM] RRC eNB UE context not found for UE %x", rnti);
+                }
             }
             else if (RC.nrrrc != NULL) {
                 // 5G NR
                 struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti(RC.nrrrc[ric->ranid], rnti);
-                if (!ue_context_p) {
-                    RIC_AGENT_ERROR("[SECSM] RRC gNB UE context not found for UE %x", rnti);
-                    continue;
+                if (ue_context_p) {
+                    // populate imsi
+                    imsi  = ue_context_p->ue_context.imsi.digit15;
+                    imsi += ue_context_p->ue_context.imsi.digit14 * 10;              // pow(10, 1)
+                    imsi += ue_context_p->ue_context.imsi.digit13 * 100;             // pow(10, 2)
+                    imsi += ue_context_p->ue_context.imsi.digit12 * 1000;            // pow(10, 3)
+                    imsi += ue_context_p->ue_context.imsi.digit11 * 10000;           // pow(10, 4)
+                    imsi += ue_context_p->ue_context.imsi.digit10 * 100000;          // pow(10, 5)
+                    imsi += ue_context_p->ue_context.imsi.digit9  * 1000000;         // pow(10, 6)
+                    imsi += ue_context_p->ue_context.imsi.digit8  * 10000000;        // pow(10, 7)
+                    imsi += ue_context_p->ue_context.imsi.digit7  * 100000000;       // pow(10, 8)
+                    imsi += ue_context_p->ue_context.imsi.digit6  * 1000000000;      // pow(10, 9)
+                    imsi += ue_context_p->ue_context.imsi.digit5  * 10000000000;     // pow(10, 10)
+                    imsi += ue_context_p->ue_context.imsi.digit4  * 100000000000;    // pow(10, 11)
+                    imsi += ue_context_p->ue_context.imsi.digit3  * 1000000000000;   // pow(10, 12)
+                    imsi += ue_context_p->ue_context.imsi.digit2  * 10000000000000;  // pow(10, 13)
+                    imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
+                    // populate other fields
+                    status = ue_context_p->ue_context.StatusRrc;
+		    // initial_id = ue_context_p->ue_context.ue_initial_id; *NOT* set in 5G
+                    cipher_alg = ue_context_p->ue_context.ciphering_algorithm;
+                    integrity_alg = ue_context_p->ue_context.integrity_algorithm;
+                    // failure_timer = ue_context_p->ue_context.ul_failure_timer;
+                    // release_timer = ue_context_p->ue_context.ue_release_timer;
+                    if (ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.presence == TRUE)
+                        tmsi_m = ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.fiveg_tmsi;
+                    random_id = ue_context_p->ue_context.random_ue_identity;
+                    establish_cause = ue_context_p->ue_context.establishment_cause;
                 }
-                // populate imsi
-                imsi  = ue_context_p->ue_context.imsi.digit15;
-                imsi += ue_context_p->ue_context.imsi.digit14 * 10;              // pow(10, 1)
-                imsi += ue_context_p->ue_context.imsi.digit13 * 100;             // pow(10, 2)
-                imsi += ue_context_p->ue_context.imsi.digit12 * 1000;            // pow(10, 3)
-                imsi += ue_context_p->ue_context.imsi.digit11 * 10000;           // pow(10, 4)
-                imsi += ue_context_p->ue_context.imsi.digit10 * 100000;          // pow(10, 5)
-                imsi += ue_context_p->ue_context.imsi.digit9  * 1000000;         // pow(10, 6)
-                imsi += ue_context_p->ue_context.imsi.digit8  * 10000000;        // pow(10, 7)
-                imsi += ue_context_p->ue_context.imsi.digit7  * 100000000;       // pow(10, 8)
-                imsi += ue_context_p->ue_context.imsi.digit6  * 1000000000;      // pow(10, 9)
-                imsi += ue_context_p->ue_context.imsi.digit5  * 10000000000;     // pow(10, 10)
-                imsi += ue_context_p->ue_context.imsi.digit4  * 100000000000;    // pow(10, 11)
-                imsi += ue_context_p->ue_context.imsi.digit3  * 1000000000000;   // pow(10, 12)
-                imsi += ue_context_p->ue_context.imsi.digit2  * 10000000000000;  // pow(10, 13)
-                imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
-                // populate other fields
-                status = ue_context_p->ue_context.StatusRrc;
-                // initial_id = ue_context_p->ue_context.ue_initial_id; *NOT* set in 5G
-                cipher_alg = ue_context_p->ue_context.ciphering_algorithm;
-                integrity_alg = ue_context_p->ue_context.integrity_algorithm;
-                // failure_timer = ue_context_p->ue_context.ul_failure_timer;
-                // release_timer = ue_context_p->ue_context.ue_release_timer;
-                if (ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.presence == TRUE)
-                    tmsi_m = ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.fiveg_tmsi;
-                random_id = ue_context_p->ue_context.random_ue_identity;
-                establish_cause = ue_context_p->ue_context.establishment_cause;
+                else {
+                    // UE context not found, still need to check if there are some messages left to report
+                    RIC_AGENT_INFO("[SECSM] RRC gNB UE context not found for UE %x", rnti);
+                }
             }
             else {
                 RIC_AGENT_ERROR("[SECSM] Unknown RAT");
                 return -1;
             }
             
-            RIC_AGENT_INFO("[SECSM] Report UE ID: %x, RNTI: %x, RRC Status:%x, IMSI:%ld, random_id: %ld\n", initial_id, rnti, status, imsi, random_id);
-
             // assemble ue information for SECSM
             // collect RRC msg trace
             int msgCount = ue_rrc_msg[i].msgCount;
@@ -677,8 +679,10 @@ static int e2sm_kpm_gp_timer_expiry(
                     break;
                 }
             }
-            if (prev_msg_counter[i] == msgCount + totalNasMsg && status == prev_state[i])
-                continue; // message count and status have not been changed, don't update this UE
+            if (prev_msg_counter[i] == msgCount + totalNasMsg)
+                continue; // message count has not been changed, don't update this UE
+
+            RIC_AGENT_INFO("[SECSM] Report UE ID: %x, RNTI: %x, RRC Status:%x, IMSI:%ld, random_id: %ld\n", initial_id, rnti, status, imsi, random_id);
 
             prev_msg_counter[i] = msgCount + totalNasMsg; 
             prev_state[i] = status;
