@@ -72,6 +72,10 @@
 
 #include "uper_encoder.h"
 
+#ifdef ENABLE_RIC_AGENT
+#include "common/secsm.h"
+#endif
+
 extern RAN_CONTEXT_t RC;
 
 /* Masks for NGAP Encryption algorithms, NEA0 is always supported (not coded) */
@@ -177,6 +181,12 @@ rrc_gNB_send_NGAP_NAS_FIRST_REQ(
   // gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
   MessageDef         *message_p         = NULL;
   gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
+
+  #ifdef ENABLE_RIC_AGENT
+  uint8_t *pdu_buf = rrcSetupComplete->dedicatedNAS_Message.buf; // SECSM: Populate initial NAS msg
+  uint32_t length = rrcSetupComplete->dedicatedNAS_Message.size;
+  addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
+  #endif
 
   message_p = itti_alloc_new_message(TASK_RRC_GNB, 0, NGAP_NAS_FIRST_REQ);
   ngap_nas_first_req_t *req = &NGAP_NAS_FIRST_REQ(message_p);
@@ -595,6 +605,10 @@ int rrc_gNB_process_NGAP_DOWNLINK_NAS(MessageDef *msg_p, instance_t instance, mu
   ngap_downlink_nas_t *req = &NGAP_DOWNLINK_NAS(msg_p);
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(RC.nrrrc[instance], req->gNB_ue_ngap_id);
 
+  #ifdef ENABLE_RIC_AGENT
+  addNasMsg(ue_context_p->ue_context.rnti, req->nas_pdu.buffer, req->nas_pdu.length); // SECSM: populate downlink NAS msg
+  #endif
+
   if (ue_context_p == NULL) {
     /* Can not associate this message to an UE index, send a failure to NGAP and discard it! */
     MessageDef *msg_fail_p;
@@ -643,6 +657,11 @@ rrc_gNB_send_NGAP_UPLINK_NAS(
     if (ulInformationTransfer->criticalExtensions.present == NR_ULInformationTransfer__criticalExtensions_PR_ulInformationTransfer) {
         pdu_length = ulInformationTransfer->criticalExtensions.choice.ulInformationTransfer->dedicatedNAS_Message->size;
         pdu_buffer = ulInformationTransfer->criticalExtensions.choice.ulInformationTransfer->dedicatedNAS_Message->buf;
+
+        #ifdef ENABLE_RIC_AGENT
+        addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buffer, pdu_length); // SECSM: Populate uplink NAS msg
+        #endif
+        
         msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, NGAP_UPLINK_NAS);
         NGAP_UPLINK_NAS(msg_p).gNB_ue_ngap_id = UE->gNB_ue_ngap_id;
         NGAP_UPLINK_NAS (msg_p).nas_pdu.length = pdu_length;

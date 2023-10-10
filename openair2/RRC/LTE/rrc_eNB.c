@@ -851,6 +851,7 @@ rrc_eNB_free_UE(
   }
 
   // SECSM: reset rrc msg counter, TODO: use a timer based approach to relase it
+  // #ifdef ENABLE_RIC_AGENT
   // int ue_id = getRrcMsgIndex(rnti);
   // if (ue_rrc_counter > 0 && ue_id != -1) {
   //   LOG_I(RRC, "[SECSM] Releasing UE RRC msg buffer at index %d\n", ue_id);
@@ -859,6 +860,7 @@ rrc_eNB_free_UE(
   //   ue_rrc_msg[ue_id].msgCount = 0;
   //   --ue_rrc_counter;
   // }
+  // #endif
 
   if(EPC_MODE_ENABLED) {
     if ((ue_context_pP->ue_context.ul_failure_timer >= 20000) && (mac_eNB_get_rrc_status(enb_mod_idP, rnti) >= RRC_CONNECTED)) {
@@ -1070,8 +1072,9 @@ rrc_eNB_generate_SecurityModeCommand(
   uint8_t                             size;
   T(T_ENB_RRC_SECURITY_MODE_COMMAND, T_INT(ctxt_pP->module_id), T_INT(ctxt_pP->frame), T_INT(ctxt_pP->subframe), T_INT(ctxt_pP->rntiMaybeUEid));
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_securityModeCommand, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_securityModeCommand, 1, 1); // SECSM
+  #endif 
 
   size = do_SecurityModeCommand(
            ctxt_pP,
@@ -1108,8 +1111,9 @@ rrc_eNB_generate_UECapabilityEnquiry(
   uint8_t                             size;
   T(T_ENB_RRC_UE_CAPABILITY_ENQUIRY, T_INT(ctxt_pP->module_id), T_INT(ctxt_pP->frame), T_INT(ctxt_pP->subframe), T_INT(ctxt_pP->rntiMaybeUEid));
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_ueCapabilityEnquiry, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_ueCapabilityEnquiry, 1, 1); // SECSM
+  #endif
 
   int16_t eutra_band = RC.rrc[ctxt_pP->module_id]->configuration.eutra_band[0];
   uint32_t nr_band = RC.rrc[ctxt_pP->module_id]->nr_gnb_freq_band[0][0];
@@ -1152,8 +1156,9 @@ rrc_eNB_generate_NR_UECapabilityEnquiry(
   uint8_t                             size;
   T(T_ENB_RRC_UE_CAPABILITY_ENQUIRY, T_INT(ctxt_pP->module_id), T_INT(ctxt_pP->frame), T_INT(ctxt_pP->subframe), T_INT(ctxt_pP->rntiMaybeUEid));
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_ueCapabilityEnquiry, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_ueCapabilityEnquiry, 1, 1); // SECSM
+  #endif
   
   int16_t eutra_band = RC.rrc[ctxt_pP->module_id]->configuration.eutra_band[0];
   uint32_t nr_band = RC.rrc[ctxt_pP->module_id]->nr_gnb_freq_band[0][0];
@@ -1203,8 +1208,9 @@ rrc_eNB_generate_RRCConnectionReject(
               ue_p->Srb0.Tx_buffer.payload_size,
               "[MSG] RRCConnectionReject\n");
   
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_CCCH_MessageType__c1_PR_rrcConnectionReject, 0, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_CCCH_MessageType__c1_PR_rrcConnectionReject, 0, 1); // SECSM
+  #endif
   
   LOG_I(RRC,
         PROTOCOL_RRC_CTXT_UE_FMT" [RAPROC] Logical Channel DL-CCCH, Generating LTE_RRCConnectionReject (bytes %d)\n",
@@ -1237,8 +1243,9 @@ rrc_eNB_generate_RRCConnectionReestablishment(
     T_INT(ctxt_pP->subframe),
     T_INT(rnti));
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_CCCH_MessageType__c1_PR_rrcConnectionReestablishment, 0, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_CCCH_MessageType__c1_PR_rrcConnectionReestablishment, 0, 1); // SECSM
+  #endif
 
   SRB_configList = &(ue_context_pP->ue_context.SRB_configList);
   carrier = &(RC.rrc[ctxt_pP->module_id]->carrier[CC_id]);
@@ -1771,8 +1778,8 @@ rrc_eNB_process_RRCConnectionReestablishmentComplete(
     dedicatedInfoNASList = NULL;
   }
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedInfoNASList != NULL) {
     // we only decode the first NAS item
@@ -1780,6 +1787,7 @@ rrc_eNB_process_RRCConnectionReestablishmentComplete(
     uint32_t length = dedicatedInfoNASList->list.array[0]->size;
     addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
   }
+  #endif
 
   measurements_enabled = RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_x2 ||
                          RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_measurement_reports;
@@ -1876,8 +1884,9 @@ rrc_eNB_generate_RRCConnectionReestablishmentReject(
               ue_p->Srb0.Tx_buffer.payload_size,
               "[MSG] RRCConnectionReestablishmentReject\n");
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_CCCH_MessageType__c1_PR_rrcConnectionReestablishmentReject, 0, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_CCCH_MessageType__c1_PR_rrcConnectionReestablishmentReject, 0, 1); // SECSM
+  #endif
 
   LOG_I(RRC,
         PROTOCOL_RRC_CTXT_UE_FMT" [RAPROC] Logical Channel DL-CCCH, Generating LTE_RRCConnectionReestablishmentReject (bytes %d)\n",
@@ -1921,8 +1930,9 @@ rrc_eNB_generate_RRCConnectionRelease(
   uint16_t size = 0;
   int release_num;
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionRelease, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionRelease, 1, 1); // SECSM
+  #endif
 
   T(T_ENB_RRC_CONNECTION_RELEASE, T_INT(ctxt_pP->module_id), T_INT(ctxt_pP->frame), T_INT(ctxt_pP->subframe), T_INT(ctxt_pP->rntiMaybeUEid));
 #if 0
@@ -2187,8 +2197,8 @@ rrc_eNB_generate_dedicatedRRCConnectionReconfiguration(const protocol_ctxt_t *co
     LOG_W(RRC,"dedlicated NAS list is empty\n");
   }
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedInfoNASList != NULL) {
     // we only decode the first NAS item
@@ -2196,6 +2206,7 @@ rrc_eNB_generate_dedicatedRRCConnectionReconfiguration(const protocol_ctxt_t *co
     uint32_t length = dedicatedInfoNASList->list.array[0]->size;
     addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
   }
+  #endif
 
   memset(buffer, 0, sizeof(buffer));
   size = do_RRCConnectionReconfiguration(ctxt_pP,
@@ -2435,8 +2446,8 @@ rrc_eNB_modify_dedicatedRRCConnectionReconfiguration(const protocol_ctxt_t *cons
     LOG_W(RRC,"dedlicated NAS list is empty\n");
   }
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedInfoNASList != NULL) {
     // we only decode the first NAS item
@@ -2444,6 +2455,7 @@ rrc_eNB_modify_dedicatedRRCConnectionReconfiguration(const protocol_ctxt_t *cons
     uint32_t length = dedicatedInfoNASList->list.array[0]->size;
     addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
   }
+  #endif
 
   memset(buffer, 0, sizeof(buffer));
   size = do_RRCConnectionReconfiguration(ctxt_pP,
@@ -2536,8 +2548,8 @@ rrc_eNB_generate_dedicatedRRCConnectionReconfiguration_release(  const protocol_
     LOG_W(RRC,"dedlicated NAS list is empty\n");
   }
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedInfoNASList != NULL) {
     // we only decode the first NAS item
@@ -2545,6 +2557,7 @@ rrc_eNB_generate_dedicatedRRCConnectionReconfiguration_release(  const protocol_
     uint32_t length = dedicatedInfoNASList->list.array[0]->size;
     addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
   }
+  #endif
 
   memset(buffer, 0, sizeof(buffer));
   size = do_RRCConnectionReconfiguration(ctxt_pP,
@@ -3237,8 +3250,8 @@ void rrc_eNB_generate_defaultRRCConnectionReconfiguration(const protocol_ctxt_t 
     dedicatedInfoNASList = NULL;
   }
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedInfoNASList != NULL) {
     // we only decode the first NAS item
@@ -3246,6 +3259,7 @@ void rrc_eNB_generate_defaultRRCConnectionReconfiguration(const protocol_ctxt_t 
     uint32_t length = dedicatedInfoNASList->list.array[0]->size;
     addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
   }
+  #endif
 
   measurements_enabled = RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_x2 ||
                          RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_measurement_reports;
@@ -5072,8 +5086,8 @@ rrc_eNB_generate_HO_RRCConnectionReconfiguration(const protocol_ctxt_t *const ct
     dedicatedInfoNASList = NULL;
   }
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedInfoNASList != NULL) {
     // we only decode the first NAS item
@@ -5081,6 +5095,7 @@ rrc_eNB_generate_HO_RRCConnectionReconfiguration(const protocol_ctxt_t *const ct
     uint32_t length = dedicatedInfoNASList->list.array[0]->size;
     addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
   }
+  #endif
 
   measurements_enabled = RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_x2 ||
                          RC.rrc[ENB_INSTANCE_TO_MODULE_ID(ctxt_pP->instance)]->configuration.enable_measurement_reports;
@@ -5472,8 +5487,9 @@ rrc_eNB_generate_RRCConnectionSetup(
   eNB_RRC_UE_t *ue_p = &ue_context_pP->ue_context;
   SRB_configList = &ue_p->SRB_configList;
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_CCCH_MessageType__c1_PR_rrcConnectionSetup, 0, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_CCCH_MessageType__c1_PR_rrcConnectionSetup, 0, 1); // SECSM
+  #endif
 
   if (is_mtc) {
     ue_p->Srb0.Tx_buffer.payload_size =
@@ -5718,8 +5734,9 @@ rrc_eNB_decode_ccch(
 
   if (ul_ccch_msg->message.present == LTE_UL_CCCH_MessageType_PR_c1) {
 
-    // SECSM
-    addRrcMsg(ctxt_pP->rntiMaybeUEid, ul_ccch_msg->message.choice.c1.present, 0, 0);
+    #ifdef ENABLE_RIC_AGENT
+    addRrcMsg(ctxt_pP->rntiMaybeUEid, ul_ccch_msg->message.choice.c1.present, 0, 0); // SECSM
+    #endif
     
     switch (ul_ccch_msg->message.choice.c1.present) {
       case LTE_UL_CCCH_MessageType__c1_PR_NOTHING:
@@ -6441,8 +6458,9 @@ rrc_eNB_decode_dcch(
   ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ctxt_pP->module_id], ctxt_pP->rntiMaybeUEid);
 
   if (ul_dcch_msg->message.present == LTE_UL_DCCH_MessageType_PR_c1) {
-    // SECSM
-    addRrcMsg(ctxt_pP->rntiMaybeUEid, ul_dcch_msg->message.choice.c1.present, 1, 0);
+    #ifdef ENABLE_RIC_AGENT
+    addRrcMsg(ctxt_pP->rntiMaybeUEid, ul_dcch_msg->message.choice.c1.present, 1, 0); // SECSM
+    #endif
 
     switch (ul_dcch_msg->message.choice.c1.present) {
       case LTE_UL_DCCH_MessageType__c1_PR_NOTHING:   /* No components present */
@@ -8265,8 +8283,9 @@ rrc_eNB_generate_RRCConnectionReconfiguration_Sidelink(
   uint16_t                            size = 0;
   memset(buffer, 0, sizeof(buffer));
 
-  // SECSM
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1);
+  #ifdef ENABLE_RIC_AGENT
+  addRrcMsg(ctxt_pP->rntiMaybeUEid, LTE_DL_DCCH_MessageType__c1_PR_rrcConnectionReconfiguration, 1, 1); // SECSM
+  #endif
 
   // allocate dedicated pools for UE -sl-CommConfig/sl-DiscConfig (sl-V2X-ConfigDedicated)
   //populate dedicated resources for SL communication (sl-CommConfig)
