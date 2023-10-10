@@ -77,6 +77,7 @@
 
 #include "attack_extern.h"      /* bts_attack, bts_delay, dnlink_dos_attack, uplink_dos_attack, rep_conn_end_count, null_cipher_integ, tmsi_blind_dos_rrc */
 #include <stdlib.h>             /* srand () and rand () for _ra_restart_counter*/
+#include "PHY/phy_extern_nr_ue.h" /* PHY_vars_UE_g */
 
 // New attack variables
 static unsigned int _btsIMSIByte = 0;
@@ -2426,7 +2427,7 @@ void *rrc_nrue_task(void *args_p)
           // reset UE parameters
           // PHY Layer, PHY_VARS_NR_UE
           // TODO: reset physical layer for NR?
-          // PHY_vars_UE_g[module_id][CC_id]->UE_mode[gNB_index] = PRACH;
+          PHY_vars_UE_g[module_id][CC_id]->prach_vars[gNB_index]->active = false;
           // for (int i=0; i <RX_NB_TH_MAX; i++ ) {
           //   PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][gNB_index]->crnti_is_temporary = 0;
           //   PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][gNB_index]->crnti = 0;
@@ -2434,7 +2435,9 @@ void *rrc_nrue_task(void *args_p)
           // }
 
           // MAC Layer
-          // ue_mac_reset(module_id, gNB_index);
+          NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
+          // nr_ue_init_mac(module_id);
+          // nr_l2_init_ue(mac);
           // RRC Layer
           // openair_rrc_ue_init(module_id, gNB_index); // TODO rrc ue init in NR?
           nr_rrc_set_state(module_id, RRC_STATE_IDLE_NR);
@@ -2444,12 +2447,12 @@ void *rrc_nrue_task(void *args_p)
 
           // Ref: openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c nr_ra_failed()
           // restart RA Procedure
-          NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
-          mac->state = UE_PERFORMING_RA;
           RA_config_t *ra = &mac->ra;
+          init_RA(module_id, &ra->prach_resources, mac->current_UL_BWP.rach_ConfigCommon, &mac->current_UL_BWP.rach_ConfigCommon->rach_ConfigGeneric, ra->rach_ConfigDedicated);
+          nr_get_RA_window(mac);
+
+          // mac->state = UE_PERFORMING_RA;
           ra->RA_active = 1;
-          ra->first_Msg3 = 1;
-          ra->ra_PreambleIndex = -1;
           ra->ra_state = RA_UE_IDLE;
           // stop_meas(&UE_mac_inst[module_id].ue_scheduler);
           break;
