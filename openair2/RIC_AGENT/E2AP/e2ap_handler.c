@@ -28,6 +28,7 @@
 #include "conversions.h"
 #include "common/ran_context.h"
 #include "openair2/RRC/LTE/rrc_defs.h"
+#include "openair2/RRC/NR/nr_rrc_defs.h"
 
 #include "ric_agent.h"
 #include "e2ap_handler.h"
@@ -362,6 +363,7 @@ int e2ap_handle_e2_connection_update(
                 remote_port = decoded_port;
 
                 /* CU & DU Differentiation */
+		msg = (MessageDef *) NULL;
                 e2node_type_t node_type = e2_conf[ranid]->e2node_type;
                 if (node_type == E2NODE_TYPE_GNB_CU)
                 {
@@ -382,6 +384,7 @@ int e2ap_handle_e2_connection_update(
                 else
                 {
                     RIC_AGENT_ERROR("Unhandled node type %d in e2ap_handle_e2_connection_update\n", node_type);
+		    continue;
                 }
 
                 req = &msg->ittiMsg.sctp_new_association_req;
@@ -402,10 +405,14 @@ int e2ap_handle_e2_connection_update(
 
 #if DISABLE_SCTP_MULTIHOMING
     // Comment out if testing with loopback
-                req->local_address.ipv4 = 1;
-                strncpy(req->local_address.ipv4_address, RC.rrc[0]->eth_params_s.my_addr,
-                        sizeof(req->local_address.ipv4_address));
-                req->local_address.ipv4_address[sizeof(req->local_address.ipv4_address)-1] = '\0';
+		char *my_addr=(char *)NULL;
+		if      (RC.rrc   /* != NULL */) my_addr = RC.rrc[0]->eth_params_s.my_addr;   // 4G LTE
+		else if (RC.nrrrc /* != NULL */) my_addr = RC.nrrrc[0]->eth_params_s.my_addr; // 5G NR
+		if ( my_addr && (strcmp(my_addr,"127.0.0.1") != 0)) {
+		  req->local_address.ipv4 = 1;
+		  strncpy(req->local_address.ipv4_address, my_addr, sizeof(req->local_address.ipv4_address));
+		  req->local_address.ipv4_address[sizeof(req->local_address.ipv4_address)-1] = '\0';
+		}
 #endif
                 req->ulp_cnx_id = 2;
 

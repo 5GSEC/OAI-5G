@@ -245,7 +245,7 @@ int e2sm_kpm_init(void)
     else if (is_lte())
         nb_inst = RC.nb_inst;
 
-    e2node_type_t node_type;
+    e2node_type_t node_type = E2NODE_TYPE_NONE;
     /* Fetching PLMN ID*/
     for (i = 0; i < nb_inst; ++i) { 
         node_type = e2_conf[i]->e2node_type;

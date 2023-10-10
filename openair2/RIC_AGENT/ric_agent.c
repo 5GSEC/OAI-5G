@@ -230,14 +230,8 @@ static int ric_agent_connect(ranid_t ranid)
     char *my_addr=(char *)NULL;
 #if DISABLE_SCTP_MULTIHOMING
     // Comment out if testing with loopback
-    if (is_lte()) {
-        // 4G LTE
-        my_addr = RC.rrc[0]->eth_params_s.my_addr;
-    }
-    else if (is_nr()) {
-        // 5G NR
-        my_addr = RC.nrrrc[0]->eth_params_s.my_addr;
-    }
+    if      (is_lte()) my_addr = RC.rrc[0]->eth_params_s.my_addr;   // 4G LTE
+    else if (is_nr())  my_addr = RC.nrrrc[0]->eth_params_s.my_addr; // 5G NR
     if (my_addr && (strcmp(my_addr,"127.0.0.1") != 0)) {
         req->local_address.ipv4 = 1;
 	strncpy (req->local_address.ipv4_address, my_addr, sizeof(req->local_address.ipv4_address));
