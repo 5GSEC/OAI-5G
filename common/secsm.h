@@ -72,6 +72,8 @@ int getRrcMsgIndex(rnti_t rnti);
 void addRrcMsg(rnti_t rnti, uint8_t msgId, uint8_t dcch, uint8_t downlink);
 int64_t getTimestamp(void);
 struct nasMsg decodeNasMsg(uint8_t* buffer, uint32_t length);
+struct nasMsg decodeNasMsgLTE(uint8_t* buffer, uint32_t length);
+struct nasMsg decodeNasMsgNR(uint8_t* buffer, uint32_t length);
 /********** End new function def for SECSM **********/
 
 #endif

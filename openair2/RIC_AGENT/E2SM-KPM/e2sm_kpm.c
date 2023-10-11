@@ -89,6 +89,7 @@ extern int nas_cipher_alg;
 extern int nas_integrity_alg;
 int prev_msg_counter[MAX_UE_NUM];
 int prev_state[MAX_UE_NUM];
+int RAT;
 
 // extern f1ap_cudu_inst_t f1ap_cu_inst[MAX_eNB];
 extern int global_e2_node_id(ranid_t ranid, E2AP_GlobalE2node_ID_t* node_id);
@@ -179,7 +180,7 @@ int e2sm_kpm_init(void)
     e2sm_kpm_meas_info[c++] = (kmp_meas_info_t){c, "UE.RNTI", 0, FALSE};
     e2sm_kpm_meas_info[c++] = (kmp_meas_info_t){c, "UE.IMSI1", 0, FALSE};
     e2sm_kpm_meas_info[c++] = (kmp_meas_info_t){c, "UE.IMSI2", 0, FALSE};
-    e2sm_kpm_meas_info[c++] = (kmp_meas_info_t){c, "UE.RRCStatus", 0, FALSE};
+    e2sm_kpm_meas_info[c++] = (kmp_meas_info_t){c, "UE.RAT", 0, FALSE};
     e2sm_kpm_meas_info[c++] = (kmp_meas_info_t){c, "UE.M_TMSI", 0, FALSE};
     e2sm_kpm_meas_info[c++] = (kmp_meas_info_t){c, "UE.CIPHER_ALG", 0, FALSE};
     e2sm_kpm_meas_info[c++] = (kmp_meas_info_t){c, "UE.INTEGRITY_ALG", 0, FALSE};
@@ -194,6 +195,14 @@ int e2sm_kpm_init(void)
         e2sm_kpm_meas_info[c+msgC] = (kmp_meas_info_t){c+msgC+1, buf, 0, FALSE};
         ++msgC;
     }
+
+    // init RAT
+    if (is_lte())
+        RAT = 0; // LTE
+    else if (is_nr())
+        RAT = 1; // NR
+    else
+        RAT = -1; // unknown
 
     uint16_t i;
     ric_ran_function_t *func;
@@ -682,7 +691,7 @@ static int e2sm_kpm_gp_timer_expiry(
             if (prev_msg_counter[i] == msgCount + totalNasMsg)
                 continue; // message count has not been changed, don't update this UE
 
-            RIC_AGENT_INFO("[SECSM] Report UE ID: %x, RNTI: %x, RRC Status:%x, IMSI:%ld, random_id: %ld\n", initial_id, rnti, status, imsi, random_id);
+            RIC_AGENT_INFO("[SECSM] Report UE ID: %x, RNTI: %x, RAT:%x, IMSI:%ld, random_id: %ld\n", initial_id, rnti, RAT, imsi, random_id);
 
             prev_msg_counter[i] = msgCount + totalNasMsg; 
             prev_state[i] = status;
@@ -753,8 +762,8 @@ static int e2sm_kpm_gp_timer_expiry(
                 case 3:/*IMSI2*/
                     g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = (uint32_t) (imsi >> 32);
                     break;
-                case 4:/*RRC_Status*/
-                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = status;
+                case 4:/*RAT*/
+                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = RAT;
                     break;
                 case 5: // TMSI
                     g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = tmsi_m;

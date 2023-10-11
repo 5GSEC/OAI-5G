@@ -4,8 +4,13 @@
 #include "openair3/NAS/COMMON/UTIL/TLVDecoder.h"
 #include "common/utils/ocp_itti/intertask_interface.h"
 #include "common/utils/LOG/log.h"
+#include "openair3/NAS/COMMON/NR_NAS_defs.h"
+#include "common/ran_context.h"
 
 #ifdef ENABLE_RIC_AGENT
+
+extern RAN_CONTEXT_t RC;
+
 // new variables for SECSM
 int ue_rrc_counter=0;
 struct rrcMsgTrace ue_rrc_msg[MAX_UE_NUM];
@@ -93,6 +98,17 @@ void addNasMsg(int id, uint8_t* buffer, uint32_t length) {
 }
 
 struct nasMsg decodeNasMsg(uint8_t* buffer, uint32_t length) {
+  if (RC.rrc != NULL)
+    return decodeNasMsgLTE(buffer, length);
+  else if (RC.nrrrc != NULL)
+    return decodeNasMsgNR(buffer, length);
+  else {
+    struct nasMsg nm;
+    return nm;
+  }
+}
+
+struct nasMsg decodeNasMsgLTE(uint8_t* buffer, uint32_t length) {
   // Decode
   nas_message_t nas_msg;
   memset(&nas_msg, 0, sizeof(nas_message_t));
@@ -143,6 +159,37 @@ struct nasMsg decodeNasMsg(uint8_t* buffer, uint32_t length) {
   else if (discriminator == EPS_SESSION_MANAGEMENT_MESSAGE) {
     // TODO decode
   }
+
+  struct timeval ts;
+  gettimeofday(&ts, NULL);
+  int64_t ts_ms = ts.tv_sec * 1000 + ts.tv_usec / 1000;
+  LOG_I(RRC, "[SECSM] NAS decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
+  struct nasMsg nm = {discriminator, msgId, buffer, length, ts_ms, emm_cause};
+  return nm;
+}
+
+struct nasMsg decodeNasMsgNR(uint8_t* buffer, uint32_t length) {
+  SGScommonHeader_t *header = (SGScommonHeader_t *) buffer;
+  int8_t discriminator = header->epd;
+  int8_t sec_header = header->sh;
+  int8_t msgId = header->mt;
+  uint8_t emm_cause = 0;
+
+  if (sec_header == notsecurityprotected) {
+    nas_cipher_alg = 0;
+    nas_integrity_alg = 0;
+  }
+  else if (sec_header == Integrityprotected || sec_header == Integrityprotectedwithnew5GNASsecuritycontext) {
+    nas_integrity_alg = 1;
+    nas_cipher_alg = 0;
+  }
+  else if (sec_header == Integrityprotectedandciphered || sec_header == Integrityprotectedandcipheredwithnew5GNASsecuritycontext) {
+    nas_integrity_alg = 1;
+    nas_cipher_alg = 1;
+  }
+
+  // TODO decode 5G service request
+  // TODO decode EMM cause
 
   struct timeval ts;
   gettimeofday(&ts, NULL);
