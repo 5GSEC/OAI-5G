@@ -53,7 +53,7 @@
 #include "openair2/SDAP/nr_sdap/nr_sdap.h"
 #include "openair3/SECU/nas_stream_eia2.h"
 
-#include "attack_extern.h"      /* bts_attack, blind_dos_attack, dnlink_dos_attack, dnlnk_imsi_extract, tmsi_blind_dos_rrc */
+#include "attack_extern.h"      /* bts_attack, blind_dos_attack, dnlink_dos_attack, dnlnk_imsi_extract */
 
 uint8_t  *registration_request_buf;
 uint32_t  registration_request_len;
@@ -1048,11 +1048,11 @@ void *nas_nrue_task(void *args_p)
               break;
           case FGS_AUTHENTICATION_REQUEST:
               // BTS resource depletion attack
-              if (bts_attack >= 5 || tmsi_blind_dos_rrc /* > 0 */) {
+              if (bts_attack >= 5 || blind_dos_attack /* > 0 */) {
                 const char *_logEAtt;
                 const char *_logIAtt;
 
-                if (tmsi_blind_dos_rrc /* > 0 */) {
+                if (blind_dos_attack /* > 0 */) {
                   _logEAtt = "BLIND_DOS_ATTACK_ITEM_04";
                   _logIAtt = "Blind DOS";
                 }

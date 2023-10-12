@@ -75,7 +75,7 @@
 
 #include "nr_nas_msg_sim.h"
 
-#include "attack_extern.h"      /* bts_attack, bts_delay, dnlink_dos_attack, uplink_dos_attack, rep_conn_end_count, null_cipher_integ, tmsi_blind_dos_rrc */
+#include "attack_extern.h"      /* bts_attack, bts_delay, dnlink_dos_attack, uplink_dos_attack, rep_conn_end_count, null_cipher_integ */
 #include <stdlib.h>             /* srand () and rand () for _ra_restart_counter*/
 #include "PHY/phy_extern_nr_ue.h" /* PHY_vars_UE_g */
 
@@ -2397,16 +2397,16 @@ void *rrc_nrue_task(void *args_p)
         LOG_E(RRC, "[NAS MSG]: NAS_UPLINK_DATA_REQ\n");
 
         // Trigger log when we see a non-attack NAS message length
-        if (!IS_SOFTMODEM_RFSIM && (bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length != -1) {
-	        const char *_logAtt = tmsi_blind_dos_rrc /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
+        if (!IS_SOFTMODEM_RFSIM && (bts_attack >=5 || blind_dos_attack /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length != -1) {
+	        const char *_logAtt = blind_dos_attack /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
           LOG_E(RRC, "[%s NAS_UPLINK_DATA_REQ]: NAS Message Length = %i\n", _logAtt, NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length);
         }
                           
-        if ((bts_attack >=5 || tmsi_blind_dos_rrc /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length == -1) {
+        if ((bts_attack >=5 || blind_dos_attack /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length == -1) {
           const char *_logEAtt;
           const char *_logIAtt;
 
-          if (tmsi_blind_dos_rrc /* > 0 */) {
+          if (blind_dos_attack /* > 0 */) {
             _logEAtt = "BLIND_DOS_ATTACK_ITEM_03";
             _logIAtt = "Blind DOS";
           }

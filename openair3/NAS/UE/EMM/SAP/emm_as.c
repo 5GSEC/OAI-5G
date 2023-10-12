@@ -64,7 +64,7 @@ Description Defines the EMMAS Service Access Point that provides
 
 #include "executables/softmodem-common.h"	/* IS_SOFTMODEM_RFSIM */
 
-#include "attack_extern.h"      /* bts_attack, blind_dos_attack, dnlink_dos_attack, dnlnk_imsi_extract, tmsi_blind_dos_rrc */
+#include "attack_extern.h"      /* bts_attack, blind_dos_attack, dnlink_dos_attack, dnlnk_imsi_extract */
 
 /****************************************************************************/
 /****************  E X T E R N A L    D E F I N I T I O N S  ****************/
@@ -357,11 +357,11 @@ static int _emm_as_recv(nas_user_t *user, const char *msg, int len,
 
   case AUTHENTICATION_REQUEST:
     // BTS resource depletion attack
-    if (bts_attack >= 5 || tmsi_blind_dos_rrc /* > 0 */) {
+    if (bts_attack >= 5 || blind_dos_attack /* > 0 */) {
       const char *_logEAtt;
       const char *_logIAtt;
 
-      if (tmsi_blind_dos_rrc /* > 0 */) {
+      if (blind_dos_attack /* > 0 */) {
         _logEAtt = "BLIND_DOS_ATTACK_ITEM_04";
         _logIAtt = "Blind DOS";
       }
