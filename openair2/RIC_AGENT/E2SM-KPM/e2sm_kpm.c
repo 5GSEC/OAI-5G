@@ -720,8 +720,11 @@ static int e2sm_kpm_gp_timer_expiry(
                     else {
                         // encode rrc msg
                         struct rrcMsg m = ue_rrc_msg[i].msg[rIndex++];
-                        if ((m.msgId==2 && m.dcch==1 && m.downlink==1) || (m.msgId==10 && m.dcch==1 && m.downlink==0)) {
-                            continue; // don't encode ul/dl information transfer msg
+                        if (is_lte() && ((m.msgId==2 && m.dcch==1 && m.downlink==1) || (m.msgId==10 && m.dcch==1 && m.downlink==0))) {
+                            continue; // don't encode ul/dl information transfer msg in LTE
+                        }
+                        else if (is_nr() && ((m.msgId==6 && m.dcch==1 && m.downlink==1) || (m.msgId==8 && m.dcch==1 && m.downlink==0))) {
+                            continue; // don't encode ul/dl information transfer msg in NR
                         }
                         int encode_rrc = 1 | (m.dcch << 1) | (m.downlink << 2) | (m.msgId << 3);
                         RIC_AGENT_INFO("[SECSM] {RRC: msgId: %d, ts: %ld, dcch: %d, downlink: %d} -> %d\n", m.msgId, m.timestamp, m.dcch, m.downlink, encode_rrc);

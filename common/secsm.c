@@ -163,7 +163,7 @@ struct nasMsg decodeNasMsgLTE(uint8_t* buffer, uint32_t length) {
   struct timeval ts;
   gettimeofday(&ts, NULL);
   int64_t ts_ms = ts.tv_sec * 1000 + ts.tv_usec / 1000;
-  LOG_I(RRC, "[SECSM] NAS decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
+  LOG_I(RRC, "[SECSM] NAS LTE decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
   struct nasMsg nm = {discriminator, msgId, buffer, length, ts_ms, emm_cause};
   return nm;
 }
@@ -194,7 +194,7 @@ struct nasMsg decodeNasMsgNR(uint8_t* buffer, uint32_t length) {
   struct timeval ts;
   gettimeofday(&ts, NULL);
   int64_t ts_ms = ts.tv_sec * 1000 + ts.tv_usec / 1000;
-  LOG_I(RRC, "[SECSM] NAS decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
+  LOG_I(RRC, "[SECSM] NAS NR decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
   struct nasMsg nm = {discriminator, msgId, buffer, length, ts_ms, emm_cause};
   return nm;
 }
