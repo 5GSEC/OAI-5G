@@ -75,6 +75,8 @@ int getNasMsgIndex(int id) {
 
 void addNasMsg(int id, uint8_t* buffer, uint32_t length) {
   struct nasMsg nm = decodeNasMsg(buffer, length);
+  if (nm.msgId == 0)
+      return; // don't record empty message
   int ue_index = getNasMsgIndex(id);
   if (ue_index == -1) {
       // create new nas msg trace
@@ -145,6 +147,13 @@ struct nasMsg decodeNasMsgLTE(uint8_t* buffer, uint32_t length) {
       else
 	      nas_cipher_alg = 1;
     }
+
+    if (nas_cipher_alg != 0) {
+      // don't decode ciphered message
+      struct nasMsg nm;
+      return nm;
+    }
+
     EMM_msg *e_msg = &nas_msg.plain.emm;
     emm_msg_header_t *emm_header = &e_msg->header;
     DECODE_U8(buffer + offset, emm_header->message_type, size);
@@ -188,8 +197,15 @@ struct nasMsg decodeNasMsgNR(uint8_t* buffer, uint32_t length) {
     nas_cipher_alg = 1;
   }
 
+  if (nas_cipher_alg != 0) {
+    // don't decode ciphered message
+    struct nasMsg nm;
+    return nm;
+  }
+
   // TODO decode 5G service request
   // TODO decode EMM cause
+  // TODO handle ciphered NAS message in xApp
 
   struct timeval ts;
   gettimeofday(&ts, NULL);

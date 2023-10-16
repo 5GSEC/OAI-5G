@@ -66,7 +66,7 @@ int e2ap_decode_pdu(E2AP_E2AP_PDU_t *pdu,
     return -1;
   }
 
-  xer_fprint(stdout, &asn_DEF_E2AP_E2AP_PDU, pdu);
+  // xer_fprint(stdout, &asn_DEF_E2AP_E2AP_PDU, pdu);
 
   switch (pdu->present) {
   case E2AP_E2AP_PDU_PR_initiatingMessage:
