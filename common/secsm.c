@@ -197,20 +197,28 @@ struct nasMsg decodeNasMsgNR(uint8_t* buffer, uint32_t length) {
     nas_cipher_alg = 1;
   }
 
-  if (nas_cipher_alg != 0) {
-    // don't decode ciphered message
-    struct nasMsg nm;
-    return nm;
+  if (discriminator == SGSmobilitymanagementmessages) {
+    if (sec_header == notsecurityprotected) {
+      // only decode non protected NAS 5G message
+      struct timeval ts;
+      gettimeofday(&ts, NULL);
+      int64_t ts_ms = ts.tv_sec * 1000 + ts.tv_usec / 1000;
+      LOG_I(RRC, "[SECSM] NAS NR decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
+      struct nasMsg nm = {discriminator, msgId, buffer, length, ts_ms, emm_cause};
+    }
+    else {
+      // TODO decode 5G service request
+      // TODO decode EMM cause
+      // TODO support NAS msg with multiple NAS headers, e.g., securitymodecommand
+      // TODO handle ciphered NAS message in xApp
+    }
+
+  }
+  else if (discriminator == SGSsessionmanagementmessages) {
+    // handle ESM NR
   }
 
-  // TODO decode 5G service request
-  // TODO decode EMM cause
-  // TODO handle ciphered NAS message in xApp
-
-  struct timeval ts;
-  gettimeofday(&ts, NULL);
-  int64_t ts_ms = ts.tv_sec * 1000 + ts.tv_usec / 1000;
-  LOG_I(RRC, "[SECSM] NAS NR decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
-  struct nasMsg nm = {discriminator, msgId, buffer, length, ts_ms, emm_cause};
+  LOG_I(RRC, "[SECSM] NAS NR NOT decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
+  struct nasMsg nm;
   return nm;
 }
