@@ -2427,6 +2427,7 @@ void *rrc_nrue_task(void *args_p)
           // reset UE parameters
           // PHY Layer, PHY_VARS_NR_UE
           // TODO: reset physical layer for NR?
+          init_nr_ue_transport(PHY_vars_UE_g[module_id][CC_id]);
           PHY_vars_UE_g[module_id][CC_id]->prach_vars[gNB_index]->active = false;
           // for (int i=0; i <RX_NB_TH_MAX; i++ ) {
           //   PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][gNB_index]->crnti_is_temporary = 0;
@@ -2453,6 +2454,9 @@ void *rrc_nrue_task(void *args_p)
 
           // mac->state = UE_PERFORMING_RA;
           ra->RA_active = 1;
+          ra->ra_rnti = 0;
+          ra->t_crnti = 0;
+          ra->RA_contention_resolution_timer_active = 0;
           ra->ra_state = RA_UE_IDLE;
           // stop_meas(&UE_mac_inst[module_id].ue_scheduler);
           break;
