@@ -353,7 +353,7 @@ int e2ap_generate_ric_subscription_response(
     ai->ricActionID = action->id;
     ASN_SEQUENCE_ADD(&ie->value.choice.RICaction_Admitted_List.list,ais);
   }
-  xer_fprint(stdout, &asn_DEF_E2AP_RICsubscriptionResponse_IEs, ie);
+  // xer_fprint(stdout, &asn_DEF_E2AP_RICsubscriptionResponse_IEs, ie);
   ASN_SEQUENCE_ADD(&out->protocolIEs.list,ie);
 
   ie = (E2AP_RICsubscriptionResponse_IEs_t *)calloc(1,sizeof(*ie));
@@ -962,7 +962,7 @@ void generate_e2apv1_indication_request_parameterized(E2AP_E2AP_PDU_t *e2ap_pdu,
     //printf("E2AP PDU error buf %s\n", error_buf);
     free(error_buf);
 
-    xer_fprint(stderr, &asn_DEF_E2AP_E2AP_PDU, e2ap_pdu);
+    // xer_fprint(stderr, &asn_DEF_E2AP_E2AP_PDU, e2ap_pdu);
 }
 
 int e2ap_asn1c_encode_pdu(E2AP_E2AP_PDU_t* pdu, unsigned char **buffer)
