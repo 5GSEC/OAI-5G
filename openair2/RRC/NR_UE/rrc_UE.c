@@ -2424,25 +2424,14 @@ void *rrc_nrue_task(void *args_p)
           int CC_id = 0; // use 0 for carrier ID?
           int module_id = ctxt.module_id;
           LOG_I(RRC, "[%s] Receive communication back from NAS, UE restarting random access procedure\n", _logIAtt);
-          // reset UE parameters
-          // PHY Layer, PHY_VARS_NR_UE
-          // TODO: reset physical layer for NR?
+          // reset UE parameters at PHY Layer, PHY_VARS_NR_UE
           init_nr_ue_transport(PHY_vars_UE_g[module_id][CC_id]);
           PHY_vars_UE_g[module_id][CC_id]->prach_vars[gNB_index]->active = false;
-          // for (int i=0; i <RX_NB_TH_MAX; i++ ) {
-          //   PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][gNB_index]->crnti_is_temporary = 0;
-          //   PHY_vars_UE_g[module_id][CC_id]->pdcch_vars[i][gNB_index]->crnti = 0;
-          //   PHY_vars_UE_g[module_id][CC_id]->ulsch_Msg3_active[gNB_index] = 0;
-          // }
 
           // MAC Layer
           NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
-          // nr_ue_init_mac(module_id);
-          // nr_l2_init_ue(mac);
           // RRC Layer
-          // openair_rrc_ue_init(module_id, gNB_index); // TODO rrc ue init in NR?
           nr_rrc_set_state(module_id, RRC_STATE_IDLE_NR);
-          // NR_UE_rrc_inst[module_id].Info[gNB_index].State=RRC_STATE_IDLE_NR;
           NR_UE_rrc_inst[module_id].Srb0[gNB_index].Tx_buffer.payload_size = 0; // clear Srb0 buffer
           NR_UE_rrc_inst[module_id].Srb0[gNB_index].Rx_buffer.payload_size = 0;
 
@@ -2451,14 +2440,12 @@ void *rrc_nrue_task(void *args_p)
           RA_config_t *ra = &mac->ra;
           init_RA(module_id, &ra->prach_resources, mac->current_UL_BWP.rach_ConfigCommon, &mac->current_UL_BWP.rach_ConfigCommon->rach_ConfigGeneric, ra->rach_ConfigDedicated);
           nr_get_RA_window(mac);
-
           // mac->state = UE_PERFORMING_RA;
           ra->RA_active = 1;
           ra->ra_rnti = 0;
           ra->t_crnti = 0;
           ra->RA_contention_resolution_timer_active = 0;
           ra->ra_state = RA_UE_IDLE;
-          // stop_meas(&UE_mac_inst[module_id].ue_scheduler);
           break;
         }
 
