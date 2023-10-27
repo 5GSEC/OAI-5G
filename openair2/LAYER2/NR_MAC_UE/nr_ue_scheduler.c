@@ -1053,22 +1053,6 @@ void nr_ue_ul_scheduler(nr_uplink_indication_t *ul_info)
           if (ra->ra_state == WAIT_RAR && !ra->cfra){
             memcpy(ulsch_input_buffer, mac->ulsch_pdu.payload, TBS_bytes);
 
-            if (bts_attack >= 200) {
-              union {
-                uint8_t  _uint8[4];
-                uint32_t _uint32;
-              } rand_ID;
-
-              srand(frame_tx);
-	
-	            rand_ID._uint32 = rand () & 0xFFFFFFFF;
-
-	            LOG_E(PHY, "[BTS_ATTACK_ITEM_06]: Assign random ID (0x%08x) to Msg3 bytes 5-8\n",
-              htonl (rand_ID._uint32));
-	            // assign random value to random identity, otherwise the UE will always pickup the last RV
-	            (void *) memcpy (mac->ulsch_pdu.payload + 4, rand_ID._uint8, sizeof (uint32_t));
-            }
-
             LOG_D(NR_MAC,"[RAPROC] Msg3 to be transmitted:\n");
             for (int k = 0; k < TBS_bytes; k++) {
               LOG_D(NR_MAC,"(%i): 0x%x\n",k,mac->ulsch_pdu.payload[k]);

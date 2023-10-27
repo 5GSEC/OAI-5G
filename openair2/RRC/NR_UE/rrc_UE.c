@@ -1672,7 +1672,7 @@ void nr_rrc_ue_process_securityModeCommand(const protocol_ctxt_t *const ctxt_pP,
           securityModeCommand->criticalExtensions.present);
 }
 
- //-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
  void nr_rrc_ue_generate_RRCSetupRequest(module_id_t module_id, const uint8_t gNB_index) {
    uint8_t i=0,rv[6];
 
