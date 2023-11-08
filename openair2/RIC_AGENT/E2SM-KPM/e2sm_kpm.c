@@ -151,13 +151,6 @@ E2SM_KPM_GranularityPeriod_KPMv2_t     *g_granulPeriod;
 E2SM_KPM_SubscriptionID_KPMv2_t    g_subscriptionID;
 
 kmp_meas_info_t e2sm_kpm_meas_info[MAX_KPM_MEAS];
-// kmp_meas_info_t e2sm_kpm_meas_info[MAX_KPM_MEAS] = {
-//                                             {1, "RRC.ConnEstabAtt.sum", 0, FALSE},
-//                                             {2, "RRC.ConnEstabSucc.sum", 0, FALSE},
-//                                             {3, "RRC.ConnReEstabAtt.sum", 0, FALSE},
-//                                             {4, "RRC.ConnMean", 0, FALSE},
-//                                             {5, "RRC.ConnMax", 0, FALSE}
-//                                         };
 
 static ric_service_model_t e2sm_kpm_model = {
     .name = "e2sm_kpm-v2beta1",
@@ -211,11 +204,7 @@ int e2sm_kpm_init(void)
     E2SM_KPM_RIC_EventTriggerStyle_Item_KPMv2_t *ric_event_trigger_style_item;
     E2SM_KPM_RIC_KPMNode_Item_KPMv2_t *ric_kpm_node_item;
     E2SM_KPM_Cell_Measurement_Object_Item_KPMv2_t *cell_meas_object_item;
-    // E2SM_KPM_MeasurementInfo_Action_Item_KPMv2_t *meas_action_item1;
-    // E2SM_KPM_MeasurementInfo_Action_Item_KPMv2_t *meas_action_item2;
-    // E2SM_KPM_MeasurementInfo_Action_Item_KPMv2_t *meas_action_item3;
-    // E2SM_KPM_MeasurementInfo_Action_Item_KPMv2_t *meas_action_item4;
-    // E2SM_KPM_MeasurementInfo_Action_Item_KPMv2_t *meas_action_item5;
+
     // SECSM
     for (int i=0; i<MAX_UE_NUM; ++i) {
       prev_msg_counter[i] = 0;
