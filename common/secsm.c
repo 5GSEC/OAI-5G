@@ -200,6 +200,7 @@ struct nasMsg decodeNasMsgNR(uint8_t* buffer, uint32_t length) {
   struct timeval ts;
   gettimeofday(&ts, NULL);
   int64_t ts_ms = ts.tv_sec * 1000 + ts.tv_usec / 1000;
+  uint8_t offset = 0;
   
   if (discriminator == SGSmobilitymanagementmessages) {
     if (sec_header == notsecurityprotected) {
@@ -209,9 +210,24 @@ struct nasMsg decodeNasMsgNR(uint8_t* buffer, uint32_t length) {
       return nm;
     }
     else {
+      // further decode the next NAS header until find a plain NAS header
+      uint8_t SECURITY_PROTECTED_5GS_NAS_MESSAGE_HEADER_LENGTH = 7;
+      offset += SECURITY_PROTECTED_5GS_NAS_MESSAGE_HEADER_LENGTH;
+      if (offset < length) {
+        SGScommonHeader_t *next_header = (SGScommonHeader_t *) (buffer + offset);
+        discriminator = next_header->epd;
+        sec_header = next_header->sh;
+        msgId = next_header->mt;
+        if (sec_header == notsecurityprotected) {
+          // only decode non protected NAS 5G message
+          LOG_I(RRC, "[SECSM] NAS NR decoded: distriminator: %d, msgid: %d, timestamp: %ld\n", discriminator, msgId, ts_ms);
+          struct nasMsg nm = {discriminator, msgId, buffer, length, ts_ms, emm_cause};
+          return nm;
+        }
+      }
+
       // TODO decode 5G service request
       // TODO decode EMM cause
-      // TODO support NAS msg with multiple NAS headers, e.g., securitymodecommand
       // TODO handle ciphered NAS message in xApp
     }
 
