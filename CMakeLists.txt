@@ -771,6 +771,46 @@ include_directories("${OPENAIR2_DIR}/UTIL/OPT")
 include_directories("${OPENAIR2_DIR}/UTIL/OMV")
 include_directories("${OPENAIR_DIR}")
 
+# RAN SLICING: WARNING: DON'T USE THIS FEATURE AS THE SOURCE CODE MAY NOT BE COMPLETE
+#################
+add_boolean_option(ENABLE_RAN_SLICING False "Enable RAN Slicing" ON)
+if(ENABLE_RAN_SLICING)
+  message("RAN_SLICING module enabled")
+  # # E2SM_RSM_LIB
+  # set(E2SM_RSM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM_RSM)
+  # file(GLOB E2SM_RSM_source ${E2SM_RSM_DIR}/*.c)
+  # add_library(E2SM_RSM ${E2SM_RSM_source} ${E2SM_RSM_asn_source})
+  # set(E2SM_RSM_LIB E2SM_RSM)
+  # include_directories (${E2SM_RSM_DIR})
+  
+  ############################# E2SM_RSM_ASN 
+  #need to before E2AP due to headers included in e2ap_handler.c
+  set(RSM_ASN_VERS R01)
+
+  if (${RSM_ASN_VERS} STREQUAL R01)
+    set(E2SM_RSM_ASN_FILE e2sm-rsm-v1.asn)
+    set(E2SM_COMMON_ASN_FILE ORAN-WG3.E2SM-v02.00.asn)
+  endif (${RSM_ASN_VERS} STREQUAL R01)
+
+  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
+  set(E2SM_RSM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM-RSM)
+  set(E2SM_RSM_ASN_DIR ${E2SM_RSM_DIR}/MESSAGES/ASN1/${RSM_ASN_VERS})
+  set(E2SM_RSM_C_DIR ${asn1_generated_dir}/E2SM-RSM/)
+  set(ENV{ASN1C_PREFIX} "E2SM_RSM_")
+  file(MAKE_DIRECTORY ${E2SM_RSM_C_DIR})
+  execute_process(
+      COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_RSM_C_DIR} ${E2SM_RSM_ASN_DIR}/${E2SM_RSM_ASN_FILE} ${E2SM_RSM_ASN_DIR}/${E2SM_COMMON_ASN_FILE}
+      RESULT_VARIABLE ret)
+
+  file(GLOB E2SM_RSM_asn_source ${E2SM_RSM_C_DIR}/*.c)
+  add_library(E2SM_RSM_ASN ${E2SM_RSM_asn_source})
+  target_include_directories(E2SM_RSM_ASN PUBLIC ${E2SM_RSM_C_DIR})
+  set(E2SM_RSM_ASN_LIB E2SM_RSM_ASN)
+
+else()
+  set(E2SM_RSM_ASN_LIB "")
+endif()
+
 
 # O-RAN RIC Agent
 #################
@@ -846,7 +886,7 @@ if(ENABLE_RIC_AGENT)
 
   # Manage dependencies
   target_link_libraries(E2AP PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
-  target_include_directories(E2AP PUBLIC ${E2SM_KPM_DIR} ${E2SM_KPM_C_DIR})
+  target_include_directories(E2AP PUBLIC ${E2SM_KPM_DIR} ${E2SM_KPM_C_DIR} ${E2SM_RSM_C_DIR})
   target_include_directories(E2AP_ASN PUBLIC ${E2AP_C_DIR} ${E2SM_KPM_DIR})
   target_include_directories(E2SM_KPM_ASN PUBLIC ${E2SM_KPM_C_DIR})
   target_link_libraries(E2SM_KPM PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs asn1_f1ap E2AP_ASN E2AP)
@@ -860,22 +900,6 @@ else()
   set(E2AP_ASN_LIB "")
   set(E2AP_LIB "")
   set(E2SM_KPM_LIB "")
-endif()
-
-# RAN SLICING: WARNING: DON'T USE THIS FEATURE AS THE SOURCE CODE MAY NOT BE COMPLETE
-#################
-add_boolean_option(ENABLE_RAN_SLICING False "Enable RAN Slicing" ON)
-if(ENABLE_RAN_SLICING)
-  message("RAN_SLICING module enabled")
-  # E2SM_RSM_LIB
-  set(E2SM_RSM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM_RSM)
-  file(GLOB E2SM_RSM_source ${E2SM_RSM_DIR}/*.c)
-  add_library(E2SM_RSM ${E2SM_RSM_source} ${E2SM_RSM_asn_source})
-  set(E2SM_RSM_LIB E2SM_RSM)
-  include_directories (${E2SM_RSM_DIR})
-
-else()
-  set(E2SM_RSM_ASN_LIB "")
 endif()
 
 ###########
