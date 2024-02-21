@@ -809,12 +809,89 @@ endif()
 add_boolean_option(ENABLE_RAN_SLICING False "Enable RAN Slicing" ON)
 if(ENABLE_RAN_SLICING)
   message("RAN_SLICING module enabled")
-  # # E2SM_RSM_LIB
-  # set(E2SM_RSM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM_RSM)
-  # file(GLOB E2SM_RSM_source ${E2SM_RSM_DIR}/*.c)
-  # add_library(E2SM_RSM ${E2SM_RSM_source} ${E2SM_RSM_asn_source})
-  # set(E2SM_RSM_LIB E2SM_RSM)
-  # include_directories (${E2SM_RSM_DIR})
+
+  ############################# FLPT
+  add_list1_option(FLPT_VERSION V2 "FLPT MSG  protobuf  grammar version" V2 V3)
+  if (${FLPT_VERSION} STREQUAL "V2")
+    set (FLPTDIR V2)
+  elseif (${FLPT_VERSION} STREQUAL "V3")
+    set (FLPTDIR V3)
+  endif(${FLPT_VERSION} STREQUAL "V2")
+
+  set(FLPT_MSG_DIR ${OPENAIR2_DIR}/ENB_APP/MESSAGES/${FLPTDIR} )
+  set(FLPT_MSG_FILES
+    ${FLPT_MSG_DIR}/header.proto
+    ${FLPT_MSG_DIR}/flexran.proto
+    ${FLPT_MSG_DIR}/stats_common.proto
+    ${FLPT_MSG_DIR}/stats_messages.proto
+    ${FLPT_MSG_DIR}/time_common.proto
+    ${FLPT_MSG_DIR}/controller_commands.proto
+    ${FLPT_MSG_DIR}/mac_primitives.proto
+    ${FLPT_MSG_DIR}/config_messages.proto
+    ${FLPT_MSG_DIR}/config_common.proto
+    ${FLPT_MSG_DIR}/control_delegation.proto
+    )
+
+  set(protobuf_generated_dir ${OPENAIR_BIN_DIR})
+  set(FLPT_C_DIR ${protobuf_generated_dir}/FLPT_${FLPTDIR})
+  set(protoc_call "${OPENAIR_CMAKE}/tools/generate_protobuf")
+  execute_process(COMMAND ${protoc_call} ${FLPT_C_DIR} ${FLPT_MSG_DIR} ${FLPT_MSG_FILES})
+  file(GLOB FLPT_source ${FLPT_C_DIR}/*.c)
+  set(FLPT_OAI_generated
+    ${FLPT_C_DIR}/header.pb-c.c
+    ${FLPT_C_DIR}/flexran.pb-c.c
+    ${FLPT_C_DIR}/stats_common.pb-c.c
+    ${FLPT_C_DIR}/stats_messages.pb-c.c
+    ${FLPT_C_DIR}/time_common.pb-c.c
+    ${FLPT_C_DIR}/controller_commands.pb-c.c
+    ${FLPT_C_DIR}/mac_primitives.pb-c.c
+    ${FLPT_C_DIR}/config_messages.pb-c.c
+    ${FLPT_C_DIR}/config_common.pb-c.c
+    ${FLPT_C_DIR}/control_delegation.pb-c.c
+    )
+
+  file(GLOB flpt_h ${FLPT_C_DIR}/*.h)
+  set(flpt_h ${flpt_h} )
+
+  add_library(FLPT_MSG
+    ${FLPT_OAI_generated}
+    ${FLPT_source}
+  )
+set(FLPT_MSG_LIB FLPT_MSG)
+
+  ############################# ASYNC_IF
+  add_library(ASYNC_IF
+    ${OPENAIR2_DIR}/UTIL/ASYNC_IF/socket_link.c
+    ${OPENAIR2_DIR}/UTIL/ASYNC_IF/link_manager.c
+    ${OPENAIR2_DIR}/UTIL/ASYNC_IF/message_queue.c
+    ${OPENAIR2_DIR}/UTIL/ASYNC_IF/ringbuffer_queue.c
+    )
+  set(ASYNC_IF_LIB ASYNC_IF)
+  include_directories(${OPENAIR2_DIR}/UTIL/ASYNC_IF)
+  
+  ############################# FLEXRAN_AGENT
+  add_library(FLEXRAN_AGENT
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent_handler.c
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent_common.c
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent_ran_api.c
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent_timer.c
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent_common_internal.c
+    ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/PHY/flexran_agent_phy.c
+    ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/MAC/flexran_agent_mac.c
+    ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/RRC/flexran_agent_rrc.c
+    ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/RRC/flexran_agent_rrc_internal.c
+    ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/PDCP/flexran_agent_pdcp.c
+    ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/S1AP/flexran_agent_s1ap.c
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent.c
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent_task_manager.c
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent_net_comm.c
+    ${OPENAIR2_DIR}/ENB_APP/flexran_agent_async.c
+    ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/MAC/flexran_agent_mac_internal.c
+    ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/MAC/flexran_agent_mac_slice_verification.c
+    )
+  # add_dependencies(FLEXRAN_AGENT asn1_lte_rrc)
+  set(FLEXRAN_AGENT_LIB FLEXRAN_AGENT)
+  #include_directories(${OPENAIR2_DIR}/ENB_APP)
   
   ############################# E2SM_RSM_ASN 
   #need to before E2AP due to headers included in e2ap_handler.c
@@ -2317,7 +2394,7 @@ target_link_libraries(lte-softmodem PRIVATE
   lte_rrc nr_rrc s1ap m2ap x2ap m3ap GTPV1U SECURITY UTIL HASHTABLE SCTP_CLIENT MME_APP SCHED_LIB SCHED_RU_LIB
   PHY_COMMON PHY PHY_RU  L2 L2_LTE NFAPI_COMMON_LIB NFAPI_LIB NFAPI_VNF_LIB NFAPI_PNF_LIB NFAPI_USER_LIB MISC_NFAPI_LTE_LIB
   ${NAS_UE_LIB} ITTI SIMU SIMU_ETH
-  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
+  ${FLPT_MSG_LIB} ${ASYNC_IF_LIB} ${FLEXRAN_AGENT_LIB} ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_ASN_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
   -Wl,--end-group z dl)
 
 target_link_libraries(lte-softmodem PRIVATE pthread m CONFIG_LIB rt crypt ${CRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES} sctp)
