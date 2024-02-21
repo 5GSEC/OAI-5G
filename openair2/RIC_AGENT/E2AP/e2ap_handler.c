@@ -49,6 +49,11 @@
 #include "E2SM_RSM_E2SM-RSM-Command.h"
 #include "E2SM_RSM_E2SM-RSM-ControlMessage.h"
 #include "E2SM_RSM_E2SM-RSM-EventTriggerDefinition.h"
+#include "E2SM_RSM_E2SM-RSM-EventTriggerDefinition-Format1.h"
+#include "E2SM_RSM_SliceType.h"
+#include "E2SM_RSM_SliceConfig.h"
+#include "E2SM_RSM_SliceDelete.h"
+#include "E2SM_RSM_SliceAssociate.h"
 #endif
 #include "BIT_STRING.h"
 //#include "E2SM_KPM_Trigger-ConditionIE-Item.h"
