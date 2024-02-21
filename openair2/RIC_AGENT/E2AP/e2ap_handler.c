@@ -44,7 +44,7 @@
 #include "E2AP_RICsubsequentAction.h"
 #include "E2SM_KPM_E2SM-KPMv2-EventTriggerDefinition.h"
 #ifdef ENABLE_RAN_SLICING
-#include "f1ap_common.h"
+// #include "f1ap_common.h"
 #include "E2SM_RSM_E2SM-RSM-ControlHeader.h"
 #include "E2SM_RSM_E2SM-RSM-Command.h"
 #include "E2SM_RSM_E2SM-RSM-ControlMessage.h"
@@ -1025,23 +1025,23 @@ int du_e2ap_handle_ric_control_request(
                     switch(ctrlMsg->present) {
                     case E2SM_RSM_E2SM_RSM_ControlMessage_PR_sliceCreate:
                     {
-                      if ( (E2SM_RSM_SliceType_dlSlice == ctrlMsg->choice.sliceCreate.sliceType) ||
-                           (E2SM_RSM_SliceType_ulSlice == ctrlMsg->choice.sliceCreate.sliceType) )
+                      if ( (E2SM_RSM_SliceType_dlSlice == ctrlMsg->choice.sliceCreate->sliceType) ||
+                           (E2SM_RSM_SliceType_ulSlice == ctrlMsg->choice.sliceCreate->sliceType) )
                       {
                         ricSlicingApi.apiID = SLICE_CREATE_UPDATE_REQ;
                         ((sliceCreateUpdateReq *)ricSlicingApi.apiBuff)->sliceId =
-                                                ctrlMsg->choice.sliceCreate.sliceID;
+                                                ctrlMsg->choice.sliceCreate->sliceID;
                         ((sliceCreateUpdateReq *)ricSlicingApi.apiBuff)->timeSchd =
-                            *ctrlMsg->choice.sliceCreate.sliceConfigParameters.weight;
+                            *ctrlMsg->choice.sliceCreate->sliceConfigParameters.weight;
                         ((sliceCreateUpdateReq *)ricSlicingApi.apiBuff)->sliceType =
-                                                ctrlMsg->choice.sliceCreate.sliceType;
+                                                ctrlMsg->choice.sliceCreate->sliceType;
 
                         handle_slicing_api_req(&ricSlicingApi);
                       }
                       else
                       {
                         RIC_AGENT_ERROR("CreateSlice  INVALID SliceType:%ld\n",
-                                        ctrlMsg->choice.sliceCreate.sliceType);
+                                        ctrlMsg->choice.sliceCreate->sliceType);
                         rc.failure_cause = E2AP_CauseProtocol_unspecified;
 
                         if (req_instance_id_flag == 1)
@@ -1053,23 +1053,23 @@ int du_e2ap_handle_ric_control_request(
                     }
                     case E2SM_RSM_E2SM_RSM_ControlMessage_PR_sliceUpdate:
                     {
-                      if ( (E2SM_RSM_SliceType_dlSlice == ctrlMsg->choice.sliceUpdate.sliceType) ||
-                           (E2SM_RSM_SliceType_ulSlice == ctrlMsg->choice.sliceUpdate.sliceType) )
+                      if ( (E2SM_RSM_SliceType_dlSlice == ctrlMsg->choice.sliceUpdate->sliceType) ||
+                           (E2SM_RSM_SliceType_ulSlice == ctrlMsg->choice.sliceUpdate->sliceType) )
                       {
                         ricSlicingApi.apiID = SLICE_CREATE_UPDATE_REQ;
                         ((sliceCreateUpdateReq *)ricSlicingApi.apiBuff)->sliceId = 
-                                                ctrlMsg->choice.sliceUpdate.sliceID;
+                                                ctrlMsg->choice.sliceUpdate->sliceID;
                         ((sliceCreateUpdateReq *)ricSlicingApi.apiBuff)->timeSchd = 
-                            *ctrlMsg->choice.sliceUpdate.sliceConfigParameters.weight;
+                            *ctrlMsg->choice.sliceUpdate->sliceConfigParameters.weight;
                         ((sliceCreateUpdateReq *)ricSlicingApi.apiBuff)->sliceType =
-                                                ctrlMsg->choice.sliceUpdate.sliceType;
+                                                ctrlMsg->choice.sliceUpdate->sliceType;
 
                         handle_slicing_api_req(&ricSlicingApi);
                       }
                       else
                       {
                         RIC_AGENT_ERROR("UpdateSlice INVALID SliceType:%ld\n",
-                                        ctrlMsg->choice.sliceCreate.sliceType);
+                                        ctrlMsg->choice.sliceCreate->sliceType);
                         rc.failure_cause = E2AP_CauseProtocol_unspecified;
 
                         if (req_instance_id_flag == 1)
@@ -1084,9 +1084,9 @@ int du_e2ap_handle_ric_control_request(
                     {
                         ricSlicingApi.apiID = SLICE_DELETE_REQ;
                         ((sliceDeleteReq *)ricSlicingApi.apiBuff)->sliceId =
-                                                ctrlMsg->choice.sliceDelete.sliceID;
+                                                ctrlMsg->choice.sliceDelete->sliceID;
                         ((sliceDeleteReq *)ricSlicingApi.apiBuff)->sliceType =
-                                                ctrlMsg->choice.sliceDelete.sliceType;
+                                                ctrlMsg->choice.sliceDelete->sliceType;
 
                         handle_slicing_api_req(&ricSlicingApi);
                         break;
@@ -1096,18 +1096,18 @@ int du_e2ap_handle_ric_control_request(
                     {
                         ricSlicingApi.apiID = UE_SLICE_ASSOC_REQ;
 
-                        if ( ctrlMsg->choice.sliceAssociate.ueId.present == E2SM_RSM_UE_Identity_PR_duUeF1ApID)
+                        if ( ctrlMsg->choice.sliceAssociate->ueId.present == E2SM_RSM_UE_Identity_PR_duUeF1ApID)
                         {
                             ((ueSliceAssocReq *)ricSlicingApi.apiBuff)->sliceId =
-                                                ctrlMsg->choice.sliceAssociate.downLinkSliceID;
+                                                ctrlMsg->choice.sliceAssociate->downLinkSliceID;
                             ((ueSliceAssocReq *)ricSlicingApi.apiBuff)->rnti = 
                                                 f1ap_get_rnti_by_du_id(&f1ap_du_inst[0],
-                                                ctrlMsg->choice.sliceAssociate.ueId.choice.duUeF1ApID);
+                                                ctrlMsg->choice.sliceAssociate->ueId.choice.duUeF1ApID);
 
-                            if (ctrlMsg->choice.sliceAssociate.uplinkSliceID != NULL)
+                            if (ctrlMsg->choice.sliceAssociate->uplinkSliceID != NULL)
                             {
                                ((ueSliceAssocReq *)ricSlicingApi.apiBuff)->ulSliceId =
-                                                *ctrlMsg->choice.sliceAssociate.uplinkSliceID;
+                                                *ctrlMsg->choice.sliceAssociate->uplinkSliceID;
                             }
  
                             handle_slicing_api_req(&ricSlicingApi);
@@ -1115,7 +1115,7 @@ int du_e2ap_handle_ric_control_request(
                         else
                         {
                             RIC_AGENT_ERROR("INVALID UE-ID:%d received during UE:SLICE assoc\n",
-                                        ctrlMsg->choice.sliceAssociate.ueId.present);
+                                        ctrlMsg->choice.sliceAssociate->ueId.present);
                             rc.failure_cause = E2AP_CauseProtocol_unspecified;
 
                             if (req_instance_id_flag == 1)
@@ -1261,7 +1261,7 @@ int du_e2ap_handle_message(
             };
             break;
         case E2AP_E2AP_PDU_PR_unsuccessfulOutcome:
-            switch (pdu.choice.unsuccessfulOutcome.procedureCode) {
+            switch (pdu.choice.unsuccessfulOutcome->procedureCode) {
                 case E2AP_ProcedureCode_id_E2setup:
                     ret = e2ap_handle_e2_setup_failure(ric->ranid, stream, &pdu);
                     break;
