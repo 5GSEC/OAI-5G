@@ -28,6 +28,7 @@
 #ifndef _E2SM_RSM_H_
 #define _E2SM_RSM_H_
 
+#include "rrc_messages_types.h"
 
 extern int e2sm_rsm_init(e2node_type_t e2node_type);
 

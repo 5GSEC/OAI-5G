@@ -33,6 +33,10 @@
 
 #ifdef ENABLE_RAN_SLICING
 #include "e2sm_rsm.h"
+#include "intertask_interface.h"
+#include "ran_context.h"
+#include "rrc_defs.h"
+#include "nr_rrc_defs.h"
 #endif
 
 du_ric_agent_info_t **du_ric_agent_info;
@@ -92,7 +96,7 @@ static void du_ric_agent_disconnect(du_ric_agent_info_t *ric)
     MessageDef *msg;
     sctp_close_association_t *sctp_close_association;
 
-    msg = itti_alloc_new_message(TASK_RIC_AGENT_DU, SCTP_CLOSE_ASSOCIATION);
+    msg = itti_alloc_new_message(TASK_RIC_AGENT_DU, 0, SCTP_CLOSE_ASSOCIATION);
     sctp_close_association = &msg->ittiMsg.sctp_close_association;
     sctp_close_association->assoc_id = ric->du_assoc_id;
 
@@ -113,17 +117,17 @@ static int du_ric_agent_handle_sctp_new_association_resp(
 
     DevAssert(resp != NULL);
 
-    RIC_AGENT_INFO("new sctp assoc resp %d, sctp_state %d for nb %u\n", resp->assoc_id, resp->sctp_state, instance);
+    RIC_AGENT_INFO("new sctp assoc resp %d, sctp_state %d for nb %ld\n", resp->assoc_id, resp->sctp_state, instance);
 
     if (resp->sctp_state != SCTP_STATE_ESTABLISHED) {
         if (du_ric_agent_info[instance] != NULL) {
-            RIC_AGENT_INFO("resetting RIC connection %u\n", instance);
+            RIC_AGENT_INFO("resetting RIC connection %ld\n", instance);
             //timer_remove(du_ric_agent_info[instance]->e2sm_kpm_timer_id);
             //ric_agent_info[instance]->e2sm_kpm_timer_id = 0;
             du_ric_agent_info[instance]->du_assoc_id = -1;
             timer_setup(5, 0, TASK_RIC_AGENT_DU, instance, TIMER_PERIODIC, NULL, &du_ric_agent_info[instance]->du_ric_connect_timer_id);
         } else {
-            RIC_AGENT_ERROR("invalid nb/instance %u in sctp_new_association_resp\n", instance);
+            RIC_AGENT_ERROR("invalid nb/instance %ld in sctp_new_association_resp\n", instance);
             return -1;
         }
         return 0;
@@ -136,11 +140,11 @@ static int du_ric_agent_handle_sctp_new_association_resp(
     }
     */
 
-    RIC_AGENT_INFO("new sctp assoc resp %d for nb %u\n", resp->assoc_id, instance);
+    RIC_AGENT_INFO("new sctp assoc resp %d for nb %ld\n", resp->assoc_id, instance);
 
     ric = du_ric_agent_get_info(instance, -1);
     if (ric == NULL) {
-        RIC_AGENT_ERROR("du_ric_agent_handle_sctp_new_association_resp: ric agent info not found %u\n", instance);
+        RIC_AGENT_ERROR("du_ric_agent_handle_sctp_new_association_resp: ric agent info not found %ld\n", instance);
         return -1;
     }
 
@@ -192,7 +196,7 @@ static int du_ric_agent_connect(ranid_t ranid)
         return -1;
     }
 
-    msg = itti_alloc_new_message(TASK_RIC_AGENT_DU, SCTP_NEW_ASSOCIATION_REQ);
+    msg = itti_alloc_new_message(TASK_RIC_AGENT_DU, 0, SCTP_NEW_ASSOCIATION_REQ);
     req = &msg->ittiMsg.sctp_new_association_req;
 
     req->ppid = E2AP_SCTP_PPID;
@@ -241,7 +245,7 @@ static void du_ric_agent_handle_timer_expiry(
     {
         du_ric_agent_connect(instance);
     } else {
-        RIC_AGENT_INFO("invalid timer expiry instance %u timer_id %ld", instance, timer_id);
+        RIC_AGENT_INFO("invalid timer expiry instance %ld timer_id %ld", instance, timer_id);
     }
     DevAssert(ret == 0);
 }
@@ -256,7 +260,7 @@ static void du_ric_agent_send_sctp_data(
     MessageDef *msg;
     sctp_data_req_t *sctp_data_req;
 
-    msg = itti_alloc_new_message(TASK_RIC_AGENT_DU, SCTP_DATA_REQ);
+    msg = itti_alloc_new_message(TASK_RIC_AGENT_DU, 0, SCTP_DATA_REQ);
     sctp_data_req = &msg->ittiMsg.sctp_data_req;
 
     sctp_data_req->assoc_id = du_assoc_id;
@@ -283,11 +287,11 @@ static void du_ric_agent_handle_sctp_data_ind(
 
     ric = du_ric_agent_get_info(instance, ind->assoc_id);
     if (ric == NULL) {
-        RIC_AGENT_ERROR("ric_agent_handle_sctp_data_ind: ric agent info not found %u\n", instance);
+        RIC_AGENT_ERROR("ric_agent_handle_sctp_data_ind: ric agent info not found %ld\n", instance);
         return;
     }
 
-    RIC_AGENT_DEBUG("sctp_data_ind instance %u assoc %d", instance, ind->assoc_id);
+    RIC_AGENT_DEBUG("sctp_data_ind instance %ld assoc %d", instance, ind->assoc_id);
 
     du_e2ap_handle_message(ric, ind->stream, ind->buffer, ind->buffer_length, outbuf, outlen, du_assoc_id);
 
@@ -389,7 +393,7 @@ void *du_ric_agent_task(void *args)
         du_ric_agent_info_t *ric = du_ric_agent_info[instance];
         //sctp_data_ind_t *ind = &msg->ittiMsg.sctp_data_ind;
         // ric_agent_info_t *ric = ric_agent_get_info(instance, ind->assoc_id);
-        AssertFatal(ric != NULL, "ric agent info not found %u\n", instance);
+        AssertFatal(ric != NULL, "ric agent info not found %ld\n", instance);
         AssertFatal(du_assoc_id != 0, "Association ID not updated %u\n", du_assoc_id);
         du_ric_agent_send_sctp_data(ric, 0, outbuf, outlen, du_assoc_id);
         outlen = 0;
