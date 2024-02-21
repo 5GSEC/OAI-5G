@@ -44,7 +44,7 @@
 #include "E2AP_RICsubsequentAction.h"
 #include "E2SM_KPM_E2SM-KPMv2-EventTriggerDefinition.h"
 #ifdef ENABLE_RAN_SLICING
-// #include "f1ap_common.h"
+#include "f1ap_common.h"
 #include "E2SM_RSM_E2SM-RSM-ControlHeader.h"
 #include "E2SM_RSM_E2SM-RSM-Command.h"
 #include "E2SM_RSM_E2SM-RSM-ControlMessage.h"
@@ -1106,7 +1106,7 @@ int du_e2ap_handle_ric_control_request(
                             ((ueSliceAssocReq *)ricSlicingApi.apiBuff)->sliceId =
                                                 ctrlMsg->choice.sliceAssociate->downLinkSliceID;
                             ((ueSliceAssocReq *)ricSlicingApi.apiBuff)->rnti = 
-                                                f1ap_get_rnti_by_du_id(&f1ap_du_inst[0],
+                                                f1ap_get_rnti_by_du_id(DUtype, 0, // &f1ap_du_inst[0],
                                                 ctrlMsg->choice.sliceAssociate->ueId.choice.duUeF1ApID);
 
                             if (ctrlMsg->choice.sliceAssociate->uplinkSliceID != NULL)
