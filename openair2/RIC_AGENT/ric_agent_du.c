@@ -331,13 +331,13 @@ void *du_ric_agent_task(void *args)
     switch (ITTI_MSG_ID(msg)) 
     {
       case SCTP_NEW_ASSOCIATION_IND:
-          RIC_AGENT_INFO("Received SCTP_NEW_ASSOCIATION_IND for instance %d\n",
-                  ITTI_MESSAGE_GET_INSTANCE(msg));
+          RIC_AGENT_INFO("Received SCTP_NEW_ASSOCIATION_IND for instance %ld\n",
+                  ITTI_MSG_DESTINATION_INSTANCE(msg));
           break;
 
       case SCTP_NEW_ASSOCIATION_RESP:
           du_ric_agent_handle_sctp_new_association_resp(
-                  ITTI_MESSAGE_GET_INSTANCE(msg),
+                  ITTI_MSG_DESTINATION_INSTANCE(msg),
                   &msg->ittiMsg.sctp_new_association_resp,
                   &outbuf,
                   &outlen,
@@ -346,7 +346,7 @@ void *du_ric_agent_task(void *args)
 
       case SCTP_DATA_IND:
           du_ric_agent_handle_sctp_data_ind(
-                  ITTI_MESSAGE_GET_INSTANCE(msg),
+                  ITTI_MSG_DESTINATION_INSTANCE(msg),
                   &msg->ittiMsg.sctp_data_ind,
                   &outbuf,
                   &outlen,
@@ -364,7 +364,7 @@ void *du_ric_agent_task(void *args)
 
       case TIMER_HAS_EXPIRED:
           du_ric_agent_handle_timer_expiry(
-                  ITTI_MESSAGE_GET_INSTANCE(msg),
+                  ITTI_MSG_DESTINATION_INSTANCE(msg),
                   TIMER_HAS_EXPIRED(msg).timer_id,
                   TIMER_HAS_EXPIRED(msg).arg,
                   &outbuf,
@@ -372,8 +372,8 @@ void *du_ric_agent_task(void *args)
           break;
 
       case DU_SLICE_API_RESP:
-          RIC_AGENT_INFO("Received DU_SLICE_API_RESP for instance %d\n",
-                  ITTI_MESSAGE_GET_INSTANCE(msg));
+          RIC_AGENT_INFO("Received DU_SLICE_API_RESP for instance %ld\n",
+                  ITTI_MSG_DESTINATION_INSTANCE(msg));
           du_e2ap_prepare_ric_control_response(
                   du_ric_agent_info[0],
                   &msg->ittiMsg.du_slice_api_resp, 
@@ -389,7 +389,7 @@ void *du_ric_agent_task(void *args)
     }
     
     if (outlen) {
-        instance_t instance = ITTI_MESSAGE_GET_INSTANCE(msg);
+        instance_t instance = ITTI_MSG_DESTINATION_INSTANCE(msg);
         du_ric_agent_info_t *ric = du_ric_agent_info[instance];
         //sctp_data_ind_t *ind = &msg->ittiMsg.sctp_data_ind;
         // ric_agent_info_t *ric = ric_agent_get_info(instance, ind->assoc_id);
