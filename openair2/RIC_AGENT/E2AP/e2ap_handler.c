@@ -102,7 +102,7 @@ int du_e2ap_handle_e2_setup_response(du_ric_agent_info_t *ric,uint32_t stream,
     E2AP_E2setupResponseIEs_t *rie,**ptr;
 
     DevAssert(pdu != NULL);
-    resp = &pdu->choice.successfulOutcome.value.choice.E2setupResponse;
+    resp = &pdu->choice.successfulOutcome->value.choice.E2setupResponse;
     
     RIC_AGENT_INFO("Received E2SetupResponse (ranid %u)\n",ric->ranid);
 

@@ -43,6 +43,14 @@
 #include "E2SM_RSM_E2SM-RSM-IndicationMessage-Format2.h"
 #include "E2SM_RSM_E2SM-RSM-IndicationMessage.h"
 #include "E2SM_RSM_Bearer-ID.h"
+// Patched headers
+#include "E2SM_RSM_E2SM-RSM-IndicationHeader-Format1.h"
+#include "E2SM_RSM_E2SM-RSM-IndicationHeader-Format1.h"
+#include "E2SM_RSM_CGI.h"
+#include "E2SM_RSM_EUTRA-CGI.h"
+#include "E2SM_RSM_PLMNIdentity.h"
+#include "E2SM_RSM_Drb-ID.h"
+#include "E2SM_RSM_FourG-Drb-ID.h"
 
 static int e2sm_rsm_subscription_add(ric_agent_info_t *ric, ric_subscription_t *sub);
 static int e2sm_rsm_subscription_del(ric_agent_info_t *ric, ric_subscription_t *sub, int force,long *cause,long *cause_detail);
@@ -195,7 +203,7 @@ void encode_e2sm_rsm_indication_header(ranid_t ranid, E2SM_RSM_E2SM_RSM_Indicati
     e2node_type_t node_type;
     ihead->present = E2SM_RSM_E2SM_RSM_IndicationHeader_PR_indicationHeader_Format1;
     
-    E2SM_RSM_E2SM_RSM_IndicationHeader_Format1_t* ind_header = &ihead->choice.indicationHeader_Format1;
+    E2SM_RSM_E2SM_RSM_IndicationHeader_Format1_t* ind_header = ihead->choice.indicationHeader_Format1;
     
     node_type = e2_conf[ranid]->e2node_type;
     
@@ -206,14 +214,14 @@ void encode_e2sm_rsm_indication_header(ranid_t ranid, E2SM_RSM_E2SM_RSM_Indicati
                 e2_conf[ranid]->mcc,
                 e2_conf[ranid]->mnc,
                 e2_conf[ranid]->mnc_digit_length,
-                &ind_header->cgi.choice.eUTRA_CGI.pLMNIdentity);
+                &ind_header->cgi.choice.eUTRA_CGI->pLMNIdentity);
     //printf("mcc:%d mnc:%d len:%d plmnId:%s\n", e2_conf[ranid]->mcc, e2_conf[ranid]->mnc, e2_conf[ranid]->mnc_digit_length,ind_header->cgi.choice.eUTRA_CGI.pLMNIdentity.buf);
         ind_header->cgi.present = E2SM_RSM_CGI_PR_eUTRA_CGI;
             
         //MACRO_ENB_ID_TO_BIT_STRING(
         MACRO_ENB_ID_TO_CELL_IDENTITY(
                 e2_conf[ranid]->cell_identity,0,
-                &ind_header->cgi.choice.eUTRA_CGI.eUTRACellIdentity);
+                &ind_header->cgi.choice.eUTRA_CGI->eUTRACellIdentity);
     //printf("cellid:%d eutraCellId:%s\n", e2_conf[ranid]->cell_identity, ind_header->cgi.choice.eUTRA_CGI.eUTRACellIdentity.buf);
     }
 
@@ -243,7 +251,7 @@ encode_rsm_Indication_Msg(ric_agent_info_t* ric, ric_subscription_t *rs, ueStatu
 
         rsm_ue_id[0] = (E2SM_RSM_UE_Identity_t *)calloc(1, sizeof(E2SM_RSM_UE_Identity_t));
         rsm_ue_id[0]->present = E2SM_RSM_UE_Identity_PR_cuUeF1ApID;
-        rsm_ue_id[0]->choice.cuUeF1ApID = f1ap_get_cu_ue_f1ap_id(&f1ap_cu_inst[0],//emmTriggerBuff->cu_ue_f1ap_id;
+        rsm_ue_id[0]->choice.cuUeF1ApID = f1ap_get_cu_ue_f1ap_id(CUtype, 0,//emmTriggerBuff->cu_ue_f1ap_id;
                                                                  emmTriggerBuff->rnti);
     //RIC_AGENT_INFO("cuUeF1ApID:%lu %lu %u\n",rsm_ue_id[0]->choice.cuUeF1ApID, rs->instance_id, emmTriggerBuff->rnti);
         ret = ASN_SEQUENCE_ADD(&format->ueIDlist.list, rsm_ue_id[0]);
@@ -251,7 +259,7 @@ encode_rsm_Indication_Msg(ric_agent_info_t* ric, ric_subscription_t *rs, ueStatu
 
         rsm_ue_id[1] = (E2SM_RSM_UE_Identity_t *)calloc(1, sizeof(E2SM_RSM_UE_Identity_t));
         rsm_ue_id[1]->present = E2SM_RSM_UE_Identity_PR_duUeF1ApID;
-        rsm_ue_id[1]->choice.duUeF1ApID = f1ap_get_du_ue_f1ap_id(&f1ap_cu_inst[0],//emmTriggerBuff->du_ue_f1ap_id;
+        rsm_ue_id[1]->choice.duUeF1ApID = f1ap_get_du_ue_f1ap_id(DUtype, 0,//emmTriggerBuff->du_ue_f1ap_id;
                                                                  emmTriggerBuff->rnti);
     //RIC_AGENT_INFO("duUeF1ApID:%lu %lu %u\n",rsm_ue_id[1]->choice.duUeF1ApID, rs->instance_id, emmTriggerBuff->rnti);
         ret = ASN_SEQUENCE_ADD(&format->ueIDlist.list, rsm_ue_id[1]);
@@ -269,9 +277,9 @@ encode_rsm_Indication_Msg(ric_agent_info_t* ric, ric_subscription_t *rs, ueStatu
 
         E2SM_RSM_Bearer_ID_t* rsm_bearer_info = (E2SM_RSM_Bearer_ID_t *)calloc(1, sizeof(E2SM_RSM_Bearer_ID_t));
         rsm_bearer_info->present = E2SM_RSM_Bearer_ID_PR_drbID;
-        rsm_bearer_info->choice.drbID.present = E2SM_RSM_Drb_ID_PR_fourGDrbID;
-        rsm_bearer_info->choice.drbID.choice.fourGDrbID.value = emmTriggerBuff->e_rab_id; 
-        rsm_bearer_info->choice.drbID.choice.fourGDrbID.qci = emmTriggerBuff->qci;
+        rsm_bearer_info->choice.drbID->present = E2SM_RSM_Drb_ID_PR_fourGDrbID;
+        rsm_bearer_info->choice.drbID->choice.fourGDrbID->value = emmTriggerBuff->e_rab_id; 
+        rsm_bearer_info->choice.drbID->choice.fourGDrbID->qci = emmTriggerBuff->qci;
 
         format->bearerID = (struct E2SM_RSM_E2SM_RSM_IndicationMessage_Format2__bearerID *)calloc(1, 
                                             sizeof(struct E2SM_RSM_E2SM_RSM_IndicationMessage_Format2__bearerID));
@@ -293,9 +301,9 @@ encode_rsm_Indication_Msg(ric_agent_info_t* ric, ric_subscription_t *rs, ueStatu
         E2SM_RSM_Bearer_ID_t* rsm_bearer_info = (E2SM_RSM_Bearer_ID_t *)calloc(1, sizeof(E2SM_RSM_Bearer_ID_t));
         //rsm_bearer_info->present = E2SM_RSM_Bearer_ID_PR_NOTHING;
         rsm_bearer_info->present = E2SM_RSM_Bearer_ID_PR_drbID;
-        rsm_bearer_info->choice.drbID.present = E2SM_RSM_Drb_ID_PR_fourGDrbID;
-        rsm_bearer_info->choice.drbID.choice.fourGDrbID.value = emmTriggerBuff->e_rab_id;
-        rsm_bearer_info->choice.drbID.choice.fourGDrbID.qci = emmTriggerBuff->qci;
+        rsm_bearer_info->choice.drbID->present = E2SM_RSM_Drb_ID_PR_fourGDrbID;
+        rsm_bearer_info->choice.drbID->choice.fourGDrbID->value = emmTriggerBuff->e_rab_id;
+        rsm_bearer_info->choice.drbID->choice.fourGDrbID->qci = emmTriggerBuff->qci;
 
         format->bearerID = (struct E2SM_RSM_E2SM_RSM_IndicationMessage_Format2__bearerID *)calloc(1,
                                             sizeof(struct E2SM_RSM_E2SM_RSM_IndicationMessage_Format2__bearerID));
@@ -309,7 +317,7 @@ encode_rsm_Indication_Msg(ric_agent_info_t* ric, ric_subscription_t *rs, ueStatu
     E2SM_RSM_E2SM_RSM_IndicationMessage_t* indicationmessage = 
                                 (E2SM_RSM_E2SM_RSM_IndicationMessage_t*)calloc(1, sizeof(E2SM_RSM_E2SM_RSM_IndicationMessage_t));
     indicationmessage->present = E2SM_RSM_E2SM_RSM_IndicationMessage_PR_indicationMessage_Format2;
-    indicationmessage->choice.indicationMessage_Format2 = *format;
+    indicationmessage->choice.indicationMessage_Format2 = format;
     
     return indicationmessage;
 }
