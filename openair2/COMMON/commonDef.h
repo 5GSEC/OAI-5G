@@ -43,6 +43,18 @@ Description Contains global common definitions
 #include <stddef.h>
 #include <stdbool.h>
 
+typedef signed char        boolean_t;
+
+#if !defined(TRUE)
+#define TRUE               (boolean_t)0x01
+#endif
+
+#if !defined(FALSE)
+#define FALSE              (boolean_t)0x00
+#endif
+
+#define BOOL_NOT(b) (b^TRUE)
+
 #define NAS_UE_ID_FMT "0x%06x"
 
 /****************************************************************************/
