@@ -412,6 +412,88 @@ void terminate_task(module_id_t mod_id, task_id_t from, task_id_t to) {
 extern void  free_transport(PHY_VARS_eNB *);
 extern void  phy_free_RU(RU_t *);
 
+int stop_L1L2(module_id_t enb_id) {
+  LOG_W(ENB_APP, "stopping lte-softmodem\n");
+
+  if (!RC.ru) {
+    LOG_UI(ENB_APP, "no RU configured\n");
+    return -1;
+  }
+
+  /* these tasks need to pick up new configuration */
+  terminate_task(enb_id, TASK_ENB_APP, TASK_RRC_ENB);
+  oai_exit = 1;
+  LOG_I(ENB_APP, "calling kill_RU_proc() for instance %d\n", enb_id);
+  kill_RU_proc(RC.ru[enb_id]);
+  LOG_I(ENB_APP, "calling kill_eNB_proc() for instance %d\n", enb_id);
+  kill_eNB_proc(enb_id);
+  oai_exit = 0;
+
+  for (int cc_id = 0; cc_id < RC.nb_CC[enb_id]; cc_id++) {
+    free_transport(RC.eNB[enb_id][cc_id]);
+    phy_free_lte_eNB(RC.eNB[enb_id][cc_id]);
+  }
+
+  phy_free_RU(RC.ru[enb_id]);
+  free_lte_top();
+  return 0;
+}
+
+/*
+ * Restart the lte-softmodem after it has been soft-stopped with stop_L1L2()
+ */
+int restart_L1L2(module_id_t enb_id) {
+  RU_t *ru = RC.ru[enb_id];
+  int cc_id;
+  MessageDef *msg_p = NULL;
+  LOG_W(ENB_APP, "restarting lte-softmodem\n");
+  /* block threads */
+  pthread_mutex_lock(&sync_mutex);
+  sync_var = -1;
+  pthread_mutex_unlock(&sync_mutex);
+
+  for (cc_id = 0; cc_id < RC.nb_L1_CC[enb_id]; cc_id++) {
+    RC.eNB[enb_id][cc_id]->configured = 0;
+  }
+
+  RC.ru_mask |= (1 << ru->idx);
+  /* copy the changed frame parameters to the RU */
+  /* TODO this should be done for all RUs associated to this eNB */
+  memcpy(&ru->frame_parms, &RC.eNB[enb_id][0]->frame_parms, sizeof(LTE_DL_FRAME_PARMS));
+  set_function_spec_param(RC.ru[enb_id]);
+  /* reset the list of connected UEs in the MAC, since in this process with
+   * loose all UEs (have to reconnect) */
+  init_UE_info(&RC.mac[enb_id]->UE_info);
+  LOG_I(ENB_APP, "attempting to create ITTI tasks\n");
+
+  if (itti_create_task (TASK_RRC_ENB, rrc_enb_task, NULL) < 0) {
+    LOG_E(RRC, "Create task for RRC eNB failed\n");
+    return -1;
+  } else {
+    LOG_I(RRC, "Re-created task for RRC eNB successfully\n");
+  }
+
+  /* pass a reconfiguration request which will configure everything down to
+   * RC.eNB[i][j]->frame_parms, too */
+  msg_p = itti_alloc_new_message(TASK_ENB_APP, 0, RRC_CONFIGURATION_REQ);
+  RRC_CONFIGURATION_REQ(msg_p) = RC.rrc[enb_id]->configuration;
+  itti_send_msg_to_task(TASK_RRC_ENB, ENB_MODULE_ID_TO_INSTANCE(enb_id), msg_p);
+  /* TODO XForms might need to be restarted, but it is currently (09/02/18)
+   * broken, so we cannot test it */
+  wait_eNBs();
+  init_RU_proc(ru);
+  ru->rf_map.card = 0;
+  ru->rf_map.chain = 0; /* CC_id + chain_offset;*/
+  wait_RUs();
+  init_eNB_afterRU();
+  printf("Sending sync to all threads\n");
+  pthread_mutex_lock(&sync_mutex);
+  sync_var=0;
+  pthread_cond_broadcast(&sync_cond);
+  pthread_mutex_unlock(&sync_mutex);
+  return 0;
+}
+
 static void init_pdcp(void)
 {
   pdcp_layer_init();

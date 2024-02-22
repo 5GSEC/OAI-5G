@@ -486,6 +486,14 @@ void terminate_task(task_id_t task_id, module_id_t mod_id) {
   itti_send_msg_to_task (task_id, ENB_MODULE_ID_TO_INSTANCE(mod_id), msg);
 }
 
+int stop_L1L2(module_id_t enb_id) {
+  return 0;
+}
+
+
+int restart_L1L2(module_id_t enb_id) {
+  return 0;
+}
 
 static inline void wait_nfapi_init(char *thread_name) {
   printf( "waiting for NFAPI PNF connection and population of global structure (%s)\n",thread_name);

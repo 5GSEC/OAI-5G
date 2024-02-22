@@ -207,4 +207,7 @@ void ru_fep_full_2thread(RU_t *ru,int subframe);
 void feptx_ofdm(RU_t*ru, int frame_tx, int tti_tx);
 void feptx_prec(struct RU_t_s *ru, int frame_tx, int tti_tx);
 void fill_rf_config(RU_t *ru, char *rf_config_file);
+
+extern int stop_L1L2(module_id_t enb_id);
+extern int restart_L1L2(module_id_t enb_id);
 #endif
