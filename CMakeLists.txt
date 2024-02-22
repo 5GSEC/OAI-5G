@@ -770,6 +770,8 @@ include_directories("${OPENAIR2_DIR}/UTIL/CLI")
 include_directories("${OPENAIR2_DIR}/UTIL/OPT")
 include_directories("${OPENAIR2_DIR}/UTIL/OMV")
 include_directories("${OPENAIR_DIR}")
+include_directories("${OPENAIR2_DIR}/UTIL/LFDS/liblfds6.1.1/liblfds611/inc")
+include_directories("${OPENAIR2_DIR}/UTIL/LFDS/liblfds7.0.0/liblfds700/inc")
 
 # E2AP
 add_boolean_option(ENABLE_RIC_AGENT False "Enable O-RAN RIC agent" ON)
@@ -863,7 +865,46 @@ if(ENABLE_RAN_SLICING)
     ${FLPT_OAI_generated}
     ${FLPT_source}
   )
-set(FLPT_MSG_LIB FLPT_MSG)
+  set(FLPT_MSG_LIB FLPT_MSG)
+
+  # Make lfds as a own source code (even if it is a outside library)
+  # For better intergration with compilation flags & structure of cmake
+  ###################################################################
+  set(lfds_hdrs ${OPENAIR2_DIR}/UTIL/LFDS/liblfds6.1.1/liblfds611/inc/)
+  set(lfds ${OPENAIR2_DIR}/UTIL/LFDS/liblfds6.1.1/liblfds611/src/)
+  file(GLOB lfds_queue ${lfds}/lfds611_queue/*.c)
+  file(GLOB lfds_ring ${lfds}/lfds611_ringbuffer/*.c)
+  file(GLOB lfds_slist ${lfds}/lfds611_slist/*.c)
+  file(GLOB lfds_stack ${lfds}/lfds611_stack/*.c)
+  file(GLOB lfds_freelist ${lfds}/lfds611_freelist/*.c)
+
+  include_directories(${lfds})
+  add_library(LFDS
+    ${lfds_queue} ${lfds_ring} ${lfds_slist} ${lfds_stack} ${lfds_freelist}
+    ${lfds}/lfds611_liblfds/lfds611_liblfds_abstraction_test_helpers.c
+    ${lfds}/lfds611_liblfds/lfds611_liblfds_aligned_free.c
+    ${lfds}/lfds611_liblfds/lfds611_liblfds_aligned_malloc.c
+    ${lfds}/lfds611_abstraction/lfds611_abstraction_free.c
+    ${lfds}/lfds611_abstraction/lfds611_abstraction_malloc.c
+  )
+
+  set(lfds7_hdrs ${OPENAIR2_DIR}/UTIL/LFDS/liblfds7.0.0/liblfds700/inc/)
+  set(lfds7 ${OPENAIR2_DIR}/UTIL/LFDS/liblfds7.0.0/liblfds700/src/)
+  file(GLOB lfds7_queue ${lfds7}/lfds700_queue/*.c)
+  file(GLOB lfds7_ring ${lfds7}/lfds700_ringbuffer/*.c)
+  file(GLOB lfds7_qbss ${lfds7}/lfds700_queue_bounded_singleconsumer_singleproducer/*.c)
+  file(GLOB lfds7_stack ${lfds7}/lfds700_stack/*.c)
+  file(GLOB lfds7_freelist ${lfds7}/lfds700_freelist/*.c)
+  file(GLOB lfds7_btree ${lfds7}/lfds700_btree_addonly_unbalanced/*.c)
+  file(GLOB lfds7_hash ${lfds7}/lfds700_hash_addonly/*.c)
+  file(GLOB lfds7_ordered_list ${lfds7}/lfds700_list_addonly_ordered_singlylinked/*.c)
+  file(GLOB lfds7_unordered_list ${lfds7}/lfds700_list_addonly_singlylinked_unordered/*.c)
+  file(GLOB lfds7_misc ${lfds7}/lfds700_misc/*.c)
+
+  include_directories(${lfds7})
+  add_library(LFDS7
+    ${lfds7_queue} ${lfds7_ring} ${lfds7_qbss} ${lfds7_stack} ${lfds7_freelist} ${lfds7_btree} ${lfds7_hash} ${lfds7_ordered_list} ${lfds7_unordered_list} ${lfds7_misc}
+  )
 
   ############################# ASYNC_IF
   add_library(ASYNC_IF
@@ -873,7 +914,7 @@ set(FLPT_MSG_LIB FLPT_MSG)
     ${OPENAIR2_DIR}/UTIL/ASYNC_IF/ringbuffer_queue.c
     )
   set(ASYNC_IF_LIB ASYNC_IF)
-  include_directories(${OPENAIR2_DIR}/UTIL/ASYNC_IF)
+  include_directories(${OPENAIR2_DIR}/UTIL/ASYNC_IF ${lfds7_hdrs})
   
   ############################# FLEXRAN_AGENT
   add_library(FLEXRAN_AGENT
