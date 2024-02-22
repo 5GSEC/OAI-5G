@@ -80,6 +80,8 @@ typedef struct {
   int *nb_L1_CC;
   /// Number of RU instances in this node
   int nb_RU;
+  /// FlexRAN context variables
+  flexran_agent_info_t **flexran;
   /// eNB context variables
   struct PHY_VARS_eNB_s ***eNB;
   /// gNB context variables
