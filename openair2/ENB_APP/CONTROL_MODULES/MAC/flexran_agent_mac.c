@@ -2079,11 +2079,13 @@ void check_slicing_update(mid_t mod_id)
     return;
   }
 
-  MessageDef *m = itti_alloc_new_message(TASK_MAC_ENB, DU_SLICE_API_RESP);
-  DU_SLICE_API_RESP(m).apiID = DURespToRic.apiID;
-  DU_SLICE_API_RESP(m).apiSize = DURespToRic.apiSize;
-  memcpy(DU_SLICE_API_RESP(m).apiBuff, DURespToRic.apiBuff, DURespToRic.apiSize);
-  itti_send_msg_to_task(TASK_RIC_AGENT_DU,ENB_MODULE_ID_TO_INSTANCE(mod_id),m);
+  // Temporally disable this part due to legact taks TASK_MAC_ENB
+  // MessageDef *m = itti_alloc_new_message(TASK_MAC_ENB, DU_SLICE_API_RESP);
+  // DU_SLICE_API_RESP(m).apiID = DURespToRic.apiID;
+  // DU_SLICE_API_RESP(m).apiSize = DURespToRic.apiSize;
+  // memcpy(DU_SLICE_API_RESP(m).apiBuff, DURespToRic.apiBuff, DURespToRic.apiSize);
+  // itti_send_msg_to_task(TASK_RIC_AGENT_DU,ENB_MODULE_ID_TO_INSTANCE(mod_id),m);
+
 #if 0
   bytesSent = sendto(g_duSocket, (void *)&DURespToRic, sizeof(DURespToRic),0,
              (struct sockaddr *)&g_RicAddr, g_addr_size);
