@@ -773,6 +773,7 @@ include_directories("${OPENAIR_DIR}")
 include_directories("${OPENAIR2_DIR}/UTIL/LFDS/liblfds6.1.1/liblfds611/inc")
 include_directories("${OPENAIR2_DIR}/UTIL/LFDS/liblfds7.0.0/liblfds700/inc")
 
+# ASN First
 # E2AP
 add_boolean_option(ENABLE_RIC_AGENT False "Enable O-RAN RIC agent" ON)
 if(ENABLE_RIC_AGENT)
@@ -795,6 +796,67 @@ if(ENABLE_RIC_AGENT)
   add_library(E2AP_ASN ${E2AP_asn_source} ${E2AP_asn_header})
   set(E2AP_ASN_LIB E2AP_ASN)
 
+    ##############################E2SM_KPM_ASN
+  # set(KPM_ASN_VERS R01)
+  set(KPM_ASN_VERS R02) # Specify version
+  if (${KPM_ASN_VERS} STREQUAL R01)
+    set(E2SM_KPM_ASN_FILE e2sm-kpm-v01.00.asn1)
+  elseif (${KPM_ASN_VERS} STREQUAL R02)
+    # set(E2SM_KPM_ASN_FILE e2sm-kpm-v02.00.asn1)
+    # set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.2-rm.asn)
+    set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.3-changed.asn)
+  endif (${KPM_ASN_VERS} STREQUAL R01)
+
+  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
+  set(E2SM_KPM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM-KPM)
+  set(E2SM_KPM_ASN_DIR ${E2SM_KPM_DIR}/MESSAGES/ASN1/${KPM_ASN_VERS})
+  set(E2SM_KPM_C_DIR ${asn1_generated_dir}/E2SM-KPM/)
+  set(ENV{ASN1C_PREFIX} "E2SM_KPM_")
+  file(MAKE_DIRECTORY ${E2SM_KPM_C_DIR})
+  execute_process(
+    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_KPM_C_DIR} ${E2SM_KPM_ASN_DIR}/${E2SM_KPM_ASN_FILE}
+    RESULT_VARIABLE ret
+  )
+
+  file(GLOB E2SM_KPM_asn_source ${E2SM_KPM_C_DIR}/*.c)
+  add_library(E2SM_KPM_ASN ${E2SM_KPM_asn_source})
+  set(E2SM_KPM_ASN_LIB E2SM_KPM_ASN)
+elseif()
+  set(E2AP_ASN_LIB "")
+  set(E2SM_KPM_ASN_LIB "")
+endif()
+
+add_boolean_option(ENABLE_RAN_SLICING False "Enable RAN Slicing" ON)
+if(ENABLE_RAN_SLICING)
+  ############################# E2SM_RSM_ASN
+  set(RSM_ASN_VERS R01)
+
+  if (${RSM_ASN_VERS} STREQUAL R01)
+    set(E2SM_RSM_ASN_FILE e2sm-rsm-v1.asn)
+    set(E2SM_COMMON_ASN_FILE ORAN-WG3.E2SM-v02.00.asn)
+  endif (${RSM_ASN_VERS} STREQUAL R01)
+
+  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
+  set(E2SM_RSM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM-RSM)
+  set(E2SM_RSM_ASN_DIR ${E2SM_RSM_DIR}/MESSAGES/ASN1/${RSM_ASN_VERS})
+  set(E2SM_RSM_C_DIR ${asn1_generated_dir}/E2SM-RSM/)
+  set(ENV{ASN1C_PREFIX} "E2SM_RSM_")
+  file(MAKE_DIRECTORY ${E2SM_RSM_C_DIR})
+  execute_process(
+      COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_RSM_C_DIR} ${E2SM_RSM_ASN_DIR}/${E2SM_RSM_ASN_FILE} ${E2SM_RSM_ASN_DIR}/${E2SM_COMMON_ASN_FILE}
+      RESULT_VARIABLE ret)
+
+  file(GLOB E2SM_RSM_asn_source ${E2SM_RSM_C_DIR}/*.c)
+  add_library(E2SM_RSM_ASN ${E2SM_RSM_asn_source})
+  target_include_directories(E2SM_RSM_ASN PUBLIC ${E2SM_RSM_C_DIR})
+  set(E2SM_RSM_ASN_LIB E2SM_RSM_ASN)
+else()
+  set(E2SM_RSM_ASN_LIB "")
+  set(E2SM_RSM_LIB "")
+endif()
+
+# LIBRARY Next
+if(ENABLE_RIC_AGENT)
   ############################# E2AP_LIB
   file(GLOB E2AP_source ${E2AP_DIR}/*.c)
   add_library(E2AP ${E2AP_source})
@@ -802,13 +864,11 @@ if(ENABLE_RIC_AGENT)
   target_link_libraries(E2AP PUBLIC E2AP_ASN)
   set(E2AP_LIB E2AP)
 elseif()
-  set(E2AP_ASN_LIB "")
   set(E2AP_LIB "")
 endif()
 
-# RAN SLICING: WARNING: DON'T USE THIS FEATURE AS THE SOURCE CODE MAY NOT BE COMPLETE
-#################
-add_boolean_option(ENABLE_RAN_SLICING False "Enable RAN Slicing" ON)
+
+################## RAN SLICING
 if(ENABLE_RAN_SLICING)
   message("RAN_SLICING module enabled")
 
@@ -867,9 +927,7 @@ if(ENABLE_RAN_SLICING)
   )
   set(FLPT_MSG_LIB FLPT_MSG)
 
-  # Make lfds as a own source code (even if it is a outside library)
-  # For better intergration with compilation flags & structure of cmake
-  ###################################################################
+  ############################# LFDS
   set(lfds_hdrs ${OPENAIR2_DIR}/UTIL/LFDS/liblfds6.1.1/liblfds611/inc/)
   set(lfds ${OPENAIR2_DIR}/UTIL/LFDS/liblfds6.1.1/liblfds611/src/)
   file(GLOB lfds_queue ${lfds}/lfds611_queue/*.c)
@@ -938,33 +996,10 @@ if(ENABLE_RAN_SLICING)
     )
   # add_dependencies(FLEXRAN_AGENT asn1_lte_rrc)
   set(RRC_LTE_ASN ${OPENAIR_CMAKE}/ran_build/build/openair2/RRC/LTE/MESSAGES/)
-  target_include_directories(FLEXRAN_AGENT PUBLIC ${FLPT_C_DIR} ${RRC_LTE_ASN})
+  set(RRC_NR_ASN ${OPENAIR_CMAKE}/ran_build/build/openair2/RRC/NR/MESSAGES/)
+  target_include_directories(FLEXRAN_AGENT PUBLIC ${FLPT_C_DIR} ${RRC_LTE_ASN} ${RRC_NR_ASN} ${E2SM_RSM_C_DIR})
   set(FLEXRAN_AGENT_LIB FLEXRAN_AGENT)
   #include_directories(${OPENAIR2_DIR}/ENB_APP)
-  
-  ############################# E2SM_RSM_ASN 
-  #need to before E2AP due to headers included in e2ap_handler.c
-  set(RSM_ASN_VERS R01)
-
-  if (${RSM_ASN_VERS} STREQUAL R01)
-    set(E2SM_RSM_ASN_FILE e2sm-rsm-v1.asn)
-    set(E2SM_COMMON_ASN_FILE ORAN-WG3.E2SM-v02.00.asn)
-  endif (${RSM_ASN_VERS} STREQUAL R01)
-
-  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
-  set(E2SM_RSM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM-RSM)
-  set(E2SM_RSM_ASN_DIR ${E2SM_RSM_DIR}/MESSAGES/ASN1/${RSM_ASN_VERS})
-  set(E2SM_RSM_C_DIR ${asn1_generated_dir}/E2SM-RSM/)
-  set(ENV{ASN1C_PREFIX} "E2SM_RSM_")
-  file(MAKE_DIRECTORY ${E2SM_RSM_C_DIR})
-  execute_process(
-      COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_RSM_C_DIR} ${E2SM_RSM_ASN_DIR}/${E2SM_RSM_ASN_FILE} ${E2SM_RSM_ASN_DIR}/${E2SM_COMMON_ASN_FILE}
-      RESULT_VARIABLE ret)
-
-  file(GLOB E2SM_RSM_asn_source ${E2SM_RSM_C_DIR}/*.c)
-  add_library(E2SM_RSM_ASN ${E2SM_RSM_asn_source})
-  target_include_directories(E2SM_RSM_ASN PUBLIC ${E2SM_RSM_C_DIR})
-  set(E2SM_RSM_ASN_LIB E2SM_RSM_ASN)
 
   ############################# E2SM_RSM_LIB
   file(GLOB E2SM_RSM_source ${E2SM_RSM_DIR}/*.c)
@@ -974,7 +1009,11 @@ if(ENABLE_RAN_SLICING)
   target_link_libraries(E2SM_RSM PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs asn1_f1ap E2AP_ASN E2AP)
 
 else()
-  set(E2SM_RSM_ASN_LIB "")
+  set(FLPT_MSG_LIB "")
+  set(LFDS "")
+  set(LFDS7 "")
+  set(ASYNC_IF_LIB "")
+  set(FLEXRAN_AGENT_LIB "")
   set(E2SM_RSM_LIB "")
 endif()
 
@@ -982,32 +1021,6 @@ endif()
 # O-RAN RIC Agent
 #################
 if(ENABLE_RIC_AGENT)
-  ##############################E2SM_KPM_ASN
-  # set(KPM_ASN_VERS R01)
-  set(KPM_ASN_VERS R02) # Specify version
-  if (${KPM_ASN_VERS} STREQUAL R01)
-    set(E2SM_KPM_ASN_FILE e2sm-kpm-v01.00.asn1)
-  elseif (${KPM_ASN_VERS} STREQUAL R02)
-    # set(E2SM_KPM_ASN_FILE e2sm-kpm-v02.00.asn1)
-    # set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.2-rm.asn)
-    set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.3-changed.asn)
-  endif (${KPM_ASN_VERS} STREQUAL R01)
-
-  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
-  set(E2SM_KPM_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM-KPM)
-  set(E2SM_KPM_ASN_DIR ${E2SM_KPM_DIR}/MESSAGES/ASN1/${KPM_ASN_VERS})
-  set(E2SM_KPM_C_DIR ${asn1_generated_dir}/E2SM-KPM/)
-  set(ENV{ASN1C_PREFIX} "E2SM_KPM_")
-  file(MAKE_DIRECTORY ${E2SM_KPM_C_DIR})
-  execute_process(
-    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_KPM_C_DIR} ${E2SM_KPM_ASN_DIR}/${E2SM_KPM_ASN_FILE}
-    RESULT_VARIABLE ret
-  )
-
-  file(GLOB E2SM_KPM_asn_source ${E2SM_KPM_C_DIR}/*.c)
-  add_library(E2SM_KPM_ASN ${E2SM_KPM_asn_source})
-  set(E2SM_KPM_ASN_LIB E2SM_KPM_ASN)
-
   ############################# E2SM_KPM_LIB
   file(GLOB E2SM_KPM_source ${E2SM_KPM_DIR}/*.c)
   add_library(E2SM_KPM ${E2SM_KPM_source} ${E2SM_KPM_asn_source} ${OPENAIR_DIR}/common/secsm.c)
@@ -1036,12 +1049,8 @@ if(ENABLE_RIC_AGENT)
   set(RRC_NR_DIR ${OPENAIR_DIR}/openair2/RRC/NR)
   target_include_directories(RIC_AGENT PUBLIC ${E2SM_RSM_DIR} ${COMMON_DIR} ${RRC_NR_DIR})
   target_link_libraries(RIC_AGENT PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs E2AP E2SM_KPM)
-
-
 else()
   set(RIC_AGENT_LIB "")
-  set(E2AP_ASN_LIB "")
-  set(E2AP_LIB "")
   set(E2SM_KPM_LIB "")
 endif()
 
