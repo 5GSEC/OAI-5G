@@ -66,6 +66,7 @@ int slicing_get_UE_slice_idx(slice_info_t *si, int UE_id);
 typedef struct {
   uint16_t posLow;
   uint16_t posHigh;
+  uint16_t timeSchd;
 } static_slice_param_t;
 pp_impl_param_t static_dl_init(module_id_t mod_id, int CC_id);
 pp_impl_param_t static_ul_init(module_id_t mod_id, int CC_id);

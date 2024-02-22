@@ -215,6 +215,7 @@ typedef struct protocol_ctxt_s {
   module_id_t module_id;     /*!< \brief  Virtualized module identifier      */
   eNB_flag_t  enb_flag;      /*!< \brief  Flag to indicate eNB (1) or UE (0) */
   instance_t  instance;      /*!< \brief  ITTI or OTG module identifier      */
+  rnti_t      rnti;
   ue_id_t rntiMaybeUEid;
   frame_t     frame;         /*!< \brief  LTE frame number.*/
   sub_frame_t subframe;      /*!< \brief  LTE sub frame number.*/

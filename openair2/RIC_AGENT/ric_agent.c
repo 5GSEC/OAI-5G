@@ -526,7 +526,7 @@ void *ric_agent_task(void *args)
                 break;
 #ifdef ENABLE_RAN_SLICING
             case CU_EVENT_TRIGGER:
-                RIC_AGENT_INFO("Received CU_EVENT_TRIGGER for instance %d\n",
+                RIC_AGENT_INFO("Received CU_EVENT_TRIGGER for instance %ld\n",
                   ITTI_MSG_ORIGIN_INSTANCE(msg));
                 ric_agent_prepare_ric_ind(
                         ITTI_MSG_ORIGIN_INSTANCE(msg),
