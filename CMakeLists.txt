@@ -835,7 +835,13 @@ if(ENABLE_RAN_SLICING)
   set(protobuf_generated_dir ${OPENAIR_BIN_DIR})
   set(FLPT_C_DIR ${protobuf_generated_dir}/FLPT_${FLPTDIR})
   set(protoc_call "${OPENAIR_CMAKE}/tools/generate_protobuf")
-  execute_process(COMMAND ${protoc_call} ${FLPT_C_DIR} ${FLPT_MSG_DIR} ${FLPT_MSG_FILES})
+
+  execute_process(COMMAND ${protoc_call} ${FLPT_C_DIR} ${FLPT_MSG_DIR} ${FLPT_MSG_FILES}
+    OUTPUT_VARIABLE output_variable
+    RESULT_VARIABLE result_variable
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+
   file(GLOB FLPT_source ${FLPT_C_DIR}/*.c)
   set(FLPT_OAI_generated
     ${FLPT_C_DIR}/header.pb-c.c
@@ -890,6 +896,8 @@ set(FLPT_MSG_LIB FLPT_MSG)
     ${OPENAIR2_DIR}/ENB_APP/CONTROL_MODULES/MAC/flexran_agent_mac_slice_verification.c
     )
   # add_dependencies(FLEXRAN_AGENT asn1_lte_rrc)
+  set(RRC_LTE_ASN ${OPENAIR_CMAKE}/ran_build/build/openair2/RRC/LTE/MESSAGES/)
+  target_include_directories(FLEXRAN_AGENT PUBLIC ${FLPT_C_DIR} ${RRC_LTE_ASN})
   set(FLEXRAN_AGENT_LIB FLEXRAN_AGENT)
   #include_directories(${OPENAIR2_DIR}/ENB_APP)
   
