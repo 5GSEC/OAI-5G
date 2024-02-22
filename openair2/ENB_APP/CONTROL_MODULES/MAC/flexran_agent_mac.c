@@ -2079,7 +2079,7 @@ void check_slicing_update(mid_t mod_id)
     return;
   }
 
-  // Temporally disable this part due to legact taks TASK_MAC_ENB
+  // Temporarily disable this part due to legacy taks TASK_MAC_ENB
   // MessageDef *m = itti_alloc_new_message(TASK_MAC_ENB, DU_SLICE_API_RESP);
   // DU_SLICE_API_RESP(m).apiID = DURespToRic.apiID;
   // DU_SLICE_API_RESP(m).apiSize = DURespToRic.apiSize;
