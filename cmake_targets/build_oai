@@ -176,8 +176,47 @@ Options:
    Print this help"
 }
 
+# Function to check and install protobuf-c-compiler and libprotobuf-c-dev
+install_protobuf_c() {
+    # Check if protobuf-c-compiler is installed
+    if ! command -v protoc-c &> /dev/null; then
+        echo "protobuf-c-compiler is not installed, installing..."
+        sudo apt-get update
+        sudo apt-get install -y protobuf-c-compiler
+    else
+        echo "protobuf-c-compiler is already installed"
+    fi
+
+    # Check if libprotobuf-c-dev is installed
+    if ! dpkg -l | grep libprotobuf-c-dev &> /dev/null; then
+        echo "libprotobuf-c-dev is not installed, installing..."
+        sudo apt-get update
+        sudo apt-get install -y libprotobuf-c-dev
+    else
+        echo "libprotobuf-c-dev is already installed"
+    fi
+}
+
+check_and_install_yaml() {
+    local package_name="libyaml-dev"
+
+    # Check if libyaml-dev package is installed
+    if dpkg -s "$package_name" >/dev/null 2>&1; then
+        echo "YAML library is already installed."
+    else
+        # If libyaml-dev package is not installed, install it using apt
+        echo "YAML library is not installed, installing..."
+        sudo apt update
+        sudo apt install -y "$package_name"
+        echo "YAML library installation complete."
+    fi
+}
+
 
 function main() {
+
+  install_protobuf_c
+  check_and_install_yaml
 
   until [ -z "$1" ]
   do
