@@ -775,7 +775,6 @@ include_directories("${OPENAIR2_DIR}/UTIL/LFDS/liblfds6.1.1/liblfds611/inc")
 include_directories("${OPENAIR2_DIR}/UTIL/LFDS/liblfds7.0.0/liblfds700/inc")
 
 # ASN First
-# E2AP
 add_boolean_option(ENABLE_RIC_AGENT False "Enable O-RAN RIC agent" ON)
 if(ENABLE_RIC_AGENT)
   ############################# E2AP_ASN
@@ -861,13 +860,12 @@ if(ENABLE_RIC_AGENT)
   ############################# E2AP_LIB
   file(GLOB E2AP_source ${E2AP_DIR}/*.c)
   add_library(E2AP ${E2AP_source})
-  target_include_directories(E2AP PUBLIC ${E2AP_C_DIR})
-  target_link_libraries(E2AP PUBLIC E2AP_ASN)
+  target_include_directories(E2AP PUBLIC ${E2AP_C_DIR} ${F1AP_DIR})
+  target_link_libraries(E2AP PUBLIC E2AP_ASN ${f1ap})
   set(E2AP_LIB E2AP)
 elseif()
   set(E2AP_LIB "")
 endif()
-
 
 ################## RAN SLICING
 if(ENABLE_RAN_SLICING)
@@ -999,6 +997,7 @@ if(ENABLE_RAN_SLICING)
   set(RRC_LTE_ASN ${OPENAIR_CMAKE}/ran_build/build/openair2/RRC/LTE/MESSAGES/)
   set(RRC_NR_ASN ${OPENAIR_CMAKE}/ran_build/build/openair2/RRC/NR/MESSAGES/)
   target_include_directories(FLEXRAN_AGENT PUBLIC ${FLPT_C_DIR} ${RRC_LTE_ASN} ${RRC_NR_ASN} ${E2SM_RSM_C_DIR} ${COMMON_DIR})
+  target_link_libraries(FLEXRAN_AGENT PUBLIC LFDS7 ${ASYNC_IF_LIB})
   set(FLEXRAN_AGENT_LIB FLEXRAN_AGENT)
   #include_directories(${OPENAIR2_DIR}/ENB_APP)
 
@@ -2452,7 +2451,7 @@ target_link_libraries(lte-softmodem PRIVATE
   lte_rrc nr_rrc s1ap m2ap x2ap m3ap GTPV1U SECURITY UTIL HASHTABLE SCTP_CLIENT MME_APP SCHED_LIB SCHED_RU_LIB
   PHY_COMMON PHY PHY_RU  L2 L2_LTE NFAPI_COMMON_LIB NFAPI_LIB NFAPI_VNF_LIB NFAPI_PNF_LIB NFAPI_USER_LIB MISC_NFAPI_LTE_LIB
   ${NAS_UE_LIB} ITTI SIMU SIMU_ETH
-  ${FLPT_MSG_LIB} ${ASYNC_IF_LIB} ${FLEXRAN_AGENT_LIB} ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_ASN_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
+  /usr/lib/x86_64-linux-gnu/libprotobuf-c.so yaml asn1_f1ap f1ap ${E2AP_ASN_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_RSM_ASN_LIB} ${FLPT_MSG_LIB} LFDS7 ${ASYNC_IF_LIB} ${FLEXRAN_AGENT_LIB} ${E2AP_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
   -Wl,--end-group z dl)
 
 target_link_libraries(lte-softmodem PRIVATE pthread m CONFIG_LIB rt crypt ${CRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES} sctp)
