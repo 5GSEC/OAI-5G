@@ -247,6 +247,8 @@ typedef enum {
   ITTI,
   UTIL,
   #ifdef ENABLE_RIC_AGENT
+  PROTO_AGENT,
+  FLEXRAN_AGENT,
   RIC_AGENT,
   #endif
   MAX_LOG_PREDEF_COMPONENTS,

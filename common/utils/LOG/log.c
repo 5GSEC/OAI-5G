@@ -498,6 +498,8 @@ int logInit (void)
   register_log_component("ITTI","log",ITTI);
   register_log_component("UTIL","log",UTIL);
   #ifdef ENABLE_RIC_AGENT
+  register_log_component("FLEXRAN_AGENT","log",FLEXRAN_AGENT);
+  register_log_component("PROTO_AGENT","log",PROTO_AGENT);
   register_log_component("RIC_AGENT","log",RIC_AGENT);
   #endif
 

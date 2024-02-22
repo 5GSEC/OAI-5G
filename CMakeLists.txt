@@ -2864,6 +2864,7 @@ if (${T_TRACER})
         L2 L2_LTE L2_NR L2_LTE_NR L2_UE NR_L2_UE L2_UE_LTE_NR MAC_NR_COMMON MAC_NR MAC_UE_NR ngap
         CN_UTILS GTPV1U SCTP_CLIENT MME_APP LIB_NAS_UE NB_IoT SIMU SIMU_ETH OPENAIR0_LIB
         ldpc_orig ldpc_optim ldpc_optim8seg ldpc dfts
+        LFDS LFDS7 PROTO_AGENT
         ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
         )
     if (TARGET ${i})
