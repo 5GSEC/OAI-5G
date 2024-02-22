@@ -46,6 +46,7 @@
 
 # include "tree.h"
 # include "intertask_interface.h"
+#include "ran_context.h"
 
 #define FLEXRAN_VERSION 0
 
