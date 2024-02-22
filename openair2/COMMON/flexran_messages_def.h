@@ -19,27 +19,11 @@
  *      contact@openairinterface.org
  */
 
-// These messages files are mandatory and must always be placed in first position
-#include "intertask_messages_def.h"
-#include "timer_messages_def.h"
+/*
+ * flexran_messages_def.h
+ *
+ *  Created on: Apr 26, 2018
+ *      Author: R. Schmidt
+ */
 
-// Messages files used between tasks
-#include "phy_messages_def.h"
-#include "mac_messages_def.h"
-#include "rlc_messages_def.h"
-#include "pdcp_messages_def.h"
-#include "rrc_messages_def.h"
-#include "nas_messages_def.h"
-#if ENABLE_RAL
-#include "ral_messages_def.h"
-#endif
-#include "s1ap_messages_def.h"
-#include "f1ap_messages_def.h"
-#include "x2ap_messages_def.h"
-#include "m2ap_messages_def.h"
-#include "m3ap_messages_def.h"
-#include "sctp_messages_def.h"
-#include "udp_messages_def.h"
-#include "gtpv1_u_messages_def.h"
-#include "e1ap_messages_def.h"
-#include "flexran_messages_def.h"
+MESSAGE_DEF(SOFT_RESTART_MESSAGE, MESSAGE_PRIORITY_MED_PLUS, IttiMsgEmpty, soft_restart_message)

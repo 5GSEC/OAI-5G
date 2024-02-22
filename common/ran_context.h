@@ -35,6 +35,7 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include "flexran_agent_defs.h"
 
 // forward declarations to avoid including the full typess ***eNB;
 struct PHY_VARS_gNB_s;
