@@ -451,6 +451,22 @@ static void ric_agent_prepare_ric_ind(
     *assoc_id = ric->data_conn_assoc_id;
     return;
 }
+
+static void ric_agent_pdu_ric_ind(
+    instance_t instance,
+    MessageDef *msg,
+    uint8_t **outbuf,
+    uint32_t *outlen,
+    uint32_t *assoc_id)
+{
+    ric_agent_info_t* ric;
+    ric = ric_agent_info[instance];
+    
+    outbuf = (uint8_t **)malloc(sizeof(uint8_t *));
+    *outbuf = (uint8_t *)malloc(strlen("pdureq") + 1);
+    strcpy((char *)*outbuf, "pdureq");
+    *outlen = strlen("pdureq") + 1;
+}
 #endif
 
 void *ric_agent_task(void *args)
@@ -535,6 +551,21 @@ void *ric_agent_task(void *args)
                         &outlen,
                         &assoc_id);
                 break;
+            case NGAP_PDUSESSION_SETUP_REQUEST_FAIL:
+                RIC_AGENT_INFO("Received NGAP_PDUSESSION_SETUP_REQUEST_FAIL for instance %ld\n",
+                  ITTI_MSG_ORIGIN_INSTANCE(msg));
+                // handler: transfer info to xapp and let it determine operations
+            case NGAP_PDUSESSION_SETUP_REQ:
+                RIC_AGENT_INFO("Received NGAP_PDUSESSION_SETUP_REQ for instance %ld\n",
+                  ITTI_MSG_ORIGIN_INSTANCE(msg));
+                // handler: transfer info to xapp and let it determine operations
+                ric_agent_pdu_ric_ind(
+                    ITTI_MSG_ORIGIN_INSTANCE(msg),
+                    msg,
+                    &outbuf,
+                    &outlen,
+                    &assoc_id
+                );
 #endif
             default:
                 RIC_AGENT_ERROR("unhandled message: %d:%s\n",

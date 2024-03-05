@@ -764,6 +764,9 @@ void rrc_gNB_process_NGAP_PDUSESSION_SETUP_REQ(MessageDef *msg_p, instance_t ins
     NGAP_PDUSESSION_SETUP_FAIL(msg_fail_p).gNB_ue_ngap_id = msg->gNB_ue_ngap_id;
     // TODO add failure cause when defined!
     itti_send_msg_to_task (TASK_NGAP, instance, msg_fail_p);
+    #ifdef ENABLE_RAN_SLICING
+      itti_send_msg_to_task(TASK_RIC_AGENT, instance, msg_fail_p);
+    #endif
     return ;
   }
 
@@ -839,6 +842,9 @@ void rrc_gNB_process_NGAP_PDUSESSION_SETUP_REQ(MessageDef *msg_p, instance_t ins
   int xid = rrc_gNB_get_next_transaction_identifier(instance);
   UE->xids[xid] = RRC_PDUSESSION_ESTABLISH;
   rrc->cucp_cuup.bearer_context_setup(&bearer_req, instance, xid);
+  #ifdef ENABLE_RAN_SLICING
+    itti_send_msg_to_task(TASK_RIC_AGENT, instance, msg_p);
+  #endif
   return;
 }
 
