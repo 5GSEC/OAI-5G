@@ -811,7 +811,8 @@ if(ENABLE_RIC_AGENT)
   elseif (${KPM_ASN_VERS} STREQUAL R02)
     # set(E2SM_KPM_ASN_FILE e2sm-kpm-v02.00.asn1)
     # set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.2-rm.asn)
-    set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.3-changed.asn)
+    # set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0.3-changed.asn)
+    set(E2SM_KPM_ASN_FILE e2sm_kpm_v2.0_standard.asn)
   endif (${KPM_ASN_VERS} STREQUAL R01)
 
   set(asn1_generated_dir ${OPENAIR_BIN_DIR})
@@ -821,7 +822,7 @@ if(ENABLE_RIC_AGENT)
   set(ENV{ASN1C_PREFIX} "E2SM_KPM_")
   file(MAKE_DIRECTORY ${E2SM_KPM_C_DIR})
   execute_process(
-    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_KPM_C_DIR} ${E2SM_KPM_ASN_DIR}/${E2SM_KPM_ASN_FILE}
+    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted -D ${E2SM_KPM_C_DIR} ${E2SM_KPM_ASN_DIR}/${E2SM_KPM_ASN_FILE} ${E2SM_KPM_ASN_DIR}/e2sm2_0.asn
     RESULT_VARIABLE ret
   )
 

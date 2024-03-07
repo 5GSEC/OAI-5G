@@ -42,7 +42,7 @@
 #include "E2AP_ProtocolIE-Field.h"
 #include "E2AP_E2setupRequest.h"
 #include "E2AP_RICsubsequentAction.h"
-#include "E2SM_KPM_E2SM-KPMv2-EventTriggerDefinition.h"
+#include "E2SM_KPM_E2SM-KPM-EventTriggerDefinition.h"
 #ifdef ENABLE_RAN_SLICING
 #include "f1ap_common.h"
 #include "E2SM_RSM_E2SM-RSM-ControlHeader.h"
@@ -59,7 +59,7 @@
 #include "E2AP_E2connectionUpdate.h"
 #include "E2AP_UnsuccessfulOutcome.h"
 #include "E2AP_InitiatingMessage.h"
-#include "E2SM_KPM_E2SM-KPMv2-EventTriggerDefinition-Format1.h"
+#include "E2SM_KPM_E2SM-KPM-EventTriggerDefinition-Format1.h"
 
 extern RAN_CONTEXT_t RC;
 
@@ -498,15 +498,15 @@ int e2ap_handle_ric_subscription_request(
                   case 1:
                   {
                     asn_dec_rval_t decode_result;
-                    E2SM_KPM_E2SM_KPMv2_EventTriggerDefinition_t *eventTriggerDef = 0;
-                    decode_result = aper_decode_complete(NULL, &asn_DEF_E2SM_KPM_E2SM_KPMv2_EventTriggerDefinition, 
+                    E2SM_KPM_E2SM_KPM_EventTriggerDefinition_t *eventTriggerDef = 0;
+                    decode_result = aper_decode_complete(NULL, &asn_DEF_E2SM_KPM_E2SM_KPM_EventTriggerDefinition, 
                                                         (void **)&eventTriggerDef, rs->event_trigger.buf, 
                                                         rs->event_trigger.size);
                     DevAssert(decode_result.code == RC_OK);
-                    xer_fprint(stdout, &asn_DEF_E2SM_KPM_E2SM_KPMv2_EventTriggerDefinition, eventTriggerDef);
+                    xer_fprint(stdout, &asn_DEF_E2SM_KPM_E2SM_KPM_EventTriggerDefinition, eventTriggerDef);
 
                     if (eventTriggerDef->eventDefinition_formats.present == 
-                                                E2SM_KPM_E2SM_KPMv2_EventTriggerDefinition__eventDefinition_formats_PR_eventDefinition_Format1)
+                                                E2SM_KPM_E2SM_KPM_EventTriggerDefinition__eventDefinition_formats_PR_eventDefinition_Format1)
                     {
                         RIC_AGENT_INFO("report period = %ld\n", 
                                     eventTriggerDef->eventDefinition_formats.choice.eventDefinition_Format1->reportingPeriod);
