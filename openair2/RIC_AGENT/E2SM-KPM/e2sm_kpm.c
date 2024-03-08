@@ -351,7 +351,7 @@ int e2sm_kpm_init(void)
     ric_report_style_item->ric_ReportStyle_Type = 6;
     ric_report_style_item->ric_ReportStyle_Name.buf = (uint8_t *)strdup("O-CU-UP Measurement Container for the EPC connected deployment");
     ric_report_style_item->ric_ReportStyle_Name.size = strlen("O-CU-UP Measurement Container for the EPC connected deployment");
-    ric_report_style_item->ric_ActionFormat_Type = 6; //pending 
+    ric_report_style_item->ric_ActionFormat_Type = 1; //pending 
 
     /* Measurement items */
     for (int i=0; i<MAX_KPM_MEAS; ++i) {
