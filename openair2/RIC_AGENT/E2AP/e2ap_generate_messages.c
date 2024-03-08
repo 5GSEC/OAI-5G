@@ -145,11 +145,11 @@ int e2ap_generate_e2_setup_request(ranid_t  ranid,
 
   if (e2node_type == E2NODE_TYPE_GNB_CU || e2node_type == E2NODE_TYPE_GNB || e2node_type == E2NODE_TYPE_ENB)
   {
-    e2node_comp_cfg_update_ie->value.choice.E2nodeComponentConfigAddition_Item.e2nodeComponentInterfaceType = E2AP_E2nodeComponentInterfaceType_e1; //E2AP_E2nodeComponentType_ng_eNB_CU 
-    e2NodeCompId->present = E2AP_E2nodeComponentID_PR_e2nodeComponentInterfaceTypeE1;
-    e2NodeCompId->choice.e2nodeComponentInterfaceTypeE1 = (struct E2AP_E2nodeComponentInterfaceE1 *) calloc(1, sizeof(*e2NodeCompId->choice.e2nodeComponentInterfaceTypeE1));
-    if (asn_umax2INTEGER(&e2NodeCompId->choice.e2nodeComponentInterfaceTypeE1->gNB_CU_CP_ID, 100) != 0)
-        RIC_AGENT_ERROR("gNB_CU_UP_ID encoding failed\n");
+    e2node_comp_cfg_update_ie->value.choice.E2nodeComponentConfigAddition_Item.e2nodeComponentInterfaceType = E2AP_E2nodeComponentInterfaceType_f1;
+    e2NodeCompId->present = E2AP_E2nodeComponentID_PR_e2nodeComponentInterfaceTypeF1;
+    e2NodeCompId->choice.e2nodeComponentInterfaceTypeF1 = (struct E2AP_E2nodeComponentInterfaceF1 *) calloc(1, sizeof(*e2NodeCompId->choice.e2nodeComponentInterfaceTypeF1));
+    if (asn_umax2INTEGER(&e2NodeCompId->choice.e2nodeComponentInterfaceTypeF1->gNB_DU_ID, 100) != 0)
+        RIC_AGENT_ERROR("gNB_CU_UP_ID encoding failed\n");    
     //e2NodeCompId->choice.e2nodeComponentTypeGNB_CU_UP.gNB_CU_UP_ID.size = strlen("100");//sizeof(uint64_t);
     //e2NodeCompId->choice.e2nodeComponentTypeGNB_CU_UP.gNB_CU_UP_ID.buf = (uint8_t *)strdup("100");
   }
