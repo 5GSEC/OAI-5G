@@ -619,7 +619,7 @@ static int e2sm_kpm_gp_timer_expiry(
                 }
                 else {
                     // UE context not found, still need to check if there are some messages left to report
-                    RIC_AGENT_INFO("[SECSM] RRC eNB UE context not found for UE %x", rnti);
+                    RIC_AGENT_INFO("[SECSM] RRC eNB UE context not found for UE %x\n", rnti);
                 }
             }
             else if (RC.nrrrc != NULL) {
@@ -656,11 +656,11 @@ static int e2sm_kpm_gp_timer_expiry(
                 }
                 else {
                     // UE context not found, still need to check if there are some messages left to report
-                    RIC_AGENT_INFO("[SECSM] RRC gNB UE context not found for UE %x", rnti);
+                    RIC_AGENT_INFO("[SECSM] RRC gNB UE context not found for UE %x\n", rnti);
                 }
             }
             else {
-                RIC_AGENT_ERROR("[SECSM] Unknown RAT");
+                RIC_AGENT_ERROR("[SECSM] Unknown RAT\n");
                 return -1;
             }
             
@@ -682,7 +682,6 @@ static int e2sm_kpm_gp_timer_expiry(
 
             RIC_AGENT_INFO("[SECSM] Report UE ID: %x, RNTI: %x, RAT:%x, IMSI:%ld, random_id: %ld\n", initial_id, rnti, RAT, imsi, random_id);
 
-            prev_msg_counter[i] = msgCount + totalNasMsg; 
             prev_state[i] = status;
             shouldUpdate = 1;
 
@@ -700,6 +699,10 @@ static int e2sm_kpm_gp_timer_expiry(
                     if ((nTs < rTs && nTs != 0) || (rTs == 0)) {
                         // encode nas msg
                         struct nasMsg n = ue_nas_msg[nasIndex].msg[nIndex++];
+                        if (prev_msg_counter[i] != 0 && nIndex + rIndex <= prev_msg_counter[i]) {
+                            // don't report message that has already been reported
+                            continue;
+                        }
                         int encode_nas = 0 | ((n.discriminator & 1) << 1) | (n.msgId << 2);
                         RIC_AGENT_INFO("[SECSM] {NAS: dis: %d, msgId: %d, ts: %ld} -> %d\n", n.discriminator, n.msgId, n.timestamp, encode_nas);
                         meas_msg[meas_msg_count++] = encode_nas;
@@ -709,6 +712,10 @@ static int e2sm_kpm_gp_timer_expiry(
                     else {
                         // encode rrc msg
                         struct rrcMsg m = ue_rrc_msg[i].msg[rIndex++];
+                        if (prev_msg_counter[i] != 0 && nIndex + rIndex <= prev_msg_counter[i]) {
+                            // don't report message that has already been reported
+                            continue;
+                        }
                         if (is_lte() && ((m.msgId==2 && m.dcch==1 && m.downlink==1) || (m.msgId==10 && m.dcch==1 && m.downlink==0))) {
                             continue; // don't encode ul/dl information transfer msg in LTE
                         }
@@ -721,6 +728,8 @@ static int e2sm_kpm_gp_timer_expiry(
                     }
                 }
             }
+
+            prev_msg_counter[i] = msgCount + totalNasMsg;
             break;
         }
     }
