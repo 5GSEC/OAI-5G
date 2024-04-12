@@ -1580,8 +1580,14 @@ void RCconfig_NRRRC(gNB_RRC_INST *rrc)
       rrc->eth_params_s.remote_portd             = *(GNBParamList.paramarray[i][GNB_REMOTE_S_PORTD_IDX].uptr);
       rrc->eth_params_s.transp_preference        = ETH_UDP_MODE;
     }
+#ifdef ENABLE_RIC_AGENT
+    else if (strcmp(*(GNBParamList.paramarray[i][GNB_LOCAL_S_ADDRESS_IDX].strptr), "127.0.0.1") != 0) {
+      // For ONOS-RIC agent: always store local address to use for disabling SCTP multihoming
+      rrc->eth_params_s.my_addr = strdup(*(GNBParamList.paramarray[i][GNB_LOCAL_S_ADDRESS_IDX].strptr));
+    }
+#endif
 
-   
+
 
     rrc->nr_cellid        = (uint64_t)*(GNBParamList.paramarray[i][GNB_NRCELLID_IDX].u64ptr);
 

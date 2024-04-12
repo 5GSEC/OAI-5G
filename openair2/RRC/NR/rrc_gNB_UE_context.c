@@ -37,6 +37,9 @@
 #include "rrc_gNB_UE_context.h"
 #include "openair2/F1AP/f1ap_ids.h"
 
+#ifdef ENABLE_RIC_AGENT
+#include "common/secsm.h"
+#endif
 
 //------------------------------------------------------------------------------
 int rrc_gNB_compare_ue_rnti_id(rrc_gNB_ue_context_t *c1_pP, rrc_gNB_ue_context_t *c2_pP)
@@ -131,6 +134,18 @@ void rrc_gNB_remove_ue_context(gNB_RRC_INST *rrc_instance_pP, rrc_gNB_ue_context
     LOG_E(NR_RRC, "Trying to free a NULL UE context\n");
     return;
   }
+
+  // SECSM: reset rrc msg counter, TODO: use a timer based approach to relase it
+  // #ifdef ENABLE_RIC_AGENT
+  // int ue_id = getRrcMsgIndex(rnti);
+  // if (ue_rrc_counter > 0 && ue_id != -1) {
+  //   LOG_I(RRC, "[SECSM] Releasing UE RRC msg buffer at index %d\n", ue_id);
+  //   ue_rrc_msg[ue_id].active = 0;
+  //   ue_rrc_msg[ue_id].rnti = 0;
+  //   ue_rrc_msg[ue_id].msgCount = 0;
+  //   --ue_rrc_counter;
+  // }
+  // endif
 
   RB_REMOVE(rrc_nr_ue_tree_s, &rrc_instance_pP->rrc_ue_head, ue_context_pP);
   uid_linear_allocator_free(&rrc_instance_pP->uid_allocator, ue_context_pP->ue_context.rrc_ue_id - 1);

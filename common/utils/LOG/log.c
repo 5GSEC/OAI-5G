@@ -501,6 +501,9 @@ int logInit (void)
   register_log_component("NGAP","",NGAP);
   register_log_component("ITTI","log",ITTI);
   register_log_component("UTIL","log",UTIL);
+  #ifdef ENABLE_RIC_AGENT
+  register_log_component("RIC_AGENT","log",RIC_AGENT);
+  #endif
 
   for (int i=0 ; log_level_names[i].name != NULL ; i++)
     g_log->level2string[i]           = toupper(log_level_names[i].name[0]); // uppercased first letter of level name
