@@ -19,16 +19,16 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PHY/LTE_TRANSPORT/defs.h
-* \brief data structures for PDSCH/DLSCH/PUSCH/ULSCH physical and transport channel descriptors (TX/RX)
-* \author R. Knopp
-* \date 2011
-* \version 0.1
-* \company Eurecom
-* \email: raymond.knopp@eurecom.fr, florian.kaltenberger@eurecom.fr, oscar.tonelli@yahoo.it
-* \note
-* \warning
-*/
+/*! \file transport_eNB.h
+ * \brief data structures for PDSCH/DLSCH/PUSCH/ULSCH physical and transport channel descriptors (TX/RX)
+ * \author R. Knopp
+ * \date 2011
+ * \version 0.1
+ * \company Eurecom
+ * \email: raymond.knopp@eurecom.fr, florian.kaltenberger@eurecom.fr, oscar.tonelli@yahoo.it
+ * \note
+ * \warning
+ */
 #ifndef __TRANSPORT_ENB__H__
 #define __TRANSPORT_ENB__H__
 #include "transport_common.h"
@@ -327,6 +327,7 @@ typedef struct {
   uint32_t repetition_number ;
   // PUSCH Total number of repetitions
   uint32_t total_number_of_repetitions;
+  decode_abort_t abort_decode;
 } LTE_UL_eNB_HARQ_t;
 
 typedef struct {

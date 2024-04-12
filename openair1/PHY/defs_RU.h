@@ -197,7 +197,7 @@ typedef struct {
 
 #define NUMBER_OF_NR_RU_PRACH_MAX 8
 #define NUMBER_OF_NR_RU_PRACH_OCCASIONS_MAX 12
-
+#define RU_RX_SLOT_DEPTH 4
 typedef struct RU_proc_t_s {
   /// Pointer to associated RU descriptor
   struct RU_t_s *ru;
@@ -249,7 +249,6 @@ typedef struct RU_proc_t_s {
   int instance_cnt_feptx;
   /// \internal This variable is protected by \ref mutex_ru_thread
   int instance_cnt_ru;
-  /// This varible is protected by \ref mutex_emulatedRF
   int instance_cnt_emulateRF;
   /// pthread structure for RU FH processing thread
   pthread_t pthread_FH;

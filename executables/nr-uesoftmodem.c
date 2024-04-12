@@ -38,7 +38,7 @@
 #include "common/utils/nr/nr_common.h"
 
 #include "radio/COMMON/common_lib.h"
-#include "radio/ETHERNET/USERSPACE/LIB/if_defs.h"
+#include "radio/ETHERNET/if_defs.h"
 
 //#undef FRAME_LENGTH_COMPLEX_SAMPLES //there are two conflicting definitions, so we better make sure we don't use it at all
 #include "openair1/PHY/MODULATION/nr_modulation.h"
@@ -123,11 +123,14 @@ char             *usrp_args = NULL;
 char             *tx_subdev = NULL;
 char             *rx_subdev = NULL;
 char       *rrc_config_path = NULL;
+char *reconfig_file = NULL;
+char *rbconfig_file = NULL;
 char            *uecap_file = NULL;
 int               dumpframe = 0;
 
 uint64_t        downlink_frequency[MAX_NUM_CCs][4];
 int32_t         uplink_frequency_offset[MAX_NUM_CCs][4];
+uint64_t        sidelink_frequency[MAX_NUM_CCs][4];
 int             rx_input_level_dBm;
 
 #if MAX_NUM_CCs == 1
@@ -151,7 +154,6 @@ double            cpuf;
 int          chain_offset = 0;
 int           card_offset = 0;
 uint64_t num_missed_slots = 0; // counter for the number of missed slots
-int     transmission_mode = 1;
 int            numerology = 0;
 int           oaisim_flag = 0;
 int            emulate_rf = 0;
@@ -195,7 +197,8 @@ int create_tasks_nrue(uint32_t ue_nb) {
 
   if (ue_nb > 0) {
     LOG_I(NR_RRC,"create TASK_RRC_NRUE \n");
-    if (itti_create_task (TASK_RRC_NRUE, rrc_nrue_task, NULL) < 0) {
+    const ittiTask_parms_t parmsRRC = {NULL, rrc_nrue};
+    if (itti_create_task(TASK_RRC_NRUE, rrc_nrue_task, &parmsRRC) < 0) {
       LOG_E(NR_RRC, "Create task for RRC UE failed\n");
       return -1;
     }
@@ -206,7 +209,8 @@ int create_tasks_nrue(uint32_t ue_nb) {
         return -1;
       }
     }
-    if (itti_create_task (TASK_NAS_NRUE, nas_nrue_task, NULL) < 0) {
+    const ittiTask_parms_t parmsNAS = {NULL, nas_nrue};
+    if (itti_create_task(TASK_NAS_NRUE, nas_nrue_task, &parmsNAS) < 0) {
       LOG_E(NR_RRC, "Create task for NAS UE failed\n");
       return -1;
     }
@@ -254,12 +258,13 @@ uint64_t set_nrUE_optmask(uint64_t bitmask) {
 nrUE_params_t *get_nrUE_params(void) {
   return &nrUE_params;
 }
-
-static void get_options(void) {
-
+static void get_options(configmodule_interface_t *cfg)
+{
   paramdef_t cmdline_params[] =CMDLINE_NRUEPARAMS_DESC ;
-  int numparams = sizeof(cmdline_params)/sizeof(paramdef_t);
-  config_get(cmdline_params,numparams,NULL);
+  int numparams = sizeofArray(cmdline_params);
+  config_get(cfg, cmdline_params, numparams, NULL);
+
+  AssertFatal(rrc_config_path == NULL, "the option \"rrc_config_path\" is deprecated. Please use --reconfig-file and --rbconfig-file separately to point to files reconfig.raw and rbconfig.raw\n");
 
   if (vcdflag > 0)
     ouput_vcd = 1;
@@ -317,7 +322,7 @@ void init_openair0(void) {
   NR_DL_FRAME_PARMS *frame_parms = &PHY_vars_UE_g[0][0]->frame_parms;
 
   for (card=0; card<MAX_CARDS; card++) {
-    uint64_t dl_carrier, ul_carrier;
+    uint64_t dl_carrier, ul_carrier, sl_carrier;
     openair0_cfg[card].configFilename    = NULL;
     openair0_cfg[card].threequarter_fs   = frame_parms->threequarter_fs;
     openair0_cfg[card].sample_rate       = frame_parms->samples_per_subframe * 1e3;
@@ -346,6 +351,12 @@ void init_openair0(void) {
     nr_get_carrier_frequencies(PHY_vars_UE_g[0][0], &dl_carrier, &ul_carrier);
 
     nr_rf_card_config_freq(&openair0_cfg[card], ul_carrier, dl_carrier, freq_off);
+
+    if (get_softmodem_params()->sl_mode == 2) {
+      nr_get_carrier_frequencies_sl(PHY_vars_UE_g[0][0], &sl_carrier);
+      nr_rf_card_config_freq(&openair0_cfg[card], sl_carrier, sl_carrier, freq_off);
+    }
+
     nr_rf_card_config_gain(&openair0_cfg[card], rx_gain_off);
 
     openair0_cfg[card].configFilename = get_softmodem_params()->rf_config_file;
@@ -357,7 +368,8 @@ void init_openair0(void) {
   }
 }
 
-static void init_pdcp(int ue_id) {
+static void init_pdcp(int ue_id)
+{
   uint32_t pdcp_initmask = (!IS_SOFTMODEM_NOS1) ? LINK_ENB_PDCP_TO_GTPV1U_BIT : (LINK_ENB_PDCP_TO_GTPV1U_BIT | PDCP_USE_NETLINK_BIT | LINK_ENB_PDCP_TO_IP_DRIVER_BIT);
 
   /*if (IS_SOFTMODEM_RFSIM || (nfapi_getmode()==NFAPI_UE_STUB_PNF)) {
@@ -370,7 +382,7 @@ static void init_pdcp(int ue_id) {
   if (get_softmodem_params()->nsa && rlc_module_init(0) != 0) {
     LOG_I(RLC, "Problem at RLC initiation \n");
   }
-  nr_pdcp_layer_init();
+  nr_pdcp_layer_init(false);
   nr_pdcp_module_init(pdcp_initmask, ue_id);
   pdcp_set_rlc_data_req_func((send_rlc_data_req_func_t) rlc_data_req);
   pdcp_set_pdcp_data_ind_func((pdcp_data_ind_func_t) pdcp_data_ind);
@@ -391,6 +403,7 @@ static void trigger_deregistration(int sig)
 {
   if (!stop_immediately) {
     MessageDef *msg = itti_alloc_new_message(TASK_RRC_UE_SIM, 0, NAS_DEREGISTRATION_REQ);
+    NAS_DEREGISTRATION_REQ(msg).cause = AS_DETACH;
     itti_send_msg_to_task(TASK_NAS_NRUE, 0, msg);
     stop_immediately = true;
     static const char m[] = "Press ^C again to trigger immediate shutdown\n";
@@ -402,9 +415,10 @@ static void trigger_deregistration(int sig)
   }
 }
 
-static void get_channel_model_mode() {
+static void get_channel_model_mode(configmodule_interface_t *cfg)
+{
   paramdef_t GNBParams[]  = GNBPARAMS_DESC;
-  config_get(GNBParams, sizeof(GNBParams)/sizeof(paramdef_t), NULL);
+  config_get(cfg, GNBParams, sizeofArray(GNBParams), NULL);
   int num_xp_antennas = *GNBParams[GNB_PDSCH_ANTENNAPORTS_XP_IDX].iptr;
 
   if (num_xp_antennas == 2)
@@ -413,9 +427,36 @@ static void get_channel_model_mode() {
     init_bler_table("NR_AWGN_RESULTS_DIR");
 }
 
-int NB_UE_INST = 1;
+void start_oai_nrue_threads()
+{
+    init_queue(&nr_rach_ind_queue);
+    init_queue(&nr_rx_ind_queue);
+    init_queue(&nr_crc_ind_queue);
+    init_queue(&nr_uci_ind_queue);
+    init_queue(&nr_sfn_slot_queue);
+    init_queue(&nr_chan_param_queue);
+    init_queue(&nr_dl_tti_req_queue);
+    init_queue(&nr_tx_req_queue);
+    init_queue(&nr_ul_dci_req_queue);
+    init_queue(&nr_ul_tti_req_queue);
 
-int main( int argc, char **argv ) {
+    if (sem_init(&sfn_slot_semaphore, 0, 0) != 0)
+    {
+      LOG_E(MAC, "sem_init() error\n");
+      abort();
+    }
+
+    init_nrUE_standalone_thread(ue_id_g);
+}
+
+int NB_UE_INST = 1;
+configmodule_interface_t *uniqCfg = NULL;
+
+// A global var to reduce the changes size
+ldpc_interface_t ldpc_interface = {0}, ldpc_interface_offload = {0};
+
+int main(int argc, char **argv)
+{
   int set_exe_prio = 1;
   if (checkIfFedoraDistribution())
     if (checkIfGenericKernelOnFedora())
@@ -424,11 +465,9 @@ int main( int argc, char **argv ) {
   if (set_exe_prio)
     set_priority(79);
 
-  //uint8_t beta_ACK=0,beta_RI=0,beta_CQI=2;
-  PHY_VARS_NR_UE *UE[MAX_NUM_CCs];
   start_background_system();
 
-  if ( load_configmodule(argc,argv,CONFIG_ENABLECMDLINEONLY) == NULL) {
+  if ((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) == NULL) {
     exit_fun("[SOFTMODEM] Error, configuration module init failed\n");
   }
   //set_softmodem_sighandler();
@@ -439,9 +478,9 @@ int main( int argc, char **argv ) {
   logInit();
   // get options and fill parameters from configuration file
 
-  get_options (); //Command-line options specific for NRUE
+  get_options(uniqCfg); // Command-line options specific for NRUE
 
-  get_common_options(SOFTMODEM_5GUE_BIT);
+  get_common_options(uniqCfg, SOFTMODEM_5GUE_BIT);
   CONFIG_CLEARRTFLAG(CONFIG_NOEXITONHELP);
 #if T_TRACER
   T_Config_Init();
@@ -454,8 +493,8 @@ int main( int argc, char **argv ) {
   itti_init(TASK_MAX, tasks_info);
 
   init_opt() ;
-  load_nrLDPClib(NULL);
- 
+  load_LDPClib(NULL, &ldpc_interface);
+
   if (ouput_vcd) {
     vcd_signal_dumper_init("/tmp/openair_dump_nrUE.vcd");
   }
@@ -465,7 +504,12 @@ int main( int argc, char **argv ) {
 #endif
   LOG_I(HW, "Version: %s\n", PACKAGE_VERSION);
 
-  init_NR_UE(1,uecap_file,rrc_config_path);
+  PHY_vars_UE_g = malloc(sizeof(*PHY_vars_UE_g));
+  PHY_vars_UE_g[0] = malloc(sizeof(*PHY_vars_UE_g[0]) * MAX_NUM_CCs);
+  for (int CC_id = 0; CC_id < MAX_NUM_CCs; CC_id++) {
+    PHY_vars_UE_g[0][CC_id] = malloc(sizeof(*PHY_vars_UE_g[0][CC_id]));
+    memset(PHY_vars_UE_g[0][CC_id], 0, sizeof(*PHY_vars_UE_g[0][CC_id]));
+  }
 
   int mode_offset = get_softmodem_params()->nsa ? NUMBER_OF_UE_MAX : 1;
   uint16_t node_number = get_softmodem_params()->node_number;
@@ -480,11 +524,11 @@ int main( int argc, char **argv ) {
     }
   }
 
-  PHY_vars_UE_g = malloc(sizeof(PHY_VARS_NR_UE **));
-  PHY_vars_UE_g[0] = malloc(sizeof(PHY_VARS_NR_UE *)*MAX_NUM_CCs);
+  init_NR_UE(NB_UE_INST, uecap_file, reconfig_file, rbconfig_file);
+
   if (get_softmodem_params()->emulate_l1) {
     RCconfig_nr_ue_macrlc();
-    get_channel_model_mode();
+    get_channel_model_mode(uniqCfg);
   }
 
   if (get_softmodem_params()->do_ra)
@@ -497,17 +541,17 @@ int main( int argc, char **argv ) {
     start_oai_nrue_threads();
 
   if (!get_softmodem_params()->emulate_l1) {
-    for (int CC_id=0; CC_id<MAX_NUM_CCs; CC_id++) {
-      PHY_vars_UE_g[0][CC_id] = (PHY_VARS_NR_UE *)malloc(sizeof(PHY_VARS_NR_UE));
+    PHY_VARS_NR_UE *UE[MAX_NUM_CCs];
+    for (int CC_id = 0; CC_id < MAX_NUM_CCs; CC_id++) {
       UE[CC_id] = PHY_vars_UE_g[0][CC_id];
-      memset(UE[CC_id],0,sizeof(PHY_VARS_NR_UE));
 
       set_options(CC_id, UE[CC_id]);
       NR_UE_MAC_INST_t *mac = get_mac_inst(0);
 
       if (get_softmodem_params()->sa) { // set frame config to initial values from command line and assume that the SSB is centered on the grid
-        uint16_t nr_band = get_band(downlink_frequency[CC_id][0],uplink_frequency_offset[CC_id][0]);
+        uint16_t nr_band = get_softmodem_params()->band;
         mac->nr_band = nr_band;
+        mac->ssb_start_subcarrier = UE[CC_id]->frame_parms.ssb_start_subcarrier;
         nr_init_frame_parms_ue_sa(&UE[CC_id]->frame_parms,
                                   downlink_frequency[CC_id][0],
                                   uplink_frequency_offset[CC_id][0],
@@ -520,8 +564,7 @@ int main( int argc, char **argv ) {
         mac->phy_config_request_sent = true;
         fapi_nr_config_request_t *nrUE_config = &UE[CC_id]->nrUE_config;
 
-        nr_init_frame_parms_ue(&UE[CC_id]->frame_parms, nrUE_config,
-        *mac->scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.array[0]);
+        nr_init_frame_parms_ue(&UE[CC_id]->frame_parms, nrUE_config, mac->nr_band);
       }
 
       init_nr_ue_vars(UE[CC_id], 0, abstraction_flag);
@@ -556,7 +599,7 @@ int main( int argc, char **argv ) {
   // Sleep a while before checking all parameters have been used
   // Some are used directly in external threads, asynchronously
   sleep(2);
-  config_check_unknown_cmdlineopt(CONFIG_CHECKALLSECTIONS);
+  config_check_unknown_cmdlineopt(uniqCfg, CONFIG_CHECKALLSECTIONS);
 
   // wait for end of program
   printf("Entering ITTI signals handler\n");

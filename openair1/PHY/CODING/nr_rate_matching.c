@@ -31,7 +31,7 @@
 
 //#define RM_DEBUG 1
 
-uint8_t index_k0[2][4] = {{0,17,33,56},{0,13,25,43}};
+static const uint8_t index_k0[2][4] = {{0, 17, 33, 56}, {0, 13, 25, 43}};
 
 void nr_interleaving_ldpc(uint32_t E, uint8_t Qm, uint8_t *e,uint8_t *f)
 {
@@ -42,18 +42,18 @@ void nr_interleaving_ldpc(uint32_t E, uint8_t Qm, uint8_t *e,uint8_t *f)
   uint8_t *e0,*e1,*e2,*e3,*e4,*e5,*e6,*e7;
   uint8_t *fp;
 #if 0 //def __WASAVX2__
-  __m256i tmp0,tmp1,tmp2,tmp0b,tmp1b,tmp3,tmp4,tmp5;
-  __m256i *e0_256,*e1_256,*e2_256,*e3_256,*e4_256,*e5_256,*e6_256,*e7_256;
+  simde__m256i tmp0,tmp1,tmp2,tmp0b,tmp1b,tmp3,tmp4,tmp5;
+  simde__m256i *e0_256,*e1_256,*e2_256,*e3_256,*e4_256,*e5_256,*e6_256,*e7_256;
 
-  __m256i *f_256=(__m256i *)f;
+  simde__m256i *f_256=(simde__m256i *)f;
 
   uint8_t *fp2;
   switch(Qm) {
   case 2:
     e0=e;
     e1=e0+EQm;
-    e0_256=(__m256i *)e0;
-    e1_256=(__m256i *)e1;
+    e0_256=(simde__m256i *)e0;
+    e1_256=(simde__m256i *)e1;
     for (int k=0,j=0;j<EQm>>5;j++,k+=2) {
       f_256[k]   = simde_mm256_unpacklo_epi8(e0_256[j],e1_256[j]);
       f_256[k+1] = simde_mm256_unpackhi_epi8(e0_256[j],e1_256[j]); 
@@ -64,10 +64,10 @@ void nr_interleaving_ldpc(uint32_t E, uint8_t Qm, uint8_t *e,uint8_t *f)
     e1=e0+EQm;
     e2=e1+EQm;
     e3=e2+EQm;
-    e0_256=(__m256i *)e0;
-    e1_256=(__m256i *)e1;
-    e2_256=(__m256i *)e2;
-    e3_256=(__m256i *)e3;
+    e0_256=(simde__m256i *)e0;
+    e1_256=(simde__m256i *)e1;
+    e2_256=(simde__m256i *)e2;
+    e3_256=(simde__m256i *)e3;
     for (int k=0,j=0;j<EQm>>5;j++,k+=4) {
       tmp0   = simde_mm256_unpacklo_epi8(e0_256[j],e1_256[j]); // e0(i) e1(i) e0(i+1) e1(i+1) .... e0(i+15) e1(i+15)
       tmp1   = simde_mm256_unpacklo_epi8(e2_256[j],e3_256[j]); // e2(i) e3(i) e2(i+1) e3(i+1) .... e2(i+15) e3(i+15)
@@ -86,12 +86,12 @@ void nr_interleaving_ldpc(uint32_t E, uint8_t Qm, uint8_t *e,uint8_t *f)
     e3=e2+EQm;
     e4=e3+EQm;
     e5=e4+EQm;
-    e0_256=(__m256i *)e0;
-    e1_256=(__m256i *)e1;
-    e2_256=(__m256i *)e2;
-    e3_256=(__m256i *)e3;
-    e4_256=(__m256i *)e4;
-    e5_256=(__m256i *)e5;
+    e0_256=(simde__m256i *)e0;
+    e1_256=(simde__m256i *)e1;
+    e2_256=(simde__m256i *)e2;
+    e3_256=(simde__m256i *)e3;
+    e4_256=(simde__m256i *)e4;
+    e5_256=(simde__m256i *)e5;
 
     for (int j=0,k=0;j<EQm>>5;j++,k+=192) {
       fp  = f+k;
@@ -186,14 +186,14 @@ void nr_interleaving_ldpc(uint32_t E, uint8_t Qm, uint8_t *e,uint8_t *f)
     e6=e5+EQm;
     e7=e6+EQm;
 
-    e0_256=(__m256i *)e0;
-    e1_256=(__m256i *)e1;
-    e2_256=(__m256i *)e2;
-    e3_256=(__m256i *)e3;
-    e4_256=(__m256i *)e4;
-    e5_256=(__m256i *)e5;
-    e6_256=(__m256i *)e6;
-    e7_256=(__m256i *)e7;
+    e0_256=(simde__m256i *)e0;
+    e1_256=(simde__m256i *)e1;
+    e2_256=(simde__m256i *)e2;
+    e3_256=(simde__m256i *)e3;
+    e4_256=(simde__m256i *)e4;
+    e5_256=(simde__m256i *)e5;
+    e6_256=(simde__m256i *)e6;
+    e7_256=(simde__m256i *)e7;
     for (int k=0,j=0;j<EQm>>5;j++,k+=8) {
       tmp0   = simde_mm256_unpacklo_epi8(e0_256[j],e1_256[j]); // e0(i) e1(i) e0(i+1) e1(i+1) .... e0(i+15) e1(i+15)
       tmp1   = simde_mm256_unpacklo_epi8(e2_256[j],e3_256[j]); // e2(i) e3(i) e2(i+1) e3(i+1) .... e2(i+15) e3(i+15)
@@ -551,7 +551,8 @@ int nr_rate_matching_ldpc_rx(uint32_t Tbslbrm,
   printf("nr_rate_matching_ldpc_rx: Clear %d, E %u, k0 %u, Ncb %u, rvidx %d, Tbslbrm %u\n", clear, E, ind, Ncb, rvidx, Tbslbrm);
 #endif
 
-  if (clear==1) memset(w,0,Ncb*sizeof(int16_t));
+  if (clear == 1)
+    memset(w, 0, Ncb * sizeof(int16_t));
 
   k=0;
 

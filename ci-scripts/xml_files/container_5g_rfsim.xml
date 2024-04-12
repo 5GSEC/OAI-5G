@@ -28,17 +28,28 @@
         <TestCaseRequestedList>
  111111
  100001
- 000000
  000001
  000002
  000003
  000004
+ 000005
+ 000006
+ 000007
+ 000008
  020001
  020002
  020003
  020004
+ 020105
+ 444445
  030001
  030002
+ 444444
+ 333333
+ 020005
+ 444444
+ 333333
+ 020006
  100001
         </TestCaseRequestedList>
         <TestCaseExclusionList></TestCaseExclusionList>
@@ -47,23 +58,15 @@
                 <class>Pull_Local_Registry</class>
                 <desc>Pull Images from Local Registry</desc>
                 <test_svr_id>0</test_svr_id>
-                <images_to_pull>oai-gnb oai-nr-ue</images_to_pull>
-        </testCase>
-
-        <testCase id="000000">
-                <class>DeployGenObject</class>
-                <desc>Deploy MySql Database</desc>
-                <yaml_path>yaml_files/5g_rfsimulator</yaml_path>
-                <services>mysql</services>
-                <nb_healthy>1</nb_healthy>
+                <images_to_pull>oai-gnb-asan oai-nr-ue</images_to_pull>
         </testCase>
 
         <testCase id="000001">
                 <class>DeployGenObject</class>
                 <desc>Deploy OAI 5G CoreNetwork</desc>
                 <yaml_path>yaml_files/5g_rfsimulator</yaml_path>
-                <services>oai-nrf oai-amf oai-smf oai-spgwu oai-ext-dn</services>
-                <nb_healthy>6</nb_healthy>
+                <services>mysql oai-amf oai-smf oai-upf oai-ext-dn</services>
+                <nb_healthy>5</nb_healthy>
         </testCase>
 
         <testCase id="000002">
@@ -71,7 +74,7 @@
                 <desc>Deploy OAI 5G gNB RF sim SA</desc>
                 <yaml_path>yaml_files/5g_rfsimulator</yaml_path>
                 <services>oai-gnb</services>
-                <nb_healthy>7</nb_healthy>
+                <nb_healthy>6</nb_healthy>
         </testCase>
 
         <testCase id="000003">
@@ -79,7 +82,7 @@
                 <desc>Deploy OAI 5G NR-UE RF sim SA</desc>
                 <yaml_path>yaml_files/5g_rfsimulator</yaml_path>
                 <services>oai-nr-ue</services>
-                <nb_healthy>8</nb_healthy>
+                <nb_healthy>7</nb_healthy>
         </testCase>
 
         <testCase id="000004">
@@ -87,39 +90,93 @@
                 <desc>Deploy Second OAI 5G NR-UE RF sim SA</desc>
                 <yaml_path>yaml_files/5g_rfsimulator</yaml_path>
                 <services>oai-nr-ue2</services>
-                <nb_healthy>9</nb_healthy>
+                <nb_healthy>8</nb_healthy>
+        </testCase>
+
+        <testCase id="000005">
+                <class>DeployGenObject</class>
+                <desc>Deploy OAI 5G NR-UEs (#3, #4, #5) RF sim SA</desc>
+                <yaml_path>yaml_files/5g_rfsimulator</yaml_path>
+                <services>oai-nr-ue3 oai-nr-ue4 oai-nr-ue5</services>
+                <nb_healthy>11</nb_healthy>
+        </testCase>
+
+        <testCase id="000006">
+                <class>DeployGenObject</class>
+                <desc>Deploy OAI 5G NR-UEs (#6, #7, #8) RF sim SA</desc>
+                <yaml_path>yaml_files/5g_rfsimulator</yaml_path>
+                <services>oai-nr-ue6 oai-nr-ue7 oai-nr-ue8</services>
+                <nb_healthy>14</nb_healthy>
+        </testCase>
+
+        <testCase id="000007">
+                <class>DeployGenObject</class>
+                <desc>Deploy OAI 5G NR-UEs (#9, #10) RF sim SA</desc>
+                <yaml_path>yaml_files/5g_rfsimulator</yaml_path>
+                <services>oai-nr-ue9 oai-nr-ue10</services>
+                <nb_healthy>16</nb_healthy>
+        </testCase>
+
+        <testCase id="000008">
+                <class>Attach_UE</class>
+                <desc>Attach OAI UE (Wait for IP)</desc>
+                <id>rfsim5g_ue rfsim5g_ue2 rfsim5g_ue3 rfsim5g_ue4 rfsim5g_ue5 rfsim5g_ue6 rfsim5g_ue7 rfsim5g_ue8 rfsim5g_ue9 rfsim5g_ue10</id>
         </testCase>
 
         <testCase id="020001">
-                <class>PingFromContainer</class>
+                <class>Ping</class>
                 <desc>Ping ext-dn from NR-UE</desc>
-                <container_name>rfsim5g-oai-nr-ue</container_name>
-                <options>-I oaitun_ue1 -c 20 192.168.72.135</options>
-                <loss_threshold>5</loss_threshold>
+                <id>rfsim5g_ue</id>
+                <ping_args> -c 20 192.168.72.135</ping_args>
+                <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
 
         <testCase id="020002">
-                <class>PingFromContainer</class>
+                <class>Ping</class>
                 <desc>Ping NR-UE from ext-dn</desc>
-                <container_name>rfsim5g-oai-ext-dn</container_name>
-                <options>-c 20 12.1.1.2</options>
-                <loss_threshold>5</loss_threshold>
+                <id>rfsim5g_ext_dn</id>
+                <ping_args>-c 20 12.1.1.2</ping_args>
+                <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
 
         <testCase id="020003">
-                <class>PingFromContainer</class>
+                <class>Ping</class>
                 <desc>Ping ext-dn from Second NR-UE</desc>
-                <container_name>rfsim5g-oai-nr-ue2</container_name>
-                <options>-I oaitun_ue1 -c 20 192.168.72.135</options>
-                <loss_threshold>5</loss_threshold>
+                <id>rfsim5g_ue</id>
+                <ping_args> -c 20 192.168.72.135</ping_args>
+                <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
 
         <testCase id="020004">
-                <class>PingFromContainer</class>
+                <class>Ping</class>
                 <desc>Ping Second NR-UE from ext-dn</desc>
-                <container_name>rfsim5g-oai-ext-dn</container_name>
-                <options>-c 20 12.1.1.3</options>
-                <loss_threshold>5</loss_threshold>
+                <id>rfsim5g_ext_dn</id>
+                <ping_args>-c 20 12.1.1.3</ping_args>
+                <ping_packetloss_threshold>5</ping_packetloss_threshold>
+        </testCase>
+
+        <testCase id="020005">
+                <class>Ping</class>
+                <desc>Ping ext-dn from both UEs</desc>
+                <id>rfsim5g_ue rfsim5g_ue2</id>
+                <ping_args>-c 20 192.168.72.135</ping_args>
+                <ping_packetloss_threshold>5</ping_packetloss_threshold>
+        </testCase>
+
+        <testCase id="020006">
+                <class>Ping</class>
+                <desc>Ping ext-dn from both UEs</desc>
+                <id>rfsim5g_ue rfsim5g_ue2</id>
+                <ping_args>-c 20 192.168.72.135</ping_args>
+                <ping_packetloss_threshold>5</ping_packetloss_threshold>
+        </testCase>
+
+        <testCase id="020105">
+                <class>Ping</class>
+                <desc>Ping ext-dn from all UEs</desc>
+                <id>rfsim5g_ue rfsim5g_ue2 rfsim5g_ue3 rfsim5g_ue4 rfsim5g_ue5 rfsim5g_ue6 rfsim5g_ue7 rfsim5g_ue8 rfsim5g_ue9 rfsim5g_ue10</id>
+                <ping_args>-c 100 192.168.72.135 -i 0.2 -s 1016</ping_args>
+                <ping_packetloss_threshold>5</ping_packetloss_threshold>
         </testCase>
 
         <testCase id="030001">
@@ -138,6 +195,24 @@
                 <client_container_name>rfsim5g-oai-nr-ue</client_container_name>
                 <server_options>-u -i 1 -s</server_options>
                 <client_options>-B 12.1.1.2 -c 192.168.72.135 -u -i 1 -t 30 -b 1M</client_options>
+        </testCase>
+
+        <testCase id="333333">
+                <class>Attach_UE</class>
+                <desc>Attach OAI UE 1 and 2</desc>
+                <id>rfsim5g_ue rfsim5g_ue2</id>
+        </testCase>
+
+        <testCase id="444444">
+                <class>Detach_UE</class>
+                <desc>Detach OAI UE 1 and 2</desc>
+                <id>rfsim5g_ue rfsim5g_ue2</id>
+        </testCase>
+
+        <testCase id="444445">
+                <class>Detach_UE</class>
+                <desc>Detach OAI UE 2 to 10</desc>
+                <id>rfsim5g_ue3 rfsim5g_ue4 rfsim5g_ue5 rfsim5g_ue6 rfsim5g_ue7 rfsim5g_ue8 rfsim5g_ue9 rfsim5g_ue10</id>
         </testCase>
 
         <testCase id="100001">

@@ -97,42 +97,32 @@ nfapi_mode_t nfapi_getmode(void) { return NFAPI_MODE_UNKNOWN; }
 void nr_fill_dl_indication(nr_downlink_indication_t *dl_ind,
                            fapi_nr_dci_indication_t *dci_ind,
                            fapi_nr_rx_indication_t *rx_ind,
-                           UE_nr_rxtx_proc_t *proc,
+                           const UE_nr_rxtx_proc_t *proc,
                            PHY_VARS_NR_UE *ue,
-                           void *phy_data) {}
+                           void *phy_data)
+{
+}
 void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
                            uint8_t pdu_type,
                            PHY_VARS_NR_UE *ue,
                            NR_UE_DLSCH_t *dlsch0,
                            NR_UE_DLSCH_t *dlsch1,
                            uint16_t n_pdus,
-                           UE_nr_rxtx_proc_t *proc,
+                           const UE_nr_rxtx_proc_t *proc,
                            void *typeSpecific,
-                           uint8_t *b) {}
+                           uint8_t *b)
+{
+}
 
 int nr_ue_pdcch_procedures(PHY_VARS_NR_UE *ue,
-			   UE_nr_rxtx_proc_t *proc,
-         int32_t pdcch_est_size,
-         int32_t pdcch_dl_ch_estimates[][pdcch_est_size],
-         nr_phy_data_t *phy_data,
-         int n_ss,
-         c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]) {
+                           const UE_nr_rxtx_proc_t *proc,
+                           int32_t pdcch_est_size,
+                           int32_t pdcch_dl_ch_estimates[][pdcch_est_size],
+                           nr_phy_data_t *phy_data,
+                           int n_ss,
+                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+{
   return 0;
-}
-
-int nr_ue_pdsch_procedures(PHY_VARS_NR_UE *ue,
-                           UE_nr_rxtx_proc_t *proc,
-                           NR_UE_DLSCH_t dlsch[2],
-                           int16_t *llr[2],
-                           c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]) {
-  return 0;
-}
-
-bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
-                            UE_nr_rxtx_proc_t *proc,
-                            NR_UE_DLSCH_t dlsch[2],
-                            int16_t *llr[2]) {
-  return false;
 }
 
 void nr_phy_config_request_sim_pbchsim(PHY_VARS_gNB *gNB,
@@ -184,6 +174,7 @@ void nr_phy_config_request_sim_pbchsim(PHY_VARS_gNB *gNB,
   gNB->configured    = 1;
   LOG_I(PHY,"gNB configured\n");
 }
+configmodule_interface_t *uniqCfg = NULL;
 int main(int argc, char **argv)
 {
   char c;
@@ -249,7 +240,7 @@ int main(int argc, char **argv)
 
   cpuf = get_cpu_freq_GHz();
 
-  if ( load_configmodule(argc,argv,CONFIG_ENABLECMDLINEONLY) == 0) {
+  if ((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) == 0) {
     exit_fun("[NR_PBCHSIM] Error, configuration module init failed\n");
   }
 
@@ -478,7 +469,6 @@ int main(int argc, char **argv)
 
   logInit();
   set_glog(loglvl);
-  T_stdout = 1;
 
   if (snr1set==0)
     snr1 = snr0+10;
@@ -496,7 +486,6 @@ int main(int argc, char **argv)
   frame_parms->nb_antenna_ports_gNB = n_tx;
   frame_parms->N_RB_DL = N_RB_DL;
   frame_parms->Nid_cell = Nid_cell;
-  frame_parms->nushift = Nid_cell%4;
   frame_parms->ssb_type = nr_ssb_type_C;
   frame_parms->freq_range = mu<2 ? nr_FR1 : nr_FR2;
 
@@ -648,11 +637,13 @@ int main(int argc, char **argv)
 
         for (aa=0; aa<gNB->frame_parms.nb_antennas_tx; aa++) {
           if (cyclic_prefix_type == 1) {
-            apply_nr_rotation(frame_parms,
-                              gNB->common_vars.txdataF[aa],
-                              slot,
-                              0,
-                              12);
+            apply_nr_rotation_TX(frame_parms,
+                                 gNB->common_vars.txdataF[aa],
+                                 frame_parms->symbol_rotation[0],
+                                 slot,
+                                 frame_parms->N_RB_DL,
+                                 0,
+                                 12);
 
             PHY_ofdm_mod((int *)gNB->common_vars.txdataF[aa],
             (int *)&txdata[aa][frame_parms->get_samples_slot_timestamp(slot,frame_parms,0)],
@@ -661,11 +652,13 @@ int main(int argc, char **argv)
             frame_parms->nb_prefix_samples,
             CYCLIC_PREFIX);
           } else {
-            apply_nr_rotation(frame_parms,
-                              gNB->common_vars.txdataF[aa],
-                              slot,
-                              0,
-                              14);
+            apply_nr_rotation_TX(frame_parms,
+                                 gNB->common_vars.txdataF[aa],
+                                 frame_parms->symbol_rotation[0],
+                                 slot,
+                                 frame_parms->N_RB_DL,
+                                 0,
+                                 14);
 
             /*nr_normal_prefix_mod(gNB->common_vars.txdataF[aa],
               &txdata[aa][frame_parms->get_samples_slot_timestamp(slot,frame_parms,0)],
@@ -779,7 +772,6 @@ int main(int argc, char **argv)
       }
       else {
         UE_nr_rxtx_proc_t proc={0};
-        nr_phy_data_t phy_data={0};
 
 	UE->rx_offset=0;
 	uint8_t ssb_index = 0;
@@ -811,7 +803,6 @@ int main(int argc, char **argv)
                          frame_parms,
                          ssb_index%8,
                          SISO,
-                         &phy_data,
                          &result,
                          rxdataF);
 

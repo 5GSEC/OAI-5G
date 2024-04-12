@@ -73,6 +73,14 @@
 #define PAYLOAD_CONTAINER_LENGTH_MIN                       3
 #define PAYLOAD_CONTAINER_LENGTH_MAX                       65537
 
+/* List of allowed NSSAI from NAS messaging. */
+typedef struct {
+  int sst;
+  int hplmn_sst;
+  int sd;
+  int hplmn_sd;
+} nr_nas_msg_snssai_t;
+
 /* Security Key for SA UE */
 typedef struct {
   uint8_t kausf[32];
@@ -90,6 +98,7 @@ typedef struct {
   uicc_t *uicc;
   ue_sa_security_key_t security;
   Guti5GSMobileIdentity_t *guti;
+  bool termination_procedure;
 } nr_ue_nas_t;
 
 typedef enum fgs_protocol_discriminator_e {
@@ -174,6 +183,7 @@ typedef struct {
 nr_ue_nas_t *get_ue_nas_info(module_id_t module_id);
 void generateRegistrationRequest(as_nas_info_t *initialNasMsg, nr_ue_nas_t *nas);
 void *nas_nrue_task(void *args_p);
+void *nas_nrue(void *args_p);
 
 #endif /* __NR_NAS_MSG_SIM_H__*/
 

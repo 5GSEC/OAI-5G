@@ -54,10 +54,13 @@ void nr_modulation(uint32_t *in,
   @param[out] tx_layers, modulated symbols for each layer
 */
 
-void nr_layer_mapping(int16_t **mod_symbs,
-                         uint8_t n_layers,
-                         uint32_t n_symbs,
-                         int16_t **tx_layers);
+void nr_layer_mapping(int nbCodes,
+                      int encoded_len,
+                      c16_t mod_symbs[nbCodes][encoded_len],
+                      uint8_t n_layers,
+                      int layerSz,
+                      uint32_t n_symbs,
+                      c16_t tx_layers[n_layers][layerSz]);
 
 /*! \brief Perform NR layer mapping. TS 38.211 V15.4.0 subclause 7.3.1.3
   @param[in] ulsch_ue, double Pointer to NR_UE_ULSCH_t struct
@@ -108,19 +111,24 @@ int nr_beam_precoding(c16_t **txdataF,
                       int offset
 );
 
-void apply_nr_rotation(NR_DL_FRAME_PARMS *fp,
-		       c16_t* txdata,
-		       int slot,
-		       int first_symbol,
-		       int nsymb);
+void apply_nr_rotation_TX(const NR_DL_FRAME_PARMS *fp,
+                          c16_t *txdataF,
+                          const c16_t *symbol_rotation,
+                          int slot,
+                          int nb_rb,
+                          int first_symbol,
+                          int nsymb);
 
 void init_symbol_rotation(NR_DL_FRAME_PARMS *fp);
 
 void init_timeshift_rotation(NR_DL_FRAME_PARMS *fp);
 
-void apply_nr_rotation_ul(NR_DL_FRAME_PARMS *frame_parms,
+void apply_nr_rotation_RX(NR_DL_FRAME_PARMS *frame_parms,
 			  c16_t *rxdataF,
+                          c16_t *rot,
 			  int slot,
+                          int nb_rb,
+                          int soffset,
 			  int first_symbol,
 			  int nsymb);
 
@@ -131,8 +139,29 @@ void apply_nr_rotation_ul(NR_DL_FRAME_PARMS *frame_parms,
 */
 int nr_layer_precoder(int16_t **datatx_F_precoding, const char *prec_matrix, uint8_t n_layers, int32_t re_offset);
 
-int nr_layer_precoder_cm(int16_t **datatx_F_precoding,
-                int *prec_matrix,
-                uint8_t n_layers,
-                int32_t re_offset);
+c16_t nr_layer_precoder_cm(int n_layers,
+                           int n_symbols,
+                           int symSz,
+                           c16_t datatx_F_precoding[n_layers][n_symbols][symSz],
+                           int ap,
+                           nfapi_nr_pm_pdu_t *pmi_pdu,
+                           int symbol,
+                           int offset);
+
+/*! \brief Precoding with SIMDe, txdataF_precoded[] = prec_matrix[] * txdataF_res_mapped[]
+  @param[in]  txdataF_res_mapped Tx data after resource mapping, before precoding.
+  @param[in]  prec_matrix        Weights of precoding matrix.
+  @param[in]  re_cnt             Number of RE (sub carrier) to write to txdataF_precoded, should be multiple of 4.
+  @param[out] txdataF_precoded   Precoded antenna data
+*/
+void nr_layer_precoder_simd(const int n_layers,
+                           const int n_symbols,
+                           const int symSz,
+                           const c16_t txdataF_res_mapped[n_layers][n_symbols][symSz],
+                           const int ant,
+                           const nfapi_nr_pm_pdu_t *pmi_pdu,
+                           const int symbol,
+                           const int sc_offset,
+                           const int re_cnt,
+                           c16_t *txdataF_precoded);
 #endif

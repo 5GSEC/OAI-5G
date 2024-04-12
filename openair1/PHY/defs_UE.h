@@ -19,7 +19,7 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PHY/defs.h
+/*! \file defs_UE.h
  \brief Top-level defines and structure definitions
  \author R. Knopp, F. Kaltenberger
  \date 2011
@@ -62,7 +62,7 @@
 #include "time_meas.h"
 #include "PHY/CODING/coding_defs.h"
 #include "PHY/TOOLS/tools_defs.h"
-#include "platform_types.h"
+#include "common/platform_types.h"
 #include "PHY/LTE_UE_TRANSPORT/transport_ue.h"
 #include "PHY/LTE_TRANSPORT/transport_eNB.h" // for SIC
 #include <pthread.h>

@@ -57,11 +57,6 @@ extern uint16_t frame_cnt;
 #include "common/ran_context.h"
 #include "SCHED/sched_common.h"
 #include "openair2/LAYER2/MAC/mac_extern.h"
-
-#ifdef ENABLE_RAN_SLICING
-#include "openair2/LAYER2/MAC/slicing/slicing.h"
-#endif
-
 /*
  * If the CQI is low, then scheduler will use a higher aggregation level and lower aggregation level otherwise
  * this is also dependent to transmission mode, where an offset could be defined
@@ -1454,15 +1449,7 @@ fill_nfapi_ulsch_harq_information(module_id_t                            module_
 }
 
 //------------------------------------------------------------------------------
-uint8_t
-Np[6][4] = {
-  {0, 1, 3, 5},
-  {0, 3, 8, 13},
-  {0, 5, 13, 22},
-  {0, 11, 27, 44},
-  {0, 16, 41, 66},
-  {0, 22, 55, 88}
-};
+const uint8_t Np[6][4] = {{0, 1, 3, 5}, {0, 3, 8, 13}, {0, 5, 13, 22}, {0, 11, 27, 44}, {0, 16, 41, 66}, {0, 22, 55, 88}};
 //------------------------------------------------------------------------------
 
 // This is part of the PUCCH allocation procedure (see Section 10.1 36.213)

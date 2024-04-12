@@ -404,7 +404,15 @@ void nr_sdap_ue_qfi2drb_config(nr_sdap_entity_t *existing_sdap_entity, rb_id_t p
   }
 }
 
-nr_sdap_entity_t *new_nr_sdap_entity(int is_gnb, bool has_sdap_rx, bool has_sdap_tx, ue_id_t ue_id, int pdusession_id, bool is_defaultDRB, uint8_t drb_identity, NR_QFI_t *mapped_qfi_2_add, uint8_t mappedQFIs2AddCount)
+nr_sdap_entity_t *new_nr_sdap_entity(int is_gnb,
+                                     bool has_sdap_rx,
+                                     bool has_sdap_tx,
+                                     ue_id_t ue_id,
+                                     int pdusession_id,
+                                     bool is_defaultDRB,
+                                     uint8_t drb_identity,
+                                     NR_QFI_t *mapped_qfi_2_add,
+                                     uint8_t mappedQFIs2AddCount)
 {
   if (nr_sdap_get_entity(ue_id, pdusession_id)) {
     LOG_E(SDAP, "SDAP Entity for UE already exists with RNTI/UE ID: %lu and PDU SESSION ID: %d\n", ue_id, pdusession_id);
@@ -468,23 +476,89 @@ nr_sdap_entity_t *nr_sdap_get_entity(ue_id_t ue_id, int pdusession_id)
   return NULL;
 }
 
-void delete_nr_sdap_entity(ue_id_t ue_id)
+void nr_sdap_release_drb(ue_id_t ue_id, int drb_id, int pdusession_id)
 {
-  nr_sdap_entity_t *entityPtr, *entityPrev = NULL;
-  entityPtr = sdap_info.sdap_entity_llist;
-
-  if (entityPtr->ue_id == ue_id) {
-    sdap_info.sdap_entity_llist = sdap_info.sdap_entity_llist->next_entity;
-    free(entityPtr);
-  } else {
-    while (entityPtr->ue_id != ue_id && entityPtr->next_entity != NULL) {
-      entityPrev = entityPtr;
-      entityPtr = entityPtr->next_entity;
-    }
-
-    if (entityPtr->ue_id != ue_id) {
-      entityPrev->next_entity = entityPtr->next_entity;
-      free(entityPtr);
+  // remove all QoS flow to DRB mappings associated with the released DRB
+  nr_sdap_entity_t *sdap = nr_sdap_get_entity(ue_id, pdusession_id);
+  if (sdap) {
+    for (int i = 0; i < SDAP_MAX_QFI; i++) {
+      if (sdap->qfi2drb_table[i].drb_id == drb_id)
+        sdap->qfi2drb_table[i].drb_id = SDAP_NO_MAPPING_RULE;
     }
   }
+  else
+    LOG_E(SDAP, "Couldn't find a SDAP entity associated with PDU session ID %d\n",
+          pdusession_id);
+}
+
+bool nr_sdap_delete_entity(ue_id_t ue_id, int pdusession_id)
+{
+  nr_sdap_entity_t *entityPtr = sdap_info.sdap_entity_llist;
+  nr_sdap_entity_t *entityPrev = NULL;
+  bool ret = false;
+  int upperBound = 0;
+
+  if (entityPtr == NULL && (pdusession_id) * (pdusession_id - NGAP_MAX_PDU_SESSION) > 0) {
+    LOG_E(SDAP, "SDAP entities not established or Invalid range of pdusession_id [0, 256].\n");
+    return ret;
+  }
+  LOG_D(SDAP, "Deleting SDAP entity for UE %lx and PDU Session id %d\n", ue_id, entityPtr->pdusession_id);
+
+  if (entityPtr->ue_id == ue_id && entityPtr->pdusession_id == pdusession_id) {
+    sdap_info.sdap_entity_llist = sdap_info.sdap_entity_llist->next_entity;
+    free(entityPtr);
+    LOG_D(SDAP, "Successfully deleted Entity.\n");
+    ret = true;
+  } else {
+    while ((entityPtr->ue_id != ue_id || entityPtr->pdusession_id != pdusession_id) && entityPtr->next_entity != NULL
+           && upperBound < SDAP_MAX_NUM_OF_ENTITIES) {
+      entityPrev = entityPtr;
+      entityPtr = entityPtr->next_entity;
+      upperBound++;
+    }
+
+    if (entityPtr->ue_id == ue_id && entityPtr->pdusession_id == pdusession_id) {
+      entityPrev->next_entity = entityPtr->next_entity;
+      free(entityPtr);
+      LOG_D(SDAP, "Successfully deleted Entity.\n");
+      ret = true;
+    }
+  }
+  LOG_E(SDAP, "Entity does not exist or it was not found.\n");
+  return ret;
+}
+
+bool nr_sdap_delete_ue_entities(ue_id_t ue_id)
+{
+  nr_sdap_entity_t *entityPtr = sdap_info.sdap_entity_llist;
+  nr_sdap_entity_t *entityPrev = NULL;
+  int upperBound = 0;
+  bool ret = false;
+
+  if (entityPtr == NULL && (ue_id) * (ue_id - SDAP_MAX_UE_ID) > 0) {
+    LOG_W(SDAP, "SDAP entities not established or Invalid range of ue_id [0, 65536]\n");
+    return ret;
+  }
+
+  /* Handle scenario where ue_id matches the head of the list */
+  while (entityPtr != NULL && entityPtr->ue_id == ue_id && upperBound < MAX_DRBS_PER_UE) {
+    sdap_info.sdap_entity_llist = entityPtr->next_entity;
+    free(entityPtr);
+    entityPtr = sdap_info.sdap_entity_llist;
+    ret = true;
+  }
+
+  while (entityPtr != NULL && upperBound < SDAP_MAX_NUM_OF_ENTITIES) {
+    if (entityPtr->ue_id != ue_id) {
+      entityPrev = entityPtr;
+      entityPtr = entityPtr->next_entity;
+    } else {
+      entityPrev->next_entity = entityPtr->next_entity;
+      free(entityPtr);
+      entityPtr = entityPrev->next_entity;
+      LOG_I(SDAP, "Successfully deleted SDAP entity for UE %ld\n", ue_id);
+      ret = true;
+    }
+  }
+  return ret;
 }

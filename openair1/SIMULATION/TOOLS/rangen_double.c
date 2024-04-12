@@ -55,6 +55,9 @@ void randominit(unsigned long seed_init)
   unsigned long seed = seed_init;
   if (seed_init == 0)
     fill_random(&seed, sizeof(seed));
+  const char* str_oai_rngseed = getenv("OAI_RNGSEED");
+  if (str_oai_rngseed != NULL)
+    seed = atoi(str_oai_rngseed);
   printf("Initializing random number generator, seed %lu\n", seed);
 
   // initialize uniformrandom RNG
@@ -161,7 +164,7 @@ double nfix(void)
   }
 }
 
-/*!\Procedure to create tables for normal distribution kn,wn and fn. */
+/*!Procedure to create tables for normal distribution kn,wn and fn. */
 void tableNor(unsigned long seed)
 {
   jsr = seed;

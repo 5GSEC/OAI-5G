@@ -19,7 +19,7 @@
 #include <pthread.h>
 
 #include "stddef.h"
-#include "platform_types.h"
+#include "common/platform_types.h"
 #include "fapi_nr_ue_constants.h"
 #include "PHY/impl_defs_top.h"
 #include "PHY/impl_defs_nr.h"
@@ -49,6 +49,12 @@ typedef struct {
   uint32_t sr;
 } fapi_nr_uci_pdu_rel15_t;
 
+typedef enum {
+ RLM_no_monitoring = 0,
+ RLM_out_of_sync = 1,
+ RLM_in_sync = 2
+} rlm_t;
+
 typedef struct {
   uint32_t rsrp;
   int rsrp_dBm;
@@ -56,6 +62,7 @@ typedef struct {
   uint8_t i1;
   uint8_t i2;
   uint8_t cqi;
+  rlm_t radiolink_monitoring;
 } fapi_nr_csirs_measurements_t;
 
 typedef struct {
@@ -125,6 +132,7 @@ typedef struct {
   uint16_t cell_id;
   uint16_t ssb_start_subcarrier;
   short rsrp_dBm;
+  rlm_t radiolink_monitoring; // -1 no monitoring, 0 out_of_sync, 1 in_sync
 } fapi_nr_ssb_pdu_t;
 
 typedef struct {
@@ -160,7 +168,6 @@ typedef struct {
 
 typedef struct {
   uint16_t pdu_length;
-  uint16_t pdu_index;
   uint8_t* pdu;
 } fapi_nr_tx_request_body_t;
 
@@ -232,9 +239,9 @@ typedef struct {
 
 typedef struct
 {
-  uint8_t  rv_index;
-  uint8_t  harq_process_id;
-  uint8_t  new_data_indicator;
+  uint8_t rv_index;
+  uint8_t harq_process_id;
+  bool new_data_indicator;
   uint32_t tb_size;
   uint16_t num_cb;
   uint8_t cb_present_and_position[(NFAPI_UE_MAX_NUM_CB+7) / 8];
@@ -329,7 +336,7 @@ typedef struct
   uint16_t dmrs_ports;//DMRS ports. [TS38.212 7.3.1.1.2] provides description between DCI 0-1 content and DMRS ports. Bitmap occupying the 11 LSBs with: bit 0: antenna port 1000 bit 11: antenna port 1011 and for each bit 0: DMRS port not used 1: DMRS port used
   //Pusch Allocation in frequency domain [TS38.214, sec 6.1.2.2]
   uint8_t  resource_alloc;
-  uint8_t  rb_bitmap[36];//
+  uint8_t  rb_bitmap[36];
   uint16_t rb_start;
   uint16_t rb_size;
   uint8_t  vrb_to_prb_mapping;
@@ -340,6 +347,7 @@ typedef struct
   uint8_t  start_symbol_index;
   uint8_t  nr_of_symbols;
   uint32_t tbslbrm;
+  uint8_t ldpcBaseGraph;
   //Optional Data only included if indicated in pduBitmap
   nfapi_nr_ue_pusch_data_t pusch_data;
   nfapi_nr_ue_pusch_uci_t  pusch_uci;
@@ -349,6 +357,7 @@ typedef struct
   nfapi_nr_ue_ul_beamforming_t beamforming;
   //OAI specific
   int8_t absolute_delta_PUSCH;
+  fapi_nr_tx_request_body_t tx_request_body;
 } nfapi_nr_ue_pusch_pdu_t;
 
 typedef struct {
@@ -382,23 +391,24 @@ typedef struct {
 } fapi_nr_ul_config_srs_pdu;
 
 typedef struct {
-  uint8_t pdu_type;
+  int pdu_type;
   union {
     fapi_nr_ul_config_prach_pdu prach_config_pdu;
     fapi_nr_ul_config_pucch_pdu pucch_config_pdu;
     nfapi_nr_ue_pusch_pdu_t     pusch_config_pdu;
     fapi_nr_ul_config_srs_pdu   srs_config_pdu;
   };
+  pthread_mutex_t* lock;
+  int* privateNBpdus;
 } fapi_nr_ul_config_request_pdu_t;
 
 typedef struct {
-  uint16_t sfn;
-  uint16_t slot;
-  uint8_t number_pdus;
-  fapi_nr_ul_config_request_pdu_t ul_config_list[FAPI_NR_UL_CONFIG_LIST_NUM];
+  int frame;
+  int slot;
+  int number_pdus;
+  fapi_nr_ul_config_request_pdu_t ul_config_list[FAPI_NR_UL_CONFIG_LIST_NUM + 1]; // +1 to have space for iterator ending
   pthread_mutex_t mutex_ul_config;
 } fapi_nr_ul_config_request_t;
-
 
 typedef struct {
   uint16_t rnti;
@@ -417,7 +427,7 @@ typedef struct {
   uint8_t num_dci_options;  // Num DCIs the UE actually needs to decode (1 or 2)
   uint8_t dci_length_options[2];
   uint8_t dci_format_options[2];
-  uint8_t dci_type_options[2];
+  uint8_t ss_type_options[2];
 } fapi_nr_dl_config_dci_dl_pdu_rel15_t;
 
 typedef struct {
@@ -429,24 +439,29 @@ typedef enum{vrb_to_prb_mapping_non_interleaved = 0, vrb_to_prb_mapping_interlea
 typedef struct {
   uint16_t BWPSize;
   uint16_t BWPStart;
-  uint8_t SubcarrierSpacing;  
+  uint8_t SubcarrierSpacing;
+  uint8_t resource_alloc;
+  uint8_t rb_bitmap[36];
   uint16_t number_rbs;
   uint16_t start_rb;
   uint16_t number_symbols;
   uint16_t start_symbol;
+  // TODO this is a workaround to make it work
+  // implementation is also a bunch of workarounds
+  uint16_t rb_offset;
   uint16_t dlDmrsSymbPos;  
   uint8_t dmrsConfigType;
   uint8_t prb_bundling_size_ind;
   uint8_t rate_matching_ind;
   uint8_t zp_csi_rs_trigger;
   uint8_t mcs;
-  uint8_t ndi;
+  bool new_data_indicator;
   uint8_t rv;
   uint16_t targetCodeRate;
   uint8_t qamModOrder;
   uint32_t TBS;
   uint8_t tb2_mcs;
-  uint8_t tb2_ndi;
+  bool tb2_new_data_indicator;
   uint8_t tb2_rv;
   uint8_t harq_process_nbr;
   vrb_to_prb_mapping_t vrb_to_prb_mapping;
@@ -480,6 +495,7 @@ typedef struct {
   uint16_t dlDmrsScramblingId;
   uint16_t pduBitmap;
   uint32_t k1_feedback;
+  uint8_t ldpcBaseGraph;
 } fapi_nr_dl_config_dlsch_pdu_rel15_t;
 
 typedef struct {
@@ -560,7 +576,9 @@ typedef struct {
 typedef struct 
 {
   uint16_t dl_bandwidth;//Carrier bandwidth for DL in MHz [38.104, sec 5.3.2] Values: 5, 10, 15, 20, 25, 30, 40,50, 60, 70, 80,90,100,200,400
+  uint16_t sl_bandwidth; //Carrier bandwidth for SL in MHz [38.101, sec 5.3.5] Values: 10, 20, 30, and 40
   uint32_t dl_frequency; //Absolute frequency of DL point A in KHz [38.104, sec5.2 and 38.211 sec 4.4.4.2] Value: 450000 -> 52600000
+  uint32_t sl_frequency; //Absolute frequency of SL point A in KHz [38.331, sec6.3.5 and 38.211 sec 8.2.7]
   uint16_t dl_k0[5];//𝑘_{0}^{𝜇} for each of the numerologies [38.211, sec 5.3.1] Value: 0 ->23699
   uint16_t dl_grid_size[5];//Grid size 𝑁_{𝑔𝑟𝑖𝑑}^{𝑠𝑖𝑧𝑒,𝜇} for each of the numerologies [38.211, sec 4.4.2] Value: 0->275 0 = this numerology not used
   uint16_t num_tx_ant;//Number of Tx antennas
@@ -568,6 +586,7 @@ typedef struct
   uint32_t uplink_frequency;//Absolute frequency of UL point A in KHz [38.104, sec5.2 and 38.211 sec 4.4.4.2] Value: 450000 -> 52600000
   uint16_t ul_k0[5];//𝑘0 𝜇 for each of the numerologies [38.211, sec 5.3.1] Value: : 0 ->23699
   uint16_t ul_grid_size[5];//Grid size 𝑁𝑔𝑟𝑖𝑑 𝑠𝑖𝑧𝑒,𝜇 for each of the numerologies [38.211, sec 4.4.2]. Value: 0->275 0 = this numerology not used
+  uint16_t sl_grid_size[5];
   uint16_t num_rx_ant;//
   uint8_t  frequency_shift_7p5khz;//Indicates presence of 7.5KHz frequency shift. Value: 0 = false 1 = true
 
@@ -622,13 +641,12 @@ typedef struct
 
 typedef struct 
 {
-  fapi_nr_max_num_of_symbol_per_slot_t* max_num_of_symbol_per_slot_list;
+  fapi_nr_max_num_of_symbol_per_slot_t *max_num_of_symbol_per_slot_list;
 
 } fapi_nr_max_tdd_periodicity_t;
 
 typedef struct 
 {
-  uint8_t tdd_period;//DL UL Transmission Periodicity. Value:0: ms0p5 1: ms0p625 2: ms1 3: ms1p25 4: ms2 5: ms2p5 6: ms5 7: ms10 8: ms3 9: ms4
   uint8_t tdd_period_in_slots;
   fapi_nr_max_tdd_periodicity_t* max_tdd_periodicity_list;
 
@@ -649,7 +667,8 @@ typedef struct
 typedef struct 
 {
   uint8_t prach_sequence_length;//RACH sequence length. Only short sequence length is supported for FR2. [38.211, sec 6.3.3.1] Value: 0 = Long sequence 1 = Short sequence
-  uint8_t prach_sub_c_spacing;//Subcarrier spacing of PRACH. [38.211 sec 4.2] Value:0->4
+  uint8_t prach_sub_c_spacing; // Subcarrier spacing of PRACH. [38.211 sec 4.2] Value: 0: 15 kHz 1: 30 kHz 2: 60 kHz 3: 120 kHz
+                               // 4: 1.25 kHz 5: 5 kHz
   uint8_t restricted_set_config;//PRACH restricted set config Value: 0: unrestricted 1: restricted set type A 2: restricted set type B
   uint8_t num_prach_fd_occasions;//Corresponds to the parameter 𝑀 in [38.211, sec 6.3.3.2] which equals the higher layer parameter msg1FDM Value: 1,2,4,8
   fapi_nr_num_prach_fd_occasions_t* num_prach_fd_occasions_list;
@@ -659,7 +678,7 @@ typedef struct
 } fapi_nr_prach_config_t;
 
 typedef struct {
-  uint16_t target_Nid_cell;
+  int16_t target_Nid_cell;
 } fapi_nr_synch_request_t;
 
 typedef struct {
@@ -669,7 +688,8 @@ typedef struct {
   fapi_nr_cell_config_t cell_config;
   fapi_nr_ssb_config_t ssb_config;
   fapi_nr_ssb_table_t ssb_table;
-  fapi_nr_tdd_table_t tdd_table;
+  fapi_nr_tdd_table_t tdd_table_1;
+  fapi_nr_tdd_table_t *tdd_table_2;
   fapi_nr_prach_config_t prach_config;
 
 } fapi_nr_config_request_t;

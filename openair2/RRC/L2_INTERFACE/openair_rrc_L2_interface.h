@@ -19,19 +19,19 @@
  *      contact@openairinterface.org
  */
 
-/*! \file l2_interface.c
-* \brief layer 2 interface
-* \author Navid Nikaein and Raymond Knopp
-* \date 2011
-* \version 1.0
-* \company Eurecom
-* \email: navid.nikaein@eurecom.fr,raymond.knopp@eurecom.fr
-*/
+/*! \file openair_rrc_L2_interface.h
+ * \brief layer 2 interface
+ * \author Navid Nikaein and Raymond Knopp
+ * \date 2011
+ * \version 1.0
+ * \company Eurecom
+ * \email: navid.nikaein@eurecom.fr,raymond.knopp@eurecom.fr
+ */
 #ifndef __OPENAIR_RRC_L2_INTERFACE_H__
 #define __OPENAIR_RRC_L2_INTERFACE_H__
 
 #include "COMMON/mac_rrc_primitives.h"
-#include "COMMON/platform_types.h"
+#include "common/platform_types.h"
 
 int8_t
 mac_rrc_data_req(

@@ -91,42 +91,24 @@ void deref_sched_response(int _)
   exit(1);
 }
 
-int nr_postDecode_sim(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req) {
+int nr_postDecode_sim(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req, int *nb_ok)
+{
   ldpcDecode_t *rdata = (ldpcDecode_t*) NotifiedFifoData(req);
   NR_UL_gNB_HARQ_t *ulsch_harq = rdata->ulsch_harq;
-  NR_gNB_ULSCH_t *ulsch = rdata->ulsch;
   int r = rdata->segment_r;
 
   bool decodeSuccess = (rdata->decodeIterations <= rdata->decoderParms.numMaxIter);
   ulsch_harq->processedSegments++;
-  gNB->nbDecode--;
 
   if (decodeSuccess) {
     memcpy(ulsch_harq->b+rdata->offset,
            ulsch_harq->c[r],
            rdata->Kr_bytes - (ulsch_harq->F>>3) -((ulsch_harq->C>1)?3:0));
-  } else {
-    if ( rdata->nbSegments != ulsch_harq->processedSegments ) {
-      int nb=abortTpoolJob(&gNB->threadPool, req->key);
-      nb+=abortNotifiedFIFOJob(&gNB->respDecode, req->key);
-      gNB->nbDecode-=nb;
-      AssertFatal(ulsch_harq->processedSegments+nb == rdata->nbSegments,"processed: %d, aborted: %d, total %d\n",
-      ulsch_harq->processedSegments, nb, rdata->nbSegments);
-      ulsch_harq->processedSegments=rdata->nbSegments;
-      return 1;
-    }
   }
 
-  // if all segments are done 
-  if (rdata->nbSegments == ulsch_harq->processedSegments) {
-    if (decodeSuccess) {
-      return 0;
-    } else {
-      return 1;
-      }
-
-    }
-    ulsch->last_iteration_cnt = rdata->decodeIterations;
+  // if all segments are done
+  if (rdata->nbSegments == ulsch_harq->processedSegments)
+    return *nb_ok == rdata->nbSegments;
   return 0;
 }
 
@@ -136,6 +118,7 @@ nrUE_params_t *get_nrUE_params(void) {
   return &nrUE_params;
 }
 
+configmodule_interface_t *uniqCfg = NULL;
 int main(int argc, char **argv)
 {
   char c;
@@ -175,7 +158,7 @@ int main(int argc, char **argv)
 
   cpuf = get_cpu_freq_GHz();
 
-  if (load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY) == 0) {
+  if ((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) == 0) {
     exit_fun("[NR_ULSCHSIM] Error, configuration module init failed\n");
   }
 
@@ -395,7 +378,6 @@ int main(int argc, char **argv)
 
   logInit();
   set_glog(loglvl);
-  T_stdout = 1;
 
   if (snr1set == 0)
     snr1 = snr0 + 10;
@@ -446,7 +428,7 @@ int main(int argc, char **argv)
   phy_init_nr_gNB(gNB);
 
   //configure UE
-  UE = malloc(sizeof(PHY_VARS_NR_UE));
+  UE = calloc(1, sizeof(*UE));
   memcpy(&UE->frame_parms, frame_parms, sizeof(NR_DL_FRAME_PARMS));
 
   UE->frame_parms.nb_antennas_tx = n_tx;
@@ -483,7 +465,7 @@ int main(int argc, char **argv)
 
   mod_order = nr_get_Qm_ul(Imcs, mcs_table);
   code_rate = nr_get_code_rate_ul(Imcs, mcs_table);
-  available_bits = nr_get_G(nb_rb, nb_symb_sch, nb_re_dmrs, length_dmrs, mod_order, Nl);
+  available_bits = nr_get_G(nb_rb, nb_symb_sch, nb_re_dmrs, length_dmrs, 0, mod_order, Nl);
   TBS = nr_compute_tbs(mod_order,code_rate, nb_rb, nb_symb_sch, nb_re_dmrs*length_dmrs, 0, 0, Nl);
 
   printf("\nAvailable bits %u TBS %u mod_order %d\n", available_bits, TBS, mod_order);
@@ -524,6 +506,7 @@ int main(int argc, char **argv)
   ulsch_ue->pusch_pdu.pusch_data.tb_size  = TBS>>3;
   ulsch_ue->pusch_pdu.target_code_rate = code_rate;
   ulsch_ue->pusch_pdu.qam_mod_order = mod_order;
+  ulsch_ue->pusch_pdu.ldpcBaseGraph = get_BG(TBS, code_rate);
   unsigned char *test_input = harq_process_ul_ue->a;
 
   ///////////
@@ -538,10 +521,10 @@ int main(int argc, char **argv)
 
   /////////////////////////ULSCH coding/////////////////////////
   ///////////
-  unsigned int G = nr_get_G(nb_rb, nb_symb_sch, nb_re_dmrs, length_dmrs, mod_order, Nl);
+  unsigned int G = available_bits;
 
   if (input_fd == NULL) {
-    nr_ulsch_encoding(UE, ulsch_ue, frame_parms, harq_pid, G);
+    nr_ulsch_encoding(UE, ulsch_ue, frame_parms, harq_pid, TBS>>3, G);
   }
   
   printf("\n");
@@ -605,20 +588,15 @@ int main(int argc, char **argv)
       exit(-1);
 #endif
 
-     uint32_t G = nr_get_G(rel15_ul->rb_size,
-                           rel15_ul->nr_of_symbols,
-                           nb_re_dmrs,
-                           1, // FIXME only single dmrs is implemented 
-                           rel15_ul->qam_mod_order,
-                           rel15_ul->nrOfLayers);
-
-      nr_ulsch_decoding(gNB, UE_id, channel_output_fixed, frame_parms, rel15_ul,
-                              frame, subframe, harq_pid, G);
-      while (gNB->nbDecode > 0) {
-        notifiedFIFO_elt_t *req=pullTpool(&gNB->respDecode, &gNB->threadPool);
-        ret = nr_postDecode_sim(gNB, req);
-        delNotifiedFIFO_elt(req);
-      }
+     int nbDecode = nr_ulsch_decoding(gNB, UE_id, channel_output_fixed, frame_parms, rel15_ul, frame, subframe, harq_pid, G);
+     int nb_ok = 0;
+     if (nbDecode > 0)
+       while (nbDecode > 0) {
+         notifiedFIFO_elt_t *req = pullTpool(&gNB->respDecode, &gNB->threadPool);
+         ret = nr_postDecode_sim(gNB, req, &nb_ok);
+         delNotifiedFIFO_elt(req);
+         nbDecode--;
+       }
 
       if (ret)
         n_errors++;

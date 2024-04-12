@@ -37,6 +37,9 @@ Description Defines the EPS Mobility Management procedure call manager,
 
 *****************************************************************************/
 
+#include <string.h> // memset, memcpy, strlen
+#include <stdio.h> // sprintf
+#include <stdlib.h> // malloc, free
 #include "emm_main.h"
 #include "nas_log.h"
 #include "utils.h"
@@ -44,13 +47,9 @@ Description Defines the EPS Mobility Management procedure call manager,
 #include "MobileIdentity.h"
 #include "emm_proc_defs.h"
 
-#include "memory.h"
 #include "usim_api.h"
 #include "IdleMode.h"
-
-#include <string.h> // memset, memcpy, strlen
-#include <stdio.h>  // sprintf
-#include <stdlib.h> // malloc, free
+#include "common/utils/mem/oai_memory.h"
 
 /****************************************************************************/
 /****************  E X T E R N A L    D E F I N I T I O N S  ****************/
@@ -135,7 +134,7 @@ void _emm_detach_initialize(emm_detach_data_t *emm_detach) {
 void emm_main_initialize(nas_user_t *user, emm_indication_callback_t cb, const char *imei)
 {
   LOG_FUNC_IN;
-  user->emm_data = calloc_or_fail(sizeof(emm_data_t));
+  user->emm_data = calloc_or_fail(1, sizeof(emm_data_t));
   /* USIM validity indicator */
   user->emm_data->usim_is_valid = false;
   /* The IMEI read from the UE's non-volatile memory  */
@@ -433,19 +432,19 @@ void emm_main_initialize(nas_user_t *user, emm_indication_callback_t cb, const c
   /*
    * Initialize EMM timers
    */
-  user->emm_data->emm_timers = calloc_or_fail(sizeof(emm_timers_t));
+  user->emm_data->emm_timers = calloc_or_fail(1, sizeof(emm_timers_t));
   _emm_timers_initialize(user->emm_data->emm_timers);
 
   /*
    * Initialize Internal data used for detach procedure
    */
-  user->emm_data->emm_detach_data = calloc_or_fail(sizeof(emm_detach_data_t));
+  user->emm_data->emm_detach_data = calloc_or_fail(1, sizeof(emm_detach_data_t));
   _emm_detach_initialize(user->emm_data->emm_detach_data);
 
   /*
    * Initialize Internal data used for attach procedure
    */
-  user->emm_data->emm_attach_data = calloc_or_fail(sizeof(emm_attach_data_t));
+  user->emm_data->emm_attach_data = calloc_or_fail(1, sizeof(emm_attach_data_t));
   _emm_attach_initialize(user->emm_data->emm_attach_data);
 
   /*

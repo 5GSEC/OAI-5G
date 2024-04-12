@@ -548,9 +548,10 @@ void x2ap_gNB_trigger_sgNB_add_req_ack(instance_t instance,
 }
 
 /**
- * @fn	: Function triggers sgnb reconfiguration complete
+ * @fn x2ap_eNB_trigger_sgnb_reconfiguration_complete
+ *\brief:  Function triggers sgnb reconfiguration complete
  * @param	: IN instance, IN x2ap_reconf_complete
-**/ 
+ **/
 static
 void x2ap_eNB_trigger_sgnb_reconfiguration_complete(instance_t instance,
     x2ap_ENDC_reconf_complete_t *x2ap_reconf_complete)
@@ -746,17 +747,17 @@ int is_x2ap_enabled(void)
   };
 
   /* TODO: do it per module - we check only first eNB */
-  config_get(p, sizeof(p)/sizeof(paramdef_t), "eNBs.[0]");
+  config_get(config_get_if(), p, sizeofArray(p), "eNBs.[0]");
   if (enable_x2 != NULL && strcmp(enable_x2, "yes") == 0){
 	  enabled = 1;
   }
 
   /*Consider also the case of enabling X2AP for a gNB by parsing a gNB configuration file*/
 
-  config_get(p, sizeof(p)/sizeof(paramdef_t), "gNBs.[0]");
-    if (enable_x2 != NULL && strcmp(enable_x2, "yes") == 0){
-  	  enabled = 1;
-    }
+  config_get(config_get_if(), p, sizeofArray(p), "gNBs.[0]");
+  if (enable_x2 != NULL && strcmp(enable_x2, "yes") == 0) {
+    enabled = 1;
+  }
 
   config_loaded = 1;
 

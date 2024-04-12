@@ -778,23 +778,9 @@ int phy_nr_uci_indication(nfapi_nr_uci_indication_t *ind)
           break;
 
         case NFAPI_NR_UCI_FORMAT_0_1_PDU_TYPE: {
-          nfapi_nr_uci_pucch_pdu_format_0_1_t *uci_ind_pdu = &uci_ind->uci_list[i].pucch_pdu_format_0_1;
-          nfapi_nr_uci_pucch_pdu_format_0_1_t *ind_pdu = &ind->uci_list[i].pucch_pdu_format_0_1;
-          if (ind_pdu->sr) {
-            uci_ind_pdu->sr = CALLOC(1, sizeof(*uci_ind_pdu->sr));
-            AssertFatal(uci_ind_pdu->sr != NULL, "Memory not allocated for uci_ind_pdu->harq in phy_nr_uci_indication.");
-            *uci_ind_pdu->sr = *ind_pdu->sr;
-          }
-          if (ind_pdu->harq) {
-            uci_ind_pdu->harq = CALLOC(1, sizeof(*uci_ind_pdu->harq));
-            AssertFatal(uci_ind_pdu->harq != NULL, "Memory not allocated for uci_ind_pdu->harq in phy_nr_uci_indication.");
-            *uci_ind_pdu->harq = *ind_pdu->harq;
-
-            uci_ind_pdu->harq->harq_list = CALLOC(uci_ind_pdu->harq->num_harq, sizeof(*uci_ind_pdu->harq->harq_list));
-            AssertFatal(uci_ind_pdu->harq->harq_list != NULL, "Memory not allocated for uci_ind_pdu->harq->harq_list in phy_nr_uci_indication.");
-            for (int j = 0; j < uci_ind_pdu->harq->num_harq; j++)
-                uci_ind_pdu->harq->harq_list[j].harq_value = ind_pdu->harq->harq_list[j].harq_value;
-          }
+          //nfapi_nr_uci_pucch_pdu_format_0_1_t *uci_ind_pdu = &uci_ind->uci_list[i].pucch_pdu_format_0_1;
+          //nfapi_nr_uci_pucch_pdu_format_0_1_t *ind_pdu = &ind->uci_list[i].pucch_pdu_format_0_1;
+          //Unused
           break;
         }
 
@@ -834,16 +820,6 @@ int phy_nr_uci_indication(nfapi_nr_uci_indication_t *ind)
       {
           if (uci_ind->uci_list[i].pdu_type == NFAPI_NR_UCI_FORMAT_0_1_PDU_TYPE)
           {
-            if (uci_ind->uci_list[i].pucch_pdu_format_0_1.harq) {
-              free(uci_ind->uci_list[i].pucch_pdu_format_0_1.harq->harq_list);
-              uci_ind->uci_list[i].pucch_pdu_format_0_1.harq->harq_list = NULL;
-              free(uci_ind->uci_list[i].pucch_pdu_format_0_1.harq);
-              uci_ind->uci_list[i].pucch_pdu_format_0_1.harq = NULL;
-            }
-            if (uci_ind->uci_list[i].pucch_pdu_format_0_1.sr) {
-              free(uci_ind->uci_list[i].pucch_pdu_format_0_1.sr);
-              uci_ind->uci_list[i].pucch_pdu_format_0_1.sr = NULL;
-            }
           }
           if (uci_ind->uci_list[i].pdu_type == NFAPI_NR_UCI_FORMAT_2_3_4_PDU_TYPE)
           {
@@ -1094,6 +1070,7 @@ int phy_nr_rx_data_indication(nfapi_nr_rx_data_indication_t *ind) {
       rx_ind->pdu_list[j].rnti = ind->pdu_list[j].rnti;
       rx_ind->pdu_list[j].timing_advance = ind->pdu_list[j].timing_advance;
       rx_ind->pdu_list[j].ul_cqi = ind->pdu_list[j].ul_cqi;
+      rx_ind->pdu_list[j].rssi = ind->pdu_list[j].rssi;
     }
     if (!put_queue(&gnb_rx_ind_queue, rx_ind))
     {
@@ -1267,7 +1244,6 @@ int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind) {
 
 int phy_nr_srs_indication(nfapi_nr_srs_indication_t *ind) {
   struct PHY_VARS_gNB_s *gNB = RC.gNB[0];
-  pthread_mutex_lock(&gNB->UL_INFO_mutex);
 
   gNB->UL_INFO.srs_ind = *ind;
 
@@ -1282,8 +1258,6 @@ int phy_nr_srs_indication(nfapi_nr_srs_indication_t *ind) {
         ind->sfn,ind->slot, ind->number_of_pdus, gNB->UL_INFO.srs_ind.number_of_pdus
         );
   }
-
-  pthread_mutex_unlock(&gNB->UL_INFO_mutex);
 
   return 1;
 }

@@ -75,8 +75,6 @@ typedef struct {
   nfapi_nr_dl_tti_pdsch_pdu pdsch_pdu;
   /// pointer to pdu from MAC interface (this is "a" in 36.212)
   uint8_t *pdu;
-  /// The payload + CRC size in bits, "B" from 36-212
-  uint32_t B;
   /// Pointer to the payload
   uint8_t *b;
   /// Pointers to transport block segments
@@ -89,6 +87,8 @@ typedef struct {
   uint8_t *f;
   /// LDPC lifting size
   uint32_t Z;
+  /// REs unavailable for DLSCH (overlapping with PTRS, CSIRS etc.)
+  uint32_t unav_res;
 } NR_DL_gNB_HARQ_t;
 
 typedef struct {
@@ -142,10 +142,6 @@ typedef struct {
 typedef struct {
   /// Pointers to variables related to DLSCH harq process
   NR_DL_gNB_HARQ_t harq_process;
-  /// TX buffers for UE-spec transmission (antenna layers 1,...,4 after to precoding)
-  int32_t **txdataF;
-  /// Modulated symbols buffer
-  int32_t **mod_symbs;
   /// beamforming weights for UE-spec transmission (antenna ports 5 or 7..14), for each codeword, maximum 4 layers?
   int32_t ***ue_spec_bf_weights;
   /// Active flag for baseband transmitter processing
@@ -199,8 +195,6 @@ typedef struct {
   uint32_t TBS;
   /// Pointer to the payload (38.212 V15.4.0 section 5.1)
   uint8_t *b;
-  /// The payload + CRC (24 bits) in bits (38.212 V15.4.0 section 5.1)
-  uint32_t B;
   /// Pointers to code blocks after code block segmentation and CRC attachment (38.212 V15.4.0 section 5.2.2)
   uint8_t **c;
   /// Number of bits in each code block (38.212 V15.4.0 section 5.2.2)
@@ -221,17 +215,26 @@ typedef struct {
   uint32_t E;
   /// Number of segments processed so far
   uint32_t processedSegments;
+  decode_abort_t abort_decode;
   /// Last index of LLR buffer that contains information.
   /// Used for computing LDPC decoder R
   int llrLen;
   //////////////////////////////////////////////////////////////
 } NR_UL_gNB_HARQ_t;
+static inline int lenWithCrc(int nbSeg, int len)
+{
+  if (nbSeg > 1)
+    return (len + 24 + 24 * nbSeg) / nbSeg;
+  return len + (len > NR_MAX_PDSCH_TBS ? 24 : 16);
+}
+static inline int crcType(int nbSeg, int len)
+{
+  if (nbSeg > 1)
+    return CRC24_B;
+  return len > NR_MAX_PDSCH_TBS ? CRC24_A : CRC16;
+}
 
 typedef struct {
-  //! estimated received spatial signal power (linear)
-  fourDimArray_t * rx_spatial_power;
-  //! estimated received spatial signal power (dB)
-  fourDimArray_t * rx_spatial_power_dB;
   //! estimated rssi (dBm)
   int rx_rssi_dBm;
   //! estimated correlation (wideband linear) between spatial channels (computed in dlsch_demodulation)
@@ -255,17 +258,9 @@ typedef struct {
 } ulsch_measurements_gNB;
 
 typedef struct {
-  /// Time shift in number of samples estimated based on DMRS-PUSCH
-  int pusch_est_delay;
-  /// Max position in OFDM symbol related to time shift estimation based on DMRS-PUSCH
-  int pusch_delay_max_pos;
-  /// Max value related to time shift estimation based on DMRS-PUSCH
-  int pusch_delay_max_val;
-} NR_ULSCH_delay_t;
-
-typedef struct {
   uint32_t frame;
   uint32_t slot;
+  uint32_t unav_res;
   /// Pointers to 16 HARQ processes for the ULSCH
   NR_UL_gNB_HARQ_t *harq_process;
   /// HARQ process mask, indicates which processes are currently active
@@ -280,7 +275,7 @@ typedef struct {
   bool active;
   /// Flag to indicate that the UL configuration has been handled. Used to remove a stale ULSCH when frame wraps around
   uint8_t handled;
-  NR_ULSCH_delay_t delay;
+  delay_t delay;
   ulsch_measurements_gNB ulsch_measurements;
 } NR_gNB_ULSCH_t;
 
@@ -345,48 +340,8 @@ typedef struct {
   /// - first index: rx antenna id [0..nb_antennas_rx[
   /// - second index: ? [0..12*N_RB_UL*frame_parms->symbols_per_tti[
   int32_t **rxdataF_comp;
-  /// \brief Magnitude of the UL channel estimates. Used for 2nd-bit level thresholds in LLR computation
-  /// - first index: rx antenna id [0..nb_antennas_rx[
-  /// - second index: ? [0..12*N_RB_UL*frame_parms->symbols_per_tti[
-  int32_t **ul_ch_mag;
-  /// \brief Magnitude of the UL channel estimates scaled for 3rd bit level thresholds in LLR computation
-  /// - first index: rx antenna id [0..nb_antennas_rx[
-  /// - second index: ? [0..12*N_RB_UL*frame_parms->symbols_per_tti[
-  int32_t **ul_ch_magb;
-  /// \brief Magnitude of the UL channel estimates scaled for 4th bit level thresholds in LLR computation
-  /// - first index: rx antenna id [0..nb_antennas_rx[
-  /// - second index: ? [0..12*N_RB_UL*frame_parms->symbols_per_tti[
-  int32_t **ul_ch_magc;
-  /// \brief Cross-correlation of two UE signals.
-  /// - first index: rx antenna [0..nb_antennas_rx[
-  /// - second index: symbol [0..]
-  int32_t ***rho;
   /// \f$\log_2(\max|H_i|^2)\f$
   int16_t log2_maxh;
-  /// \brief Magnitude of Uplink Channel first layer (16QAM level/First 64QAM level/First 256QAM level).
-  /// - first index: ? [0..7] (hard coded) FIXME! accessed via \c nb_antennas_rx
-  /// - second index: ? [0..168*N_RB_UL[
-  int32_t **ul_ch_mag0;
-  /// \brief Magnitude of Uplink Channel second layer (16QAM level/First 64QAM level/First 256QAM level).
-  /// - first index: ? [0..7] (hard coded) FIXME! accessed via \c nb_antennas_rx
-  /// - second index: ? [0..168*N_RB_UL[
-  int32_t **ul_ch_mag1[8][8];
-  /// \brief Magnitude of Uplink Channel, first layer (2nd 64QAM/256QAM level).
-  /// - first index: ? [0..7] (hard coded) FIXME! accessed via \c nb_antennas_rx
-  /// - second index: ? [0..168*N_RB_UL[
-  int32_t **ul_ch_magb0;
-  /// \brief Magnitude of Uplink Channel second layer (2nd 64QAM/256QAM level).
-  /// - first index: ? [0..7] (hard coded) FIXME! accessed via \c nb_antennas_rx
-  /// - second index: ? [0..168*N_RB_UL[
-  int32_t **ul_ch_magb1[8][8];
-  /// \brief Magnitude of Uplink Channel, first layer (3rd 256QAM level).
-  /// - first index: ? [0..7] (hard coded) FIXME! accessed via \c nb_antennas_rx
-  /// - second index: ? [0..168*N_RB_UL[
-  int32_t **ul_ch_magc0;
-  /// \brief Magnitude of Uplink Channel second layer (3rd 256QAM level).
-  /// - first index: ? [0..7] (hard coded) FIXME! accessed via \c nb_antennas_rx
-  /// - second index: ? [0..168*N_RB_UL[
-  int32_t **ul_ch_magc1[8][8];
   /// measured RX power based on DRS
   int ulsch_power[8];
   /// total signal over antennas
@@ -417,8 +372,8 @@ typedef struct {
   /// \brief Total RE count after DMRS/PTRS RE's are extracted from respective symbol.
   /// - first index: ? [0...14] smybol per slot
   int16_t *ul_valid_re_per_slot;
-  /// flag to verify if channel level computation is done
-  uint8_t cl_done;
+  /// \brief offset for llr corresponding to each symbol
+  int llr_offset[14];
   /// flag to indicate DTX on reception
   int DTX;
 } NR_gNB_PUSCH;
@@ -579,7 +534,10 @@ typedef struct {
 #define MAX_NUM_NR_RX_PRACH_PREAMBLES 4
 #define MAX_UL_PDUS_PER_SLOT 8
 #define MAX_NUM_NR_SRS_PDUS 8
-#define MAX_NUM_NR_UCI_PDUS 8
+// the current RRC resource allocation is that each UE gets its
+// "own" PUCCH resource (for F0) in a dedicated PRB in each slot
+// therefore, we can have up to "number of UE" UCI PDUs
+#define MAX_NUM_NR_UCI_PDUS MAX_MOBILES_PER_GNB
 
 /// Top-level PHY Data Structure for gNB
 typedef struct PHY_VARS_gNB_s {
@@ -604,7 +562,6 @@ typedef struct PHY_VARS_gNB_s {
   PHY_MEASUREMENTS_gNB measurements;
   NR_IF_Module_t       *if_inst;
   NR_UL_IND_t          UL_INFO;
-  pthread_mutex_t      UL_INFO_mutex;
 
   /// NFAPI RX ULSCH information
   nfapi_nr_rx_data_pdu_t  rx_pdu_list[MAX_UL_PDUS_PER_SLOT];
@@ -646,6 +603,10 @@ typedef struct PHY_VARS_gNB_s {
 
   // reference amplitude for TX
   int16_t TX_AMP;
+
+  // flag to activate 3GPP phase symbolwise rotation
+  bool phase_comp;
+
   // PUCCH0 Look-up table for cyclic-shifts
   NR_gNB_PUCCH0_LUT_t pucch0_lut;
 
@@ -661,13 +622,6 @@ typedef struct PHY_VARS_gNB_s {
   /// PDSCH DMRS sequence
   uint32_t ****nr_gold_pdsch_dmrs;
 
-  /// PDSCH codebook I precoding LUTs
-  /// first dimension: Rank number [0,...,noOfLayers-1[
-  /// second dimension: PMI [0,...,CodeSize-1[
-  /// third dimension: [i_rows*noOfLayers+j_col], i_rows=0,...pdsch_AntennaPorts-1 and j_col=0,...,noOfLayers-1
-  int32_t ***nr_mimo_precoding_matrix;
-  int pmiq_size[NR_MAX_NB_LAYERS];
-
   /// PUSCH DMRS
   uint32_t ****nr_gold_pusch_dmrs;
 
@@ -678,14 +632,12 @@ typedef struct PHY_VARS_gNB_s {
   uint32_t ****nr_gold_prs;
 
   /// PRACH root sequence
-  uint32_t X_u[64][839];
+  c16_t X_u[64][839];
 
   /// OFDM symbol offset divisor for UL
   uint32_t ofdm_offset_divisor;
 
   int ldpc_offload_flag;
-
-  int reorder_thread_disable;
 
   int max_ldpc_iterations;
   /// indicate the channel estimation technique in time domain
@@ -736,18 +688,14 @@ typedef struct PHY_VARS_gNB_s {
   time_stats_t dlsch_segmentation_stats;
 
   time_stats_t rx_pusch_stats;
+  time_stats_t rx_pusch_init_stats;
+  time_stats_t rx_pusch_symbol_processing_stats;
   time_stats_t ul_indication_stats;
+  time_stats_t slot_indication_stats;
   time_stats_t schedule_response_stats;
-  time_stats_t ulsch_decoding_stats;
-  time_stats_t ulsch_rate_unmatching_stats;
   time_stats_t ulsch_ldpc_decoding_stats;
   time_stats_t ulsch_deinterleaving_stats;
-  time_stats_t ulsch_unscrambling_stats;
   time_stats_t ulsch_channel_estimation_stats;
-  time_stats_t ulsch_ptrs_processing_stats;
-  time_stats_t ulsch_channel_compensation_stats;
-  time_stats_t ulsch_rbs_extraction_stats;
-  time_stats_t ulsch_mrc_stats;
   time_stats_t ulsch_llr_stats;
   time_stats_t rx_srs_stats;
   time_stats_t generate_srs_stats;
@@ -762,23 +710,52 @@ typedef struct PHY_VARS_gNB_s {
   time_stats_t rx_dft_stats;
   time_stats_t ulsch_freq_offset_estimation_stats;
   */
+  notifiedFIFO_t respPuschSymb;
   notifiedFIFO_t respDecode;
   notifiedFIFO_t resp_L1;
   notifiedFIFO_t L1_tx_free;
   notifiedFIFO_t L1_tx_filled;
   notifiedFIFO_t L1_tx_out;
+  notifiedFIFO_t L1_rx_out;
   notifiedFIFO_t resp_RU_tx;
   tpool_t threadPool;
+  int nbSymb;
+  int num_pusch_symbols_per_thread;
   pthread_t L1_rx_thread;
   int L1_rx_thread_core;
   pthread_t L1_tx_thread;
   int L1_tx_thread_core;
   struct processingData_L1tx *msgDataTx;
-  int nbDecode;
   void *scopeData;
   /// structure for analyzing high-level RT measurements
   rt_L1_profiling_t rt_L1_profiling; 
 } PHY_VARS_gNB;
+
+typedef struct puschSymbolProc_s {
+  PHY_VARS_gNB *gNB;
+  NR_DL_FRAME_PARMS *frame_parms;
+  nfapi_nr_pusch_pdu_t *rel15_ul;
+  int ulsch_id;
+  int slot;
+  int startSymbol;
+  int numSymbols;
+  int16_t *llr;
+  int16_t **llr_layers;
+  int16_t *s;
+  uint32_t nvar;
+} puschSymbolProc_t;
+
+struct puschSymbolReqId {
+  uint16_t ulsch_id;
+  uint16_t frame;
+  uint8_t  slot;
+  uint16_t spare;
+} __attribute__((packed));
+
+union puschSymbolReqUnion {
+  struct puschSymbolReqId s;
+  uint64_t p;
+};
 
 typedef struct LDPCDecode_s {
   PHY_VARS_gNB *gNB;
@@ -817,9 +794,7 @@ union ldpcReqUnion {
 
 typedef struct processingData_L1 {
   int frame_rx;
-  int frame_tx;
   int slot_rx;
-  int slot_tx;
   openair0_timestamp timestamp_tx;
   PHY_VARS_gNB *gNB;
 } processingData_L1_t;
@@ -833,6 +808,8 @@ typedef enum {
 typedef struct processingData_L1tx {
   int frame;
   int slot;
+  int frame_rx;
+  int slot_rx;
   openair0_timestamp timestamp_tx;
   PHY_VARS_gNB *gNB;
   nfapi_nr_dl_tti_pdcch_pdu pdcch_pdu[NFAPI_NR_MAX_NB_CORESETS];
@@ -847,4 +824,9 @@ typedef struct processingData_L1tx {
   int sched_response_id;
 } processingData_L1tx_t;
 
+typedef struct processingData_L1rx {
+  int frame_rx;
+  int slot_rx;
+  PHY_VARS_gNB *gNB;
+} processingData_L1rx_t;
 #endif

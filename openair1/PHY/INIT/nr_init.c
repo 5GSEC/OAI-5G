@@ -28,6 +28,7 @@
 #include "PHY/CODING/nrPolar_tools/nr_polar_pbch_defs.h"
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
 #include "PHY/NR_TRANSPORT/nr_transport_common_proto.h"
+#include "PHY/NR_ESTIMATION/nr_ul_estimation.h"
 #include "openair1/PHY/MODULATION/nr_modulation.h"
 #include "openair1/PHY/defs_RU.h"
 #include "openair1/PHY/CODING/nrLDPC_extern.h"
@@ -66,17 +67,6 @@ int l1_north_init_gNB() {
   return(0);
 }
 
-void init_ul_delay_table(NR_DL_FRAME_PARMS *fp)
-{
-  for (int delay = -MAX_UL_DELAY_COMP; delay <= MAX_UL_DELAY_COMP; delay++) {
-    for (int k = 0; k < fp->ofdm_symbol_size; k++) {
-      double complex delay_cexp = cexp(I * (2.0 * M_PI * k * delay / fp->ofdm_symbol_size));
-      fp->ul_delay_table[MAX_UL_DELAY_COMP + delay][k].r = (int16_t)round(256 * creal(delay_cexp));
-      fp->ul_delay_table[MAX_UL_DELAY_COMP + delay][k].i = (int16_t)round(256 * cimag(delay_cexp));
-    }
-  }
-}
-
 NR_gNB_PHY_STATS_t *get_phy_stats(PHY_VARS_gNB *gNB, uint16_t rnti)
 {
   NR_gNB_PHY_STATS_t *stats;
@@ -109,407 +99,8 @@ void reset_active_stats(PHY_VARS_gNB *gNB, int frame)
   }
 }
 
-int init_codebook_gNB(PHY_VARS_gNB *gNB) {
-
-  if(gNB->frame_parms.nb_antennas_tx>1){
-    int CSI_RS_antenna_ports = gNB->frame_parms.nb_antennas_tx;
-    //NR Codebook Generation for codebook type1 SinglePanel
-    int N1 = gNB->ap_N1;
-    int N2 = gNB->ap_N2;
-    //Uniform Planner Array: UPA
-    //    X X X X ... X
-    //    X X X X ... X
-    // N2 . . . . ... .
-    //    X X X X ... X
-    //   |<-----N1---->|
-    int x_polarization = gNB->ap_XP;
-    //Get the uniform planar array parameters
-    // To be confirmed
-    int O2 = N2 > 1? 4 : 1; //Vertical beam oversampling (1 or 4)
-    int O1 = CSI_RS_antenna_ports > 2 ? 4 : 1; //Horizontal beam oversampling (1 or 4)
-    AssertFatal(CSI_RS_antenna_ports == N1*N2*x_polarization,
-                "Nb of antenna ports at PHY %d does not correspond to what passed down with fapi %d\n",
-                 N1*N2*x_polarization, CSI_RS_antenna_ports);
-
-    // Generation of codebook Type1 with codebookMode 1 (CSI_RS_antenna_ports < 16)
-    if (CSI_RS_antenna_ports < 16) {
-      //Generate DFT vertical beams
-      //ll: index of a vertical beams vector (represented by i1_1 in TS 38.214)
-      double complex v[N1*O1][N1];
-      for (int ll=0; ll<N1*O1; ll++) { //i1_1
-        for (int nn=0; nn<N1; nn++) {
-          v[ll][nn] = cexp(I*(2*M_PI*nn*ll)/(N1*O1));
-          //printf("v[%d][%d] = %f +j %f\n", ll,nn, creal(v[ll][nn]),cimag(v[ll][nn]));
-        }
-      }
-      //Generate DFT Horizontal beams
-      //mm: index of a Horizontal beams vector (represented by i1_2 in TS 38.214)
-      double complex u[N2*O2][N2];
-      for (int mm=0; mm<N2*O2; mm++) { //i1_2
-        for (int nn=0; nn<N2; nn++) {
-          u[mm][nn] = cexp(I*(2*M_PI*nn*mm)/(N2*O2));
-              //printf("u[%d][%d] = %f +j %f\n", mm,nn, creal(u[mm][nn]),cimag(u[mm][nn]));
-        }
-      }
-      //Generate co-phasing angles
-      //i_2: index of a co-phasing vector
-      //i1_1, i1_2, and i_2 are reported from UEs
-      double complex theta_n[4];
-      for (int nn=0; nn<4; nn++) {
-        theta_n[nn] = cexp(I*M_PI*nn/2);
-        //printf("theta_n[%d] = %f +j %f\n", nn, creal(theta_n[nn]),cimag(theta_n[nn]));
-      }
-      //Kronecker product v_lm
-      double complex v_lm[N1*O1][N2*O2][N2*N1];
-      //v_ll_mm_codebook denotes the elements of a precoding matrix W_i1,1_i_1,2
-      for(int ll=0; ll<N1*O1; ll++) { //i_1_1
-        for (int mm=0; mm<N2*O2; mm++) { //i_1_2
-          for (int nn1=0; nn1<N1; nn1++) {
-            for (int nn2=0; nn2<N2; nn2++) {
-              //printf("indx %d \n",nn1*N2+nn2);
-              v_lm[ll][mm][nn1*N2+nn2] = v[ll][nn1]*u[mm][nn2];
-              //printf("v_lm[%d][%d][%d] = %f +j %f\n",ll,mm, nn1*N2+nn2, creal(v_lm[ll][mm][nn1*N2+nn2]),cimag(v_lm[ll][mm][nn1*N2+nn2]));
-            }
-          }
-        }
-      }
-
-      int max_mimo_layers = (CSI_RS_antenna_ports<NR_MAX_NB_LAYERS) ? CSI_RS_antenna_ports : NR_MAX_NB_LAYERS;
-
-      gNB->nr_mimo_precoding_matrix = (int32_t ***)malloc16(max_mimo_layers * sizeof(int32_t **));
-      int32_t ***mat = gNB->nr_mimo_precoding_matrix;
-      double complex res_code;
-
-      //Table 5.2.2.2.1-5:
-      //Codebook for 1-layer CSI reporting using antenna ports 3000 to 2999+PCSI-RS
-      gNB->pmiq_size[0] = N1*O1*N2*O2*4+1;
-      mat[0] = (int32_t **)malloc16(gNB->pmiq_size[0]*sizeof(int32_t *));
-
-      //pmi=0 corresponds to unit matrix
-      mat[0][0] = (int32_t *)calloc(2*N1*N2,sizeof(int32_t));
-      for(int j_col=0; j_col<1; j_col++) { //1 layer
-        for (int i_rows=0; i_rows<2*N1*N2; i_rows++) { //2-x polarized antenna
-          if(j_col==i_rows) {
-            mat[0][0][i_rows+j_col] = 0x7fff;
-          }
-        }
-      }
-
-      for(int ll=0; ll<N1*O1; ll++) { //i_1_1
-        for (int mm=0; mm<N2*O2; mm++) { //i_1_2
-          for (int nn=0; nn<4; nn++) {
-            int pmiq = 1+ll*N2*O2*4+mm*4+nn;
-            mat[0][pmiq] = (int32_t *)malloc16((2*N1*N2)*1*sizeof(int32_t));
-            LOG_D(PHY, "layer 1 Codebook pmiq = %d\n",pmiq);
-            for (int len=0; len<N1*N2; len++) {
-              res_code=sqrt(1/(double)CSI_RS_antenna_ports)*v_lm[ll][mm][len];
-              if (creal(res_code)>0)
-                ((short*) &mat[0][pmiq][len])[0] = (short) ((creal(res_code)*32768)+0.5);//convert to Q15
-              else
-                ((short*) &mat[0][pmiq][len])[0] = (short) ((creal(res_code)*32768)-0.5);//convert to Q15
-              if (cimag(res_code)>0)
-                ((short*) &mat[0][pmiq][len])[1] = (short) ((cimag(res_code)*32768)+0.5);//convert to Q15
-              else
-                ((short*) &mat[0][pmiq][len])[1] = (short) ((cimag(res_code)*32768)-0.5);//convert to Q15
-              LOG_D(PHY, "1 Layer Precoding Matrix[0][pmi %d][antPort %d]= %f+j %f -> Fixed Point %d+j %d \n",
-                    pmiq, len, creal(res_code), cimag(res_code),((short*) &mat[0][pmiq][len])[0],((short*) &mat[0][pmiq][len])[1]);
-            }
-
-            for(int len=N1*N2; len<2*N1*N2; len++) {
-              res_code=sqrt(1/(double)CSI_RS_antenna_ports)*theta_n[nn]*v_lm[ll][mm][len-N1*N2];
-              if (creal(res_code)>0)
-                ((short*) &mat[0][pmiq][len])[0] = (short) ((creal(res_code)*32768)+0.5);//convert to Q15
-              else
-                ((short*) &mat[0][pmiq][len])[0] = (short) ((creal(res_code)*32768)-0.5);//convert to Q15
-              if (cimag(res_code)>0)
-                ((short*) &mat[0][pmiq][len])[1] = (short) ((cimag(res_code)*32768)+0.5);//convert to Q15
-              else
-                ((short*) &mat[0][pmiq][len])[1] = (short) ((cimag(res_code)*32768)-0.5);//convert to Q15
-              LOG_D(PHY, "1 Layer Precoding Matrix[0][pmi %d][antPort %d]= %f+j %f -> Fixed Point %d+j %d \n",
-                    pmiq, len, creal(res_code), cimag(res_code),((short*) &mat[0][pmiq][len])[0],((short*) &mat[0][pmiq][len])[1]);
-            }
-          }
-        }
-      }
-
-      int llc = 0;
-      int mmc = 0;
-      double complex phase_sign = 0;
-      //Table 5.2.2.2.1-6:
-      //Codebook for 2-layer CSI reporting using antenna ports 3000 to 2999+PCSI-RS
-      //Compute the code book size for generating 2 layers out of Tx antenna ports
-
-      //pmi_size is computed as follows
-      gNB->pmiq_size[1] = 1;//1 for unity matrix
-      for(int llb=0; llb<N1*O1; llb++) { //i_1_1
-        for (int mmb=0; mmb<N2*O2; mmb++) { //i_1_2
-          for(int ll=0; ll<N1*O1; ll++) { //i_1_1
-            for (int mm=0; mm<N2*O2; mm++) { //i_1_2
-              for (int nn=0; nn<2; nn++) {
-                if((llb != ll) || (mmb != mm) || ((N1 == 1) && (N2 == 1))) gNB->pmiq_size[1] += 1;
-              }
-            }
-          }
-        }
-      }
-      mat[1] = (int32_t **)malloc16(gNB->pmiq_size[1]*sizeof(int32_t *));
-
-      //pmi=0 corresponds to unit matrix
-      mat[1][0] = (int32_t *)calloc((2*N1*N2)*(2),sizeof(int32_t));
-      for(int j_col=0; j_col<2; j_col++) { //2 layers
-        for (int i_rows=0; i_rows<2*N1*N2; i_rows++) { //2-x polarized antenna
-          if(j_col==i_rows) {
-            mat[1][0][i_rows*2+j_col] = 0x7fff;
-          }
-        }
-      }
-
-      //pmi=1,...,pmi_size, we construct
-      int pmiq = 0;
-      for(int llb=0; llb<N1*O1; llb++) { //i_1_1
-        for (int mmb=0; mmb<N2*O2; mmb++) { //i_1_2
-          for(int ll=0; ll<N1*O1; ll++) { //i_1_1
-            for (int mm=0; mm<N2*O2; mm++) { //i_1_2
-              for (int nn=0; nn<2; nn++) {
-                if((llb != ll) || (mmb != mm) || ((N1 == 1) && (N2 == 1))){
-                  pmiq += 1;
-                  mat[1][pmiq] = (int32_t *)malloc16((2*N1*N2)*(2)*sizeof(int32_t));
-                  LOG_D(PHY, "layer 2 Codebook pmiq = %d\n",pmiq);
-                  for(int j_col=0; j_col<2; j_col++) {
-                    if (j_col==0) {
-                      llc = llb;
-                      mmc = mmb;
-                      phase_sign = 1;
-                    }
-                    if (j_col==1) {
-                      llc = ll;
-                      mmc = mm;
-                      phase_sign = -1;
-                    }
-                    for (int i_rows=0; i_rows<N1*N2; i_rows++) {
-                      res_code=sqrt(1/(double)(2*CSI_RS_antenna_ports))*v_lm[llc][mmc][i_rows];
-                      if (creal(res_code)>0)
-                        ((short*) &mat[1][pmiq][i_rows*2+j_col])[0] = (short) ((creal(res_code)*32768)+0.5);//convert to Q15
-                      else
-                        ((short*) &mat[1][pmiq][i_rows*2+j_col])[0] = (short) ((creal(res_code)*32768)-0.5);//convert to Q15
-                      if (cimag(res_code)>0)
-                        ((short*) &mat[1][pmiq][i_rows*2+j_col])[1] = (short) ((cimag(res_code)*32768)+0.5);//convert to Q15
-                      else
-                        ((short*) &mat[1][pmiq][i_rows*2+j_col])[1] = (short) ((cimag(res_code)*32768)-0.5);//convert to Q15
-                      LOG_D(PHY, "2 Layer Precoding Matrix[1][pmi %d][antPort %d][layerIdx %d]= %f+j %f -> Fixed Point %d+j %d \n",
-                            pmiq,i_rows,j_col, creal(res_code), cimag(res_code),((short*) &mat[1][pmiq][i_rows*2+j_col])[0],((short*) &mat[1][pmiq][i_rows*2+j_col])[1]);
-                    }
-                    for (int i_rows=N1*N2; i_rows<2*N1*N2; i_rows++) {
-                      res_code=sqrt(1/(double)(2*CSI_RS_antenna_ports))*(phase_sign)*theta_n[nn]*v_lm[llc][mmc][i_rows-N1*N2];
-                      if (creal(res_code)>0)
-                        ((short*) &mat[1][pmiq][i_rows*2+j_col])[0] = (short) ((creal(res_code)*32768)+0.5);//convert to Q15
-                      else
-                        ((short*) &mat[1][pmiq][i_rows*2+j_col])[0] = (short) ((creal(res_code)*32768)-0.5);//convert to Q15
-                      if (cimag(res_code)>0)
-                        ((short*) &mat[1][pmiq][i_rows*2+j_col])[1] = (short) ((cimag(res_code)*32768)+0.5);//convert to Q15
-                      else
-                        ((short*) &mat[1][pmiq][i_rows*2+j_col])[1] = (short) ((cimag(res_code)*32768)-0.5);//convert to Q15
-                      LOG_D(PHY, "2 Layer Precoding Matrix[1][pmi %d][antPort %d][layerIdx %d]= %f+j %f -> Fixed Point %d+j %d \n",
-                            pmiq,i_rows,j_col, creal(res_code), cimag(res_code),((short*) &mat[1][pmiq][i_rows*2+j_col])[0],((short*) &mat[1][pmiq][i_rows*2+j_col])[1]);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      //Table 5.2.2.2.1-7:
-      //Codebook for 3-layer CSI reporting using antenna ports 3000 to 2999+PCSI-RS
-      if(max_mimo_layers>=3) {
-
-        //pmi_size is computed as follows
-        gNB->pmiq_size[2] = 1;//unity matrix
-        for(int llb=0; llb<N1*O1; llb++) { //i_1_1
-          for (int mmb=0; mmb<N2*O2; mmb++) { //i_1_2
-            for(int ll=0; ll<N1*O1; ll++) { //i_1_1
-              for (int mm=0; mm<N2*O2; mm++) { //i_1_2
-                for (int nn=0; nn<2; nn++) {
-                  if((llb != ll) || (mmb != mm)) gNB->pmiq_size[2] += 1;
-                }
-              }
-            }
-          }
-        }
-        mat[2] = (int32_t **)malloc16(gNB->pmiq_size[2]*sizeof(int32_t *));
-        //pmi=0 corresponds to unit matrix
-        mat[2][0] = (int32_t *)calloc((2*N1*N2)*(3),sizeof(int32_t));
-        for(int j_col=0; j_col<3; j_col++) { //3 layers
-          for (int i_rows=0; i_rows<2*N1*N2; i_rows++) { //2-x polarized antenna
-            if(j_col==i_rows) {
-              mat[2][0][i_rows*3+j_col] = 0x7fff;
-            }
-          }
-        }
-
-        pmiq = 0;
-        //pmi=1,...,pmi_size are computed as follows
-        for(int llb=0; llb<N1*O1; llb++) { //i_1_1
-          for (int mmb=0; mmb<N2*O2; mmb++) { //i_1_2
-            for(int ll=0; ll<N1*O1; ll++) { //i_1_1
-              for (int mm=0; mm<N2*O2; mm++) { //i_1_2
-                for (int nn=0; nn<2; nn++) {
-                  if((llb != ll) || (mmb != mm)){
-                    pmiq += 1;
-                    mat[2][pmiq] = (int32_t *)malloc16((2*N1*N2)*(3)*sizeof(int32_t));
-                    LOG_D(PHY, "layer 3 Codebook pmiq = %d\n",pmiq);
-                    for(int j_col=0; j_col<3; j_col++) {
-                      if (j_col==0) {
-                        llc = llb;
-                        mmc = mmb;
-                        phase_sign = 1;
-                      }
-                      if (j_col==1) {
-                        llc = ll;
-                        mmc = mm;
-                        phase_sign = 1;
-                      }
-                      if (j_col==2) {
-                        llc = ll;
-                        mmc = mm;
-                        phase_sign = -1;
-                      }
-                      for (int i_rows=0; i_rows<N1*N2; i_rows++) {
-                        res_code=sqrt(1/(double)(3*CSI_RS_antenna_ports))*v_lm[llc][mmc][i_rows];
-                        if (creal(res_code)>0)
-                          ((short*) &mat[2][pmiq][i_rows*3+j_col])[0] = (short) ((creal(res_code)*32768)+0.5);//convert to Q15
-                        else
-                          ((short*) &mat[2][pmiq][i_rows*3+j_col])[0] = (short) ((creal(res_code)*32768)-0.5);//convert to Q15
-                        if (cimag(res_code)>0)
-                          ((short*) &mat[2][pmiq][i_rows*3+j_col])[1] = (short) ((cimag(res_code)*32768)+0.5);//convert to Q15
-                        else
-                          ((short*) &mat[2][pmiq][i_rows*3+j_col])[1] = (short) ((cimag(res_code)*32768)-0.5);//convert to Q15
-                        LOG_D(PHY, "3 Layer Precoding Matrix[2][pmi %d][antPort %d][layerIdx %d]= %f+j %f -> Fixed Point %d+j %d \n",
-                              pmiq,i_rows,j_col, creal(res_code), cimag(res_code),((short*) &mat[2][pmiq][i_rows*3+j_col])[0],((short*) &mat[2][pmiq][i_rows*3+j_col])[1]);
-                      }
-                      for (int i_rows=N1*N2; i_rows<2*N1*N2; i_rows++) {
-                        res_code=sqrt(1/(double)(3*CSI_RS_antenna_ports))*(phase_sign)*theta_n[nn]*v_lm[llc][mmc][i_rows-N1*N2];
-                        if (creal(res_code)>0)
-                          ((short*) &mat[2][pmiq][i_rows*3+j_col])[0] = (short) ((creal(res_code)*32768)+0.5);//convert to Q15
-                        else
-                          ((short*) &mat[2][pmiq][i_rows*3+j_col])[0] = (short) ((creal(res_code)*32768)-0.5);//convert to Q15
-                        if (cimag(res_code)>0)
-                          ((short*) &mat[2][pmiq][i_rows*3+j_col])[1] = (short) ((cimag(res_code)*32768)+0.5);//convert to Q15
-                        else
-                          ((short*) &mat[2][pmiq][i_rows*3+j_col])[1] = (short) ((cimag(res_code)*32768)-0.5);//convert to Q15
-                        LOG_D(PHY, "3 Layer Precoding Matrix[2][pmi %d][antPort %d][layerIdx %d]= %f+j %f -> Fixed Point %d+j %d \n",
-                              pmiq,i_rows,j_col, creal(res_code), cimag(res_code),((short*) &mat[2][pmiq][i_rows*3+j_col])[0],((short*) &mat[2][pmiq][i_rows*3+j_col])[1]);
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-
-      //Table 5.2.2.2.1-8:
-      //Codebook for 4-layer CSI reporting using antenna ports 3000 to 2999+PCSI-RS
-      if(max_mimo_layers>=4) {
-        //pmi_size is computed as follows
-        gNB->pmiq_size[3] = 1;//unity matrix
-        for(int llb=0; llb<N1*O1; llb++) { //i_1_1
-          for (int mmb=0; mmb<N2*O2; mmb++) { //i_1_2
-            for(int ll=0; ll<N1*O1; ll++) { //i_1_1
-              for (int mm=0; mm<N2*O2; mm++) { //i_1_2
-                for (int nn=0; nn<2; nn++) {
-                  if((llb != ll) || (mmb != mm)) gNB->pmiq_size[3] += 1;
-                }
-              }
-            }
-          }
-        }
-
-        mat[3] = (int32_t **)malloc16(gNB->pmiq_size[3]*sizeof(int32_t *));
-        //pmi=0 corresponds to unit matrix
-        mat[3][0] = (int32_t *)calloc((2*N1*N2)*(4),sizeof(int32_t));
-        for(int j_col=0; j_col<4; j_col++) { //4 layers
-          for (int i_rows=0; i_rows<2*N1*N2; i_rows++) { //2-x polarized antenna
-            if(j_col==i_rows) {
-              mat[3][0][i_rows*4+j_col] = 0x7fff;
-            }
-          }
-        }
-
-        pmiq = 0;
-        //pmi=1,...,pmi_size are computed as follows
-        for(int llb=0; llb<N1*O1; llb++) { //i_1_1
-          for (int mmb=0; mmb<N2*O2; mmb++) { //i_1_2
-            for(int ll=0; ll<N1*O1; ll++) { //i_1_1
-              for (int mm=0; mm<N2*O2; mm++) { //i_1_2
-                for (int nn=0; nn<2; nn++) {
-
-                  if((llb != ll) || (mmb != mm)){
-                    pmiq += 1;
-                    mat[3][pmiq] = (int32_t *)malloc16((2*N1*N2)*4*sizeof(int32_t));
-                    LOG_D(PHY, "layer 4 pmiq = %d\n",pmiq);
-                    for(int j_col=0; j_col<4; j_col++) {
-                      if (j_col==0) {
-                        llc = llb;
-                        mmc = mmb;
-                        phase_sign = 1;
-                      }
-                      if (j_col==1) {
-                        llc = ll;
-                        mmc = mm;
-                        phase_sign = 1;
-                      }
-                      if (j_col==2) {
-                        llc = llb;
-                        mmc = mmb;
-                        phase_sign = -1;
-                      }
-                      if (j_col==3) {
-                        llc = ll;
-                        mmc = mm;
-                        phase_sign = -1;
-                      }
-                      for (int i_rows=0; i_rows<N1*N2; i_rows++) {
-                        res_code=sqrt(1/(double)(4*CSI_RS_antenna_ports))*v_lm[llc][mmc][i_rows];
-                        if (creal(res_code)>0)
-                          ((short*) &mat[3][pmiq][i_rows*4+j_col])[0] = (short) ((creal(res_code)*32768)+0.5);//convert to Q15
-                        else
-                          ((short*) &mat[3][pmiq][i_rows*4+j_col])[0] = (short) ((creal(res_code)*32768)-0.5);//convert to Q15
-                        if (cimag(res_code)>0)
-                          ((short*) &mat[3][pmiq][i_rows*4+j_col])[1] = (short) ((cimag(res_code)*32768)+0.5);//convert to Q15
-                        else
-                          ((short*) &mat[3][pmiq][i_rows*4+j_col])[1] = (short) ((cimag(res_code)*32768)-0.5);//convert to Q15
-                        LOG_D(PHY, "4 Layer Precoding Matrix[3][pmi %d][antPort %d][layerIdx %d]= %f+j %f -> Fixed Point %d+j %d \n",
-                              pmiq,i_rows,j_col, creal(res_code), cimag(res_code),((short*) &mat[3][pmiq][i_rows*4+j_col])[0],((short*) &mat[3][pmiq][i_rows*4+j_col])[1]);
-                      }
-
-                      for (int i_rows=N1*N2; i_rows<2*N1*N2; i_rows++) {
-                        res_code=sqrt(1/(double)(4*CSI_RS_antenna_ports))*(phase_sign)*theta_n[nn]*v_lm[llc][mmc][i_rows-N1*N2];
-                        if (creal(res_code)>0)
-                          ((short*) &mat[3][pmiq][i_rows*4+j_col])[0] = (short) ((creal(res_code)*32768)+0.5);//convert to Q15
-                        else
-                          ((short*) &mat[3][pmiq][i_rows*4+j_col])[0] = (short) ((creal(res_code)*32768)-0.5);//convert to Q15
-                        if (cimag(res_code)>0)
-                          ((short*) &mat[3][pmiq][i_rows*4+j_col])[1] = (short) ((cimag(res_code)*32768)+0.5);//convert to Q15
-                        else
-                          ((short*) &mat[3][pmiq][i_rows*4+j_col])[1] = (short) ((cimag(res_code)*32768)-0.5);//convert to Q15
-                        LOG_D(PHY, "4 Layer Precoding Matrix[3][pmi %d][antPort %d][layerIdx %d]= %f+j %f -> Fixed Point %d+j %d \n",
-                              pmiq,i_rows,j_col, creal(res_code), cimag(res_code),((short*) &mat[3][pmiq][i_rows*4+j_col])[0],((short*) &mat[3][pmiq][i_rows*4+j_col])[1]);
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  return 0;
-}
+// A global var to reduce the changes size
+ldpc_interface_t ldpc_interface = {0}, ldpc_interface_offload = {0};
 
 int phy_init_nr_gNB(PHY_VARS_gNB *gNB)
 {
@@ -536,15 +127,14 @@ int phy_init_nr_gNB(PHY_VARS_gNB *gNB)
   init_scrambling_luts();
   init_pucch2_luts();
 
-  load_nrLDPClib(NULL);
+  nr_init_fde(); // Init array for frequency equalization of transform precoding of PUSCH
+
+  load_LDPClib(NULL, &ldpc_interface);
 
   if (gNB->ldpc_offload_flag)
-    load_nrLDPClib_offload();
-
+    load_LDPClib("_t2", &ldpc_interface_offload);
   gNB->max_nb_pdsch = MAX_MOBILES_PER_GNB;
-
-  init_codebook_gNB(gNB);
-  init_ul_delay_table(fp);
+  init_delay_table(fp->ofdm_symbol_size, MAX_DELAY_COMP, NR_MAX_OFDM_SYMBOL_SIZE, fp->delay_table);
 
   // PBCH DMRS gold sequences generation
   nr_init_pbch_dmrs(gNB);
@@ -694,7 +284,7 @@ int phy_init_nr_gNB(PHY_VARS_gNB *gNB)
   int n_buf = Prx*max_ul_mimo_layers;
 
   int nb_re_pusch = N_RB_UL * NR_NB_SC_PER_RB;
-  int nb_re_pusch2 = nb_re_pusch + (nb_re_pusch&7);
+  int nb_re_pusch2 = (nb_re_pusch + 15) & ~15;
 
   gNB->pusch_vars = (NR_gNB_PUSCH *)malloc16_clear(gNB->max_nb_pusch * sizeof(NR_gNB_PUSCH));
   for (int ULSCH_id = 0; ULSCH_id < gNB->max_nb_pusch; ULSCH_id++) {
@@ -705,24 +295,9 @@ int phy_init_nr_gNB(PHY_VARS_gNB *gNB)
     pusch->ptrs_phase_per_slot = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
     pusch->ul_ch_estimates_time = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
     pusch->rxdataF_comp = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
-    pusch->ul_ch_mag0 = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
-    pusch->ul_ch_magb0 = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
-    pusch->ul_ch_magc0 = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
-    pusch->ul_ch_mag = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
-    pusch->ul_ch_magb = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
-    pusch->ul_ch_magc = (int32_t **)malloc16(n_buf * sizeof(int32_t *));
-    pusch->rho = (int32_t ***)malloc16(Prx * sizeof(int32_t **));
     pusch->llr_layers = (int16_t **)malloc16(max_ul_mimo_layers * sizeof(int32_t *));
     for (i = 0; i < Prx; i++) {
       pusch->rxdataF_ext[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
-      pusch->rho[i] = (int32_t **)malloc16_clear(NR_MAX_NB_LAYERS * NR_MAX_NB_LAYERS * sizeof(int32_t *));
-
-      for (int j = 0; j < max_ul_mimo_layers; j++) {
-        for (int k = 0; k < max_ul_mimo_layers; k++) {
-          pusch->rho[i][j * max_ul_mimo_layers + k] =
-              (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
-        }
-      }
     }
     for (i = 0; i < n_buf; i++) {
       pusch->ul_ch_estimates[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * fp->ofdm_symbol_size * fp->symbols_per_slot);
@@ -730,12 +305,6 @@ int phy_init_nr_gNB(PHY_VARS_gNB *gNB)
       pusch->ul_ch_estimates_time[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * fp->ofdm_symbol_size);
       pusch->ptrs_phase_per_slot[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * fp->symbols_per_slot); // symbols per slot
       pusch->rxdataF_comp[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
-      pusch->ul_ch_mag0[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
-      pusch->ul_ch_magb0[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
-      pusch->ul_ch_magc0[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
-      pusch->ul_ch_mag[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
-      pusch->ul_ch_magb[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
-      pusch->ul_ch_magc[i] = (int32_t *)malloc16_clear(sizeof(int32_t) * nb_re_pusch2 * fp->symbols_per_slot);
     }
 
     for (i=0; i< max_ul_mimo_layers; i++) {
@@ -752,23 +321,15 @@ int phy_init_nr_gNB(PHY_VARS_gNB *gNB)
 
 void phy_free_nr_gNB(PHY_VARS_gNB *gNB)
 {
-  NR_DL_FRAME_PARMS* const fp       = &gNB->frame_parms;
+  NR_DL_FRAME_PARMS* const fp = &gNB->frame_parms;
   const int Ptx = gNB->gNB_config.carrier_config.num_tx_ant.value;
   const int Prx = gNB->gNB_config.carrier_config.num_rx_ant.value;
   const int max_ul_mimo_layers = 4; // taken from phy_init_nr_gNB()
   const int n_buf = Prx * max_ul_mimo_layers;
-  PHY_MEASUREMENTS_gNB *meas=&gNB->measurements;
+
+  PHY_MEASUREMENTS_gNB *meas = &gNB->measurements;
   free_and_zero(meas->n0_subband_power);
   free_and_zero(meas->n0_subband_power_dB);
-  int max_dl_mimo_layers =(fp->nb_antennas_tx<NR_MAX_NB_LAYERS) ? fp->nb_antennas_tx : NR_MAX_NB_LAYERS;
-  if (fp->nb_antennas_tx>1) {
-    for (int nl = 0; nl < max_dl_mimo_layers; nl++) {
-      for(int size = 0; size < gNB->pmiq_size[nl]; size++)
-        free_and_zero(gNB->nr_mimo_precoding_matrix[nl][size]);
-      free_and_zero(gNB->nr_mimo_precoding_matrix[nl]);
-    }
-    free_and_zero(gNB->nr_mimo_precoding_matrix);
-  }
 
   uint32_t ***pdcch_dmrs = gNB->nr_gold_pdcch_dmrs;
   for (int slot = 0; slot < fp->slots_per_frame; slot++) {
@@ -859,11 +420,6 @@ void phy_free_nr_gNB(PHY_VARS_gNB *gNB)
       free_and_zero(pusch_vars->llr_layers[i]);
     for (int i = 0; i < Prx; i++) {
       free_and_zero(pusch_vars->rxdataF_ext[i]);
-      for (int j=0; j< max_ul_mimo_layers; j++) {
-        for (int k=0; k<max_ul_mimo_layers; k++)
-          free_and_zero(pusch_vars->rho[i][j * max_ul_mimo_layers + k]);
-      }
-      free_and_zero(pusch_vars->rho[i]);
     }
     for (int i = 0; i < n_buf; i++) {
       free_and_zero(pusch_vars->ul_ch_estimates[i]);
@@ -871,12 +427,6 @@ void phy_free_nr_gNB(PHY_VARS_gNB *gNB)
       free_and_zero(pusch_vars->ul_ch_estimates_time[i]);
       free_and_zero(pusch_vars->ptrs_phase_per_slot[i]);
       free_and_zero(pusch_vars->rxdataF_comp[i]);
-      free_and_zero(pusch_vars->ul_ch_mag0[i]);
-      free_and_zero(pusch_vars->ul_ch_magb0[i]);
-      free_and_zero(pusch_vars->ul_ch_magc0[i]);
-      free_and_zero(pusch_vars->ul_ch_mag[i]);
-      free_and_zero(pusch_vars->ul_ch_magb[i]);
-      free_and_zero(pusch_vars->ul_ch_magc[i]);
     }
     free_and_zero(pusch_vars->llr_layers);
     free_and_zero(pusch_vars->rxdataF_ext);
@@ -886,13 +436,6 @@ void phy_free_nr_gNB(PHY_VARS_gNB *gNB)
     free_and_zero(pusch_vars->ul_ch_estimates_time);
     free_and_zero(pusch_vars->ul_valid_re_per_slot);
     free_and_zero(pusch_vars->rxdataF_comp);
-    free_and_zero(pusch_vars->ul_ch_mag0);
-    free_and_zero(pusch_vars->ul_ch_magb0);
-    free_and_zero(pusch_vars->ul_ch_magc0);
-    free_and_zero(pusch_vars->ul_ch_mag);
-    free_and_zero(pusch_vars->ul_ch_magb);
-    free_and_zero(pusch_vars->ul_ch_magc);
-    free_and_zero(pusch_vars->rho);
 
     free_and_zero(pusch_vars->llr);
   } // ULSCH_id

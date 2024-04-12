@@ -60,11 +60,6 @@
 #include "TLVDecoder.h"
 #include "S1AP_NAS-PDU.h"
 #include "executables/softmodem-common.h"
-
-#ifdef ENABLE_RIC_AGENT
-#include "common/secsm.h"
-#endif
-
 extern RAN_CONTEXT_t RC;
 
 /* Value to indicate an invalid UE initial id */
@@ -340,13 +335,10 @@ get_next_ue_initial_id(
   return ue_initial_id[mod_id];
 }
 
-
-
-
-/*! \fn uint8_t get_UE_index_from_s1ap_ids(uint8_t mod_id, uint16_t ue_initial_id, uint32_t eNB_ue_s1ap_id)
+/*! \fn rrc_eNB_get_ue_context_from_s1ap_ids
  *\brief retrieve UE index in the eNB from the UE initial ID if not equal to UE_INDEX_INVALID or
  *\brief from the eNB_ue_s1ap_id previously transmitted by S1AP.
- *\param mod_id Instance ID of eNB.
+ *\param instanceP Instance ID of eNB.
  *\param ue_initial_id The UE initial ID sent to S1AP.
  *\param eNB_ue_s1ap_id The value sent by S1AP.
  *\return the UE index or UE_INDEX_INVALID if not found.
@@ -610,11 +602,6 @@ rrc_eNB_send_S1AP_UPLINK_NAS(
       MessageDef *msg_p;
       pdu_length = dedicatedInfoType->choice.dedicatedInfoNAS.size;
       pdu_buffer = dedicatedInfoType->choice.dedicatedInfoNAS.buf;
-
-      #ifdef ENABLE_RIC_AGENT
-      addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buffer, pdu_length); // SECSM: Populate uplink NAS msg
-      #endif
-
       msg_p = itti_alloc_new_message (TASK_RRC_ENB, 0, S1AP_UPLINK_NAS);
       S1AP_UPLINK_NAS (msg_p).eNB_ue_s1ap_id = ue_context_pP->ue_context.eNB_ue_s1ap_id;
       S1AP_UPLINK_NAS (msg_p).nas_pdu.length = pdu_length;
@@ -722,13 +709,6 @@ rrc_eNB_send_S1AP_NAS_FIRST_REQ(
     extract_imsi(S1AP_NAS_FIRST_REQ (message_p).nas_pdu.buffer,
                  S1AP_NAS_FIRST_REQ (message_p).nas_pdu.length,
                  ue_context_pP);
-
-    #ifdef ENABLE_RIC_AGENT
-    uint8_t *pdu_buf = rrcConnectionSetupComplete->dedicatedInfoNAS.buf; // SECSM: Populate initial NAS msg
-    uint32_t length = rrcConnectionSetupComplete->dedicatedInfoNAS.size;
-    addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
-    #endif
-
     /* Fill UE identities with available information */
     {
       S1AP_NAS_FIRST_REQ (message_p).ue_identity.presenceMask = UE_IDENTITIES_NONE;
@@ -840,10 +820,6 @@ rrc_eNB_process_S1AP_DOWNLINK_NAS(
         msg_name,
         ue_initial_id,
         eNB_ue_s1ap_id);
-  
-  #ifdef ENABLE_RIC_AGENT
-  addNasMsg(ue_context_p->ue_id_rnti, S1AP_DOWNLINK_NAS (msg_p).nas_pdu.buffer, S1AP_DOWNLINK_NAS (msg_p).nas_pdu.length); // SECSM: populate downlink NAS msg
-  #endif
 
   if (ue_context_p == NULL) {
     /* Can not associate this message to an UE index, send a failure to S1AP and discard it! */
@@ -1153,20 +1129,6 @@ rrc_eNB_process_S1AP_UE_CONTEXT_RELEASE_COMMAND(
   struct rrc_ue_s1ap_ids_s *rrc_ue_s1ap_ids = NULL;
   eNB_ue_s1ap_id = S1AP_UE_CONTEXT_RELEASE_COMMAND(msg_p).eNB_ue_s1ap_id;
   ue_context_p = rrc_eNB_get_ue_context_from_s1ap_ids(instance, UE_INITIAL_ID_INVALID, eNB_ue_s1ap_id);
-
-  // SECSM: clear nas msg buffer
-  #ifdef ENABLE_RIC_AGENT
-  int index = -1;
-  if (ue_context_p != NULL)
-    index = getNasMsgIndex(ue_context_p->ue_context.ue_initial_id);
-  if (index != -1 && ue_nas_counter > 0) {
-    LOG_I(RRC, "[SECSM] Releasing UE NAS msg buffer at index %d\n", index);
-    ue_nas_msg[index].active = 0;
-    ue_nas_msg[index].id = 0;
-    ue_nas_msg[index].msgCount = 0;
-    --ue_nas_counter;
-  }
-  #endif
 
   if (ue_context_p == NULL) {
     /* Can not associate this message to an UE index */

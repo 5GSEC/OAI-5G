@@ -47,7 +47,7 @@
 #include "LAYER2/MAC/mac_proto.h"
 #include "PHY/phy_extern.h"
 #include "PHY/INIT/phy_init.h"
-#include "radio/ETHERNET/USERSPACE/LIB/ethernet_lib.h"
+#include "radio/ETHERNET/ethernet_lib.h"
 #include "nfapi_vnf.h"
 #include "nfapi_pnf.h"
 #include "executables/lte-softmodem.h"
@@ -58,10 +58,6 @@
 #include "enb_paramdef.h"
 #include "executables/thread-common.h"
 #include <openair3/ocp-gtpu/gtp_itf.h>
-
-#ifdef ENABLE_RIC_AGENT
-  #include "ric_agent.h"
-#endif
 
 extern uint32_t to_earfcn_DL(int eutra_bandP, uint32_t dl_CarrierFreq, uint32_t bw);
 extern uint32_t to_earfcn_UL(int eutra_bandP, uint32_t ul_CarrierFreq, uint32_t bw);
@@ -82,7 +78,7 @@ void RCconfig_L1(void) {
     RC.nb_L1_CC = malloc((1+RC.nb_L1_inst)*sizeof(int));
   }
 
-  config_getlist( &L1_ParamList,L1_Params,sizeof(L1_Params)/sizeof(paramdef_t), NULL);
+  config_getlist(config_get_if(), &L1_ParamList, L1_Params, sizeofArray(L1_Params), NULL);
 
   if (L1_ParamList.numelt > 0) {
     for (j = 0; j < RC.nb_L1_inst; j++) {
@@ -175,8 +171,8 @@ void RCconfig_macrlc(void)
   int               j;
   paramdef_t MacRLC_Params[] = MACRLCPARAMS_DESC;
   paramlist_def_t MacRLC_ParamList = {CONFIG_STRING_MACRLC_LIST,NULL,0};
-  config_getlist( &MacRLC_ParamList,MacRLC_Params,sizeof(MacRLC_Params)/sizeof(paramdef_t), NULL);
-  config_getlist( &MacRLC_ParamList,MacRLC_Params,sizeof(MacRLC_Params)/sizeof(paramdef_t), NULL);
+  config_getlist(config_get_if(), &MacRLC_ParamList, MacRLC_Params, sizeofArray(MacRLC_Params), NULL);
+  config_getlist(config_get_if(), &MacRLC_ParamList, MacRLC_Params, sizeofArray(MacRLC_Params), NULL);
 
   if ( MacRLC_ParamList.numelt > 0) {
     RC.nb_macrlc_inst=MacRLC_ParamList.numelt;
@@ -281,23 +277,23 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
   paramdef_t SLParams[]   = CCPARAMS_SIDELINK_DESC(SLconfig);
 
   /* map parameter checking array instances to parameter definition array instances */
-  for (int I=0; I< ( sizeof(CCsParams)/ sizeof(paramdef_t)  ) ; I++) {
+  for (int I = 0; I < sizeofArray(CCsParams); I++) {
     CCsParams[I].chkPptr = &(config_check_CCparams[I]);
   }
 
-  for (int I = 0; I < (sizeof(CCsParams) / sizeof(paramdef_t)); I++) {
+  for (int I = 0; I < sizeofArray(CCsParams); I++) {
     eMTCParams[I].chkPptr = &(config_check_eMTCparams[I]);
   }
 
   /* get global parameters, defined outside any section in the config file */
-  config_get( ENBSParams,sizeof(ENBSParams)/sizeof(paramdef_t),NULL);
+  config_get(config_get_if(), ENBSParams, sizeofArray(ENBSParams), NULL);
   num_enbs = ENBSParams[ENB_ACTIVE_ENBS_IDX].numelt;
   AssertFatal (i<num_enbs,
                "Failed to parse config file no %uth element in %s \n",i, ENB_CONFIG_STRING_ACTIVE_ENBS);
 
   if (num_enbs>0) {
     // Output a list of all eNBs.
-    config_getlist( &ENBParamList,ENBParams,sizeof(ENBParams)/sizeof(paramdef_t),NULL);
+    config_getlist(config_get_if(), &ENBParamList, ENBParams, sizeofArray(ENBParams), NULL);
 
     if (ENBParamList.paramarray[i][ENB_ENB_ID_IDX].uptr == NULL) {
       // Calculate a default eNB ID
@@ -327,12 +323,8 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
         /* map parameter checking array instances to parameter definition array instances */
         checkedparam_t config_check_PLMNParams [] = PLMNPARAMS_CHECK;
 
-        for (int I = 0; I < sizeof(PLMNParams) / sizeof(paramdef_t); ++I)
+        for (int I = 0; I < sizeofArray(PLMNParams); ++I)
           PLMNParams[I].chkPptr = &(config_check_PLMNParams[I]);
-
-        #ifdef ENABLE_RIC_AGENT
-          rrc->eth_params_s.my_addr = *ENBParamList.paramarray[0][ENB_LOCAL_S_ADDRESS_IDX].strptr;
-        #endif
 
         // In the configuration file it is in seconds. For RRC it has to be in milliseconds
         RRCcfg->rrc_inactivity_timer_thres = (*ENBParamList.paramarray[i][ENB_RRC_INACTIVITY_THRES_IDX].uptr) * 1000;
@@ -347,7 +339,7 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
                     "to\n"
                     "    tracking_area_code  =  1; // no string!!\n"
                     "    plmn_list = ( { mcc = 208; mnc = 93; mnc_length = 2; } )\n");
-        config_getlist(&PLMNParamList, PLMNParams, sizeof(PLMNParams)/sizeof(paramdef_t), enbpath);
+        config_getlist(config_get_if(), &PLMNParamList, PLMNParams, sizeofArray(PLMNParams), enbpath);
 
         if (PLMNParamList.numelt < 1 || PLMNParamList.numelt > 6)
           AssertFatal(0, "The number of PLMN IDs must be in [1,6], but is %d\n",
@@ -387,7 +379,7 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
           RRCcfg->eMBMS_M2_configured = 0;
 
         // Parse optional physical parameters
-        config_getlist( &CCsParamList,NULL,0,enbpath);
+        config_getlist(config_get_if(), &CCsParamList, NULL, 0, enbpath);
         LOG_I(RRC,"num component carriers %d \n",CCsParamList.numelt);
 
         if ( CCsParamList.numelt> 0) {
@@ -395,8 +387,12 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
 
           for (j = 0; j < CCsParamList.numelt ; j++) {
             sprintf(ccspath,"%s.%s.[%i]",enbpath,ENB_CONFIG_STRING_COMPONENT_CARRIERS,j);
-            LOG_I(RRC, "enb_config::RCconfig_RRC() parameter number: %d, total number of parameters: %zd, ccspath: %s \n \n", j, sizeof(CCsParams)/sizeof(paramdef_t), ccspath);
-            config_get( CCsParams,sizeof(CCsParams)/sizeof(paramdef_t),ccspath);
+            LOG_I(RRC,
+                  "enb_config::RCconfig_RRC() parameter number: %d, total number of parameters: %zd, ccspath: %s \n \n",
+                  j,
+                  sizeofArray(CCsParams),
+                  ccspath);
+            config_get(config_get_if(), CCsParams, sizeofArray(CCsParams), ccspath);
             // printf("Component carrier %d\n",component_carrier);
             //  Cell params, MIB/SIB1
             RRCcfg->tdd_config[j] = ccparams_lte.tdd_config;
@@ -1496,7 +1492,7 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
             // eMTC configuration
             char brparamspath[MAX_OPTNAME_SIZE*2 + 160];
             sprintf(brparamspath,"%s.%s", ccspath, ENB_CONFIG_STRING_EMTC_PARAMETERS);
-            config_get(eMTCParams, sizeof(eMTCParams)/sizeof(paramdef_t), brparamspath);
+            config_get(config_get_if(), eMTCParams, sizeofArray(eMTCParams), brparamspath);
             RRCcfg->eMTC_configured = eMTCconfig.eMTC_configured & 1;
 
             if (eMTCconfig.eMTC_configured > 0)
@@ -1506,7 +1502,7 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
             // Sidelink configuration
             char SLparamspath[MAX_OPTNAME_SIZE*2 + 160];
             sprintf(SLparamspath,"%s.%s", ccspath, ENB_CONFIG_STRING_SL_PARAMETERS);
-            config_get( SLParams, sizeof(SLParams)/sizeof(paramdef_t), SLparamspath);
+            config_get(config_get_if(), SLParams, sizeofArray(SLParams), SLparamspath);
             // Sidelink Resource pool information
             RRCcfg->SL_configured = SLconfig.sidelink_configured & 1;
 
@@ -1519,7 +1515,7 @@ int RCconfig_RRC(uint32_t i, eNB_RRC_INST *rrc) {
 
           char srb1path[MAX_OPTNAME_SIZE*2 + 8];
           sprintf(srb1path,"%s.%s",enbpath,ENB_CONFIG_STRING_SRB1);
-          config_get( SRB1Params,sizeof(SRB1Params)/sizeof(paramdef_t), srb1path);
+          config_get(config_get_if(), SRB1Params, sizeofArray(SRB1Params), srb1path);
 
           switch (srb1_params.srb1_max_retx_threshold) {
             case 1:
@@ -1836,12 +1832,12 @@ int RCconfig_gtpu(void ) {
   paramdef_t GTPUParams[]  = GTPUPARAMS_DESC;
   LOG_I(GTPU,"Configuring GTPu\n");
   /* get number of active eNodeBs */
-  config_get( ENBSParams,sizeof(ENBSParams)/sizeof(paramdef_t),NULL);
+  config_get(config_get_if(), ENBSParams, sizeofArray(ENBSParams), NULL);
   num_enbs = ENBSParams[ENB_ACTIVE_ENBS_IDX].numelt;
   AssertFatal (num_enbs >0,
                "Failed to parse config file no active eNodeBs in %s \n", ENB_CONFIG_STRING_ACTIVE_ENBS);
   sprintf(gtpupath,"%s.[%i].%s",ENB_CONFIG_STRING_ENB_LIST,0,ENB_CONFIG_STRING_NETWORK_INTERFACES_CONFIG);
-  config_get( GTPUParams,sizeof(GTPUParams)/sizeof(paramdef_t),gtpupath);
+  config_get(config_get_if(), GTPUParams, sizeofArray(GTPUParams), gtpupath);
   cidr = enb_ipv4_address_for_S1U;
   address = strtok(cidr, "/");
 
@@ -1871,7 +1867,7 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
   paramdef_t ENBParams[]  = ENBPARAMS_DESC;
   paramlist_def_t ENBParamList = {ENB_CONFIG_STRING_ENB_LIST,NULL,0};
   /* get global parameters, defined outside any section in the config file */
-  config_get( ENBSParams,sizeof(ENBSParams)/sizeof(paramdef_t),NULL);
+  config_get(config_get_if(), ENBSParams, sizeofArray(ENBSParams), NULL);
   checkedparam_t config_check_CCparams[] = CCPARAMS_CHECK;
   paramdef_t CCsParams[] = CCPARAMS_DESC(ccparams_lte);
   paramlist_def_t CCsParamList = {ENB_CONFIG_STRING_COMPONENT_CARRIERS, NULL, 0};
@@ -1883,7 +1879,7 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
 
 
   /* map parameter checking array instances to parameter definition array instances */
-  for (I = 0; I < (sizeof(CCsParams) / sizeof(paramdef_t)); I++) {
+  for (I = 0; I < sizeofArray(CCsParams); I++) {
     CCsParams[I].chkPptr = &(config_check_CCparams[I]);
   }
 
@@ -1893,7 +1889,7 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
 
   if (ENBSParams[ENB_ACTIVE_ENBS_IDX].numelt > 0) {
     // Output a list of all eNBs.
-    config_getlist( &ENBParamList,ENBParams,sizeof(ENBParams)/sizeof(paramdef_t),NULL);
+    config_getlist(config_get_if(), &ENBParamList, ENBParams, sizeofArray(ENBParams), NULL);
 
     if (ENBParamList.numelt > 0) {
       for (k = 0; k < ENBParamList.numelt; k++) {
@@ -1918,7 +1914,7 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
             /* map parameter checking array instances to parameter definition array instances */
             checkedparam_t config_check_PLMNParams [] = PLMNPARAMS_CHECK;
 
-            for (int I = 0; I < sizeof(PLMNParams) / sizeof(paramdef_t); ++I)
+            for (int I = 0; I < sizeofArray(PLMNParams); ++I)
               PLMNParams[I].chkPptr = &(config_check_PLMNParams[I]);
 
             paramdef_t M2Params[]  = M2PARAMS_DESC;
@@ -1948,25 +1944,25 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
 
             M2AP_REGISTER_ENB_REQ (msg_p).eNB_name         = strdup(*(ENBParamList.paramarray[k][ENB_ENB_NAME_IDX].strptr));
             M2AP_REGISTER_ENB_REQ (msg_p).tac              = *ENBParamList.paramarray[k][ENB_TRACKING_AREA_CODE_IDX].uptr;
-            config_getlist(&PLMNParamList, PLMNParams, sizeof(PLMNParams)/sizeof(paramdef_t), aprefix);
+            config_getlist(config_get_if(), &PLMNParamList, PLMNParams, sizeofArray(PLMNParams), aprefix);
 
-
-
-//            char aprefix2[MAX_OPTNAME_SIZE*80 + 8];
-//            sprintf(aprefix2,"%s.[%i].%s.[0]",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_MBMS_CONFIGURATION_DATA_LIST);
-//            config_getlist(&MBMSParamList, MBMSParams, sizeof(MBMSParams)/sizeof(paramdef_t), aprefix2);
-//         if (MBMSParamList.numelt < 1 || MBMSParamList.numelt > 8)
-//              AssertFatal(0, "The number of MBMS Areas must be in [1,8], but is %d\n",
-//                          MBMSParamList.numelt);
-//         M2AP_REGISTER_ENB_REQ (msg_p).num_mbms_service_area_list = MBMSParamList.numelt;
-//         for(J=0; J<MBMSParamList.numelt;J++){
-//             M2AP_REGISTER_ENB_REQ (msg_p).mbms_service_area_list[J] = *MBMSParamList.paramarray[J][ENB_MBMS_SERVICE_AREA_IDX].uptr;
-//         }
-//
+            //            char aprefix2[MAX_OPTNAME_SIZE*80 + 8];
+            //            sprintf(aprefix2,"%s.[%i].%s.[0]",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_MBMS_CONFIGURATION_DATA_LIST);
+            //            config_getlist(config_get_if(),&MBMSParamList, MBMSParams, sizeofArray(MBMSParams),
+            //            aprefix2);
+            //         if (MBMSParamList.numelt < 1 || MBMSParamList.numelt > 8)
+            //              AssertFatal(0, "The number of MBMS Areas must be in [1,8], but is %d\n",
+            //                          MBMSParamList.numelt);
+            //         M2AP_REGISTER_ENB_REQ (msg_p).num_mbms_service_area_list = MBMSParamList.numelt;
+            //         for(J=0; J<MBMSParamList.numelt;J++){
+            //             M2AP_REGISTER_ENB_REQ (msg_p).mbms_service_area_list[J] =
+            //             *MBMSParamList.paramarray[J][ENB_MBMS_SERVICE_AREA_IDX].uptr;
+            //         }
+            //
 
             char aprefix2[MAX_OPTNAME_SIZE*80 + 8];
             sprintf(aprefix2,"%s.[%i]",ENB_CONFIG_STRING_ENB_LIST,k);
-            config_getlist(&MBMSConfigParamList, MBMSConfigParams, sizeof(MBMSConfigParams)/sizeof(paramdef_t), aprefix2);
+            config_getlist(config_get_if(), &MBMSConfigParamList, MBMSConfigParams, sizeofArray(MBMSConfigParams), aprefix2);
             if (MBMSConfigParamList.numelt < 1 || MBMSConfigParamList.numelt > 8)
               AssertFatal(0, "The number of MBMS Config Data must be in [1,8], but is %d\n",
                           MBMSConfigParamList.numelt);
@@ -1974,7 +1970,7 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
            for(int I=0; I < MBMSConfigParamList.numelt; I++){
 
                    sprintf(aprefix2,"%s.[%i].%s.[%i]",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_MBMS_CONFIGURATION_DATA_LIST,I);
-                   config_getlist(&MBMSParamList, MBMSParams, sizeof(MBMSParams)/sizeof(paramdef_t), aprefix2);
+                   config_getlist(config_get_if(), &MBMSParamList, MBMSParams, sizeofArray(MBMSParams), aprefix2);
                    if (MBMSParamList.numelt < 1 || MBMSParamList.numelt > 8)
                      AssertFatal(0, "The number of MBMS Areas must be in [1,8], but is %d\n",
                                  MBMSParamList.numelt);
@@ -2001,14 +1997,14 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
                         "MNC %d cannot be encoded in two digits as requested (change mnc_digit_length to 3)\n",
                         M2AP_REGISTER_ENB_REQ(msg_p).mnc);
             /* CC params */
-            config_getlist(&CCsParamList, NULL, 0, aprefix);
+            config_getlist(config_get_if(), &CCsParamList, NULL, 0, aprefix);
             M2AP_REGISTER_ENB_REQ (msg_p).num_cc = CCsParamList.numelt;
 
             if (CCsParamList.numelt > 0) {
               //char ccspath[MAX_OPTNAME_SIZE*2 + 16];
               for (J = 0; J < CCsParamList.numelt ; J++) {
                 sprintf(aprefix, "%s.[%i].%s.[%i]", ENB_CONFIG_STRING_ENB_LIST, k, ENB_CONFIG_STRING_COMPONENT_CARRIERS, J);
-                config_get(CCsParams, sizeof(CCsParams)/sizeof(paramdef_t), aprefix);
+                config_get(config_get_if(), CCsParams, sizeofArray(CCsParams), aprefix);
                 M2AP_REGISTER_ENB_REQ (msg_p).eutra_band[J] = ccparams_lte.eutra_band;
                 M2AP_REGISTER_ENB_REQ (msg_p).downlink_frequency[J] = (uint32_t) ccparams_lte.downlink_frequency;
                 M2AP_REGISTER_ENB_REQ (msg_p).uplink_frequency_offset[J] = (unsigned int) ccparams_lte.uplink_frequency_offset;
@@ -2044,7 +2040,7 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
             }
 
             sprintf(aprefix,"%s.[%i]",ENB_CONFIG_STRING_ENB_LIST,k);
-            config_getlist( &M2ParamList,M2Params,sizeof(M2Params)/sizeof(paramdef_t),aprefix);
+            config_getlist(config_get_if(), &M2ParamList, M2Params, sizeofArray(M2Params), aprefix);
             AssertFatal(M2ParamList.numelt <= M2AP_MAX_NB_ENB_IP_ADDRESS,
                         "value of M2ParamList.numelt %d must be lower than M2AP_MAX_NB_ENB_IP_ADDRESS %d value: reconsider to increase M2AP_MAX_NB_ENB_IP_ADDRESS\n",
                         M2ParamList.numelt,M2AP_MAX_NB_ENB_IP_ADDRESS);
@@ -2074,7 +2070,7 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
             //    { "t_reloc_prep", "t_reloc_prep", 0, iptr:&t_reloc_prep, defintval:0, TYPE_INT, 0 },
             //    { "tx2_reloc_overall", "tx2_reloc_overall", 0, iptr:&tx2_reloc_overall, defintval:0, TYPE_INT, 0 }
             //  };
-            //  config_get(p, sizeof(p)/sizeof(paramdef_t), aprefix);
+            //  config_get(p, sizeofArray(p), aprefix);
 
             //  if (t_reloc_prep <= 0 || t_reloc_prep > 10000 ||
             //      tx2_reloc_overall <= 0 || tx2_reloc_overall > 20000) {
@@ -2091,14 +2087,14 @@ int RCconfig_M2(MessageDef *msg_p, uint32_t i) {
 
             if (EPC_MODE_ENABLED) {
               sprintf(aprefix,"%s.[%i].%s",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_SCTP_CONFIG);
-              config_get( SCTPParams,sizeof(SCTPParams)/sizeof(paramdef_t),aprefix);
+              config_get(config_get_if(), SCTPParams, sizeofArray(SCTPParams), aprefix);
               M2AP_REGISTER_ENB_REQ (msg_p).sctp_in_streams = (uint16_t)*(SCTPParams[ENB_SCTP_INSTREAMS_IDX].uptr);
               M2AP_REGISTER_ENB_REQ (msg_p).sctp_out_streams = (uint16_t)*(SCTPParams[ENB_SCTP_OUTSTREAMS_IDX].uptr);
             }
 
             sprintf(aprefix,"%s.[%i].%s",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_NETWORK_INTERFACES_CONFIG);
             // NETWORK_INTERFACES
-            config_get( NETParams,sizeof(NETParams)/sizeof(paramdef_t),aprefix);
+            config_get(config_get_if(), NETParams, sizeofArray(NETParams), aprefix);
             M2AP_REGISTER_ENB_REQ (msg_p).enb_port_for_M2C = (uint32_t)*(NETParams[ENB_PORT_FOR_M2C_IDX].uptr);
 
             if ((NETParams[ENB_IPV4_ADDR_FOR_M2C_IDX].strptr == NULL) || (M2AP_REGISTER_ENB_REQ (msg_p).enb_port_for_M2C == 0)) {
@@ -2144,14 +2140,14 @@ int RCconfig_S1(
   paramdef_t ENBParams[] = ENBPARAMS_DESC;
   paramlist_def_t ENBParamList = {ENB_CONFIG_STRING_ENB_LIST, NULL, 0};
   /* get global parameters, defined outside any section in the config file */
-  config_get(ENBSParams, sizeof(ENBSParams)/sizeof(paramdef_t), NULL);
+  config_get(config_get_if(), ENBSParams, sizeofArray(ENBSParams), NULL);
   AssertFatal (i < ENBSParams[ENB_ACTIVE_ENBS_IDX].numelt,
                "Failed to parse config file %s, %uth attribute %s \n",
                RC.config_file_name, i, ENB_CONFIG_STRING_ACTIVE_ENBS);
 
   if (ENBSParams[ENB_ACTIVE_ENBS_IDX].numelt > 0) {
     // Output a list of all eNBs.
-    config_getlist(&ENBParamList, ENBParams, sizeof(ENBParams)/sizeof(paramdef_t), NULL);
+    config_getlist(config_get_if(), &ENBParamList, ENBParams, sizeofArray(ENBParams), NULL);
 
     if (ENBParamList.numelt > 0) {
       for (int k = 0; k < ENBParamList.numelt; k++) {
@@ -2177,14 +2173,14 @@ int RCconfig_S1(
             /* map parameter checking array instances to parameter definition array instances */
             checkedparam_t config_check_CCparams[] = CCPARAMS_CHECK;
 
-            for (int I = 0; I < (sizeof(CCsParams) / sizeof(paramdef_t)); I++) {
+            for (int I = 0; I < sizeofArray(CCsParams); I++) {
               CCsParams[I].chkPptr = &(config_check_CCparams[I]);
             }
 
             /* map parameter checking array instances to parameter definition array instances */
             checkedparam_t config_check_PLMNParams [] = PLMNPARAMS_CHECK;
 
-            for (int I = 0; I < sizeof(PLMNParams) / sizeof(paramdef_t); ++I) {
+            for (int I = 0; I < sizeofArray(PLMNParams); ++I) {
               PLMNParams[I].chkPptr = &(config_check_PLMNParams[I]);
             }
 
@@ -2283,7 +2279,7 @@ int RCconfig_S1(
                     *ENBParamList.paramarray[k][ENB_SCTP_REQ_COUNT_IDX].uptr);
               S1AP_REGISTER_ENB_REQ(msg_p).sctp_req_count = 0xffff;
             }
-            config_getlist(&PLMNParamList, PLMNParams, sizeof(PLMNParams)/sizeof(paramdef_t), aprefix);
+            config_getlist(config_get_if(), &PLMNParamList, PLMNParams, sizeofArray(PLMNParams), aprefix);
 
             if (PLMNParamList.numelt < 1 || PLMNParamList.numelt > 6) {
               AssertFatal(0, "The number of PLMN IDs must be in [1,6], but is %d\n",
@@ -2310,7 +2306,7 @@ int RCconfig_S1(
             * in the conf file.
             */
             sprintf(aprefix, "%s.[%i].%s.[%i]", ENB_CONFIG_STRING_ENB_LIST, k, ENB_CONFIG_STRING_COMPONENT_CARRIERS, 0);
-            config_get(CCsParams, sizeof(CCsParams)/sizeof(paramdef_t), aprefix);
+            config_get(config_get_if(), CCsParams, sizeofArray(CCsParams), aprefix);
 
             switch (ccparams_lte.pcch_defaultPagingCycle) {
               case 32: {
@@ -2343,7 +2339,7 @@ int RCconfig_S1(
 
             /* MME connection params */
             sprintf(aprefix, "%s.[%i]", ENB_CONFIG_STRING_ENB_LIST, k);
-            config_getlist(&S1ParamList, S1Params, sizeof(S1Params)/sizeof(paramdef_t), aprefix);
+            config_getlist(config_get_if(), &S1ParamList, S1Params, sizeofArray(S1Params), aprefix);
             S1AP_REGISTER_ENB_REQ (msg_p).nb_mme = 0;
 
             for (int l = 0; l < S1ParamList.numelt; l++) {
@@ -2403,14 +2399,14 @@ int RCconfig_S1(
 
             if (EPC_MODE_ENABLED) {
               sprintf(aprefix,"%s.[%i].%s",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_SCTP_CONFIG);
-              config_get( SCTPParams,sizeof(SCTPParams)/sizeof(paramdef_t),aprefix);
+              config_get(config_get_if(), SCTPParams, sizeofArray(SCTPParams), aprefix);
               S1AP_REGISTER_ENB_REQ (msg_p).sctp_in_streams = (uint16_t)*(SCTPParams[ENB_SCTP_INSTREAMS_IDX].uptr);
               S1AP_REGISTER_ENB_REQ (msg_p).sctp_out_streams = (uint16_t)*(SCTPParams[ENB_SCTP_OUTSTREAMS_IDX].uptr);
             }
 
             sprintf(aprefix,"%s.[%i].%s",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_NETWORK_INTERFACES_CONFIG);
             // NETWORK_INTERFACES
-            config_get( NETParams,sizeof(NETParams)/sizeof(paramdef_t),aprefix);
+            config_get(config_get_if(), NETParams, sizeofArray(NETParams), aprefix);
             cidr = *(NETParams[ENB_IPV4_ADDRESS_FOR_S1_MME_IDX].strptr);
             address = strtok(cidr, "/");
             S1AP_REGISTER_ENB_REQ (msg_p).enb_ip_address.ipv6 = 0;
@@ -2437,13 +2433,13 @@ int RCconfig_X2(MessageDef *msg_p, uint32_t i) {
   paramdef_t ENBParams[]  = ENBPARAMS_DESC;
   paramlist_def_t ENBParamList = {ENB_CONFIG_STRING_ENB_LIST,NULL,0};
   /* get global parameters, defined outside any section in the config file */
-  config_get( ENBSParams,sizeof(ENBSParams)/sizeof(paramdef_t),NULL);
+  config_get(config_get_if(), ENBSParams, sizeofArray(ENBSParams), NULL);
   checkedparam_t config_check_CCparams[] = CCPARAMS_CHECK;
   paramdef_t CCsParams[] = CCPARAMS_DESC(ccparams_lte);
   paramlist_def_t CCsParamList = {ENB_CONFIG_STRING_COMPONENT_CARRIERS, NULL, 0};
 
   /* map parameter checking array instances to parameter definition array instances */
-  for (I = 0; I < (sizeof(CCsParams) / sizeof(paramdef_t)); I++) {
+  for (I = 0; I < sizeofArray(CCsParams); I++) {
     CCsParams[I].chkPptr = &(config_check_CCparams[I]);
   }
 
@@ -2453,7 +2449,7 @@ int RCconfig_X2(MessageDef *msg_p, uint32_t i) {
 
   if (ENBSParams[ENB_ACTIVE_ENBS_IDX].numelt > 0) {
     // Output a list of all eNBs.
-    config_getlist( &ENBParamList,ENBParams,sizeof(ENBParams)/sizeof(paramdef_t),NULL);
+    config_getlist(config_get_if(), &ENBParamList, ENBParams, sizeofArray(ENBParams), NULL);
 
     if (ENBParamList.numelt > 0) {
       for (k = 0; k < ENBParamList.numelt; k++) {
@@ -2478,7 +2474,7 @@ int RCconfig_X2(MessageDef *msg_p, uint32_t i) {
             /* map parameter checking array instances to parameter definition array instances */
             checkedparam_t config_check_PLMNParams [] = PLMNPARAMS_CHECK;
 
-            for (int I = 0; I < sizeof(PLMNParams) / sizeof(paramdef_t); ++I)
+            for (int I = 0; I < sizeofArray(PLMNParams); ++I)
               PLMNParams[I].chkPptr = &(config_check_PLMNParams[I]);
 
             paramdef_t X2Params[]  = X2PARAMS_DESC;
@@ -2504,7 +2500,7 @@ int RCconfig_X2(MessageDef *msg_p, uint32_t i) {
 
             X2AP_REGISTER_ENB_REQ (msg_p).eNB_name         = strdup(*(ENBParamList.paramarray[k][ENB_ENB_NAME_IDX].strptr));
             X2AP_REGISTER_ENB_REQ (msg_p).tac              = *ENBParamList.paramarray[k][ENB_TRACKING_AREA_CODE_IDX].uptr;
-            config_getlist(&PLMNParamList, PLMNParams, sizeof(PLMNParams)/sizeof(paramdef_t), aprefix);
+            config_getlist(config_get_if(), &PLMNParamList, PLMNParams, sizeofArray(PLMNParams), aprefix);
 
             if (PLMNParamList.numelt < 1 || PLMNParamList.numelt > 6)
               AssertFatal(0, "The number of PLMN IDs must be in [1,6], but is %d\n",
@@ -2521,14 +2517,14 @@ int RCconfig_X2(MessageDef *msg_p, uint32_t i) {
                         "MNC %d cannot be encoded in two digits as requested (change mnc_digit_length to 3)\n",
                         X2AP_REGISTER_ENB_REQ(msg_p).mnc);
             /* CC params */
-            config_getlist(&CCsParamList, NULL, 0, aprefix);
+            config_getlist(config_get_if(), &CCsParamList, NULL, 0, aprefix);
             X2AP_REGISTER_ENB_REQ (msg_p).num_cc = CCsParamList.numelt;
 
             if (CCsParamList.numelt > 0) {
               //char ccspath[MAX_OPTNAME_SIZE*2 + 16];
               for (J = 0; J < CCsParamList.numelt ; J++) {
                 sprintf(aprefix, "%s.[%i].%s.[%i]", ENB_CONFIG_STRING_ENB_LIST, k, ENB_CONFIG_STRING_COMPONENT_CARRIERS, J);
-                config_get(CCsParams, sizeof(CCsParams)/sizeof(paramdef_t), aprefix);
+                config_get(config_get_if(), CCsParams, sizeofArray(CCsParams), aprefix);
                 X2AP_REGISTER_ENB_REQ (msg_p).eutra_band[J] = ccparams_lte.eutra_band;
                 X2AP_REGISTER_ENB_REQ (msg_p).downlink_frequency[J] = (uint32_t) ccparams_lte.downlink_frequency;
                 X2AP_REGISTER_ENB_REQ (msg_p).uplink_frequency_offset[J] = (unsigned int) ccparams_lte.uplink_frequency_offset;
@@ -2566,7 +2562,7 @@ int RCconfig_X2(MessageDef *msg_p, uint32_t i) {
             }
 
             sprintf(aprefix,"%s.[%i]",ENB_CONFIG_STRING_ENB_LIST,k);
-            config_getlist( &X2ParamList,X2Params,sizeof(X2Params)/sizeof(paramdef_t),aprefix);
+            config_getlist(config_get_if(), &X2ParamList, X2Params, sizeofArray(X2Params), aprefix);
             AssertFatal(X2ParamList.numelt <= X2AP_MAX_NB_ENB_IP_ADDRESS,
                         "value of X2ParamList.numelt %d must be lower than X2AP_MAX_NB_ENB_IP_ADDRESS %d value: reconsider to increase X2AP_MAX_NB_ENB_IP_ADDRESS\n",
                         X2ParamList.numelt,X2AP_MAX_NB_ENB_IP_ADDRESS);
@@ -2602,7 +2598,7 @@ int RCconfig_X2(MessageDef *msg_p, uint32_t i) {
                 { "t_dc_prep", "t_dc_prep", 0, .iptr=&t_dc_prep, .defintval=0, TYPE_INT, 0 },
                 { "t_dc_overall", "t_dc_overall", 0, .iptr=&t_dc_overall, .defintval=0, TYPE_INT, 0 }
               };
-              config_get(p, sizeof(p)/sizeof(paramdef_t), aprefix);
+              config_get(config_get_if(), p, sizeofArray(p), aprefix);
 
               if (t_reloc_prep <= 0 || t_reloc_prep > 10000 ||
                   tx2_reloc_overall <= 0 || tx2_reloc_overall > 20000 ||
@@ -2623,14 +2619,14 @@ int RCconfig_X2(MessageDef *msg_p, uint32_t i) {
 
             if (EPC_MODE_ENABLED) {
               sprintf(aprefix,"%s.[%i].%s",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_SCTP_CONFIG);
-              config_get( SCTPParams,sizeof(SCTPParams)/sizeof(paramdef_t),aprefix);
+              config_get(config_get_if(), SCTPParams, sizeofArray(SCTPParams), aprefix);
               X2AP_REGISTER_ENB_REQ (msg_p).sctp_in_streams = (uint16_t)*(SCTPParams[ENB_SCTP_INSTREAMS_IDX].uptr);
               X2AP_REGISTER_ENB_REQ (msg_p).sctp_out_streams = (uint16_t)*(SCTPParams[ENB_SCTP_OUTSTREAMS_IDX].uptr);
             }
 
             sprintf(aprefix,"%s.[%i].%s",ENB_CONFIG_STRING_ENB_LIST,k,ENB_CONFIG_STRING_NETWORK_INTERFACES_CONFIG);
             // NETWORK_INTERFACES
-            config_get( NETParams,sizeof(NETParams)/sizeof(paramdef_t),aprefix);
+            config_get(config_get_if(), NETParams, sizeofArray(NETParams), aprefix);
             X2AP_REGISTER_ENB_REQ (msg_p).enb_port_for_X2C = (uint32_t)*(NETParams[ENB_PORT_FOR_X2C_IDX].uptr);
 
             if ((NETParams[ENB_IPV4_ADDR_FOR_X2C_IDX].strptr == NULL) || (X2AP_REGISTER_ENB_REQ (msg_p).enb_port_for_X2C == 0)) {
@@ -2657,11 +2653,11 @@ int RCconfig_parallel(void) {
   char *worker_conf   = NULL;
   paramdef_t ThreadParams[]  = THREAD_CONF_DESC;
   paramlist_def_t THREADParamList = {THREAD_CONFIG_STRING_THREAD_STRUCT,NULL,0};
-  config_getlist( &THREADParamList,NULL,0,NULL);
+  config_getlist(config_get_if(), &THREADParamList, NULL, 0, NULL);
 
   if(parallel_config == NULL) {
     if(THREADParamList.numelt>0) {
-      config_getlist( &THREADParamList,ThreadParams,sizeof(ThreadParams)/sizeof(paramdef_t),NULL);
+      config_getlist(config_get_if(), &THREADParamList, ThreadParams, sizeofArray(ThreadParams), NULL);
       parallel_conf = strdup(*(THREADParamList.paramarray[0][THREAD_PARALLEL_IDX].strptr));
     } else {
       parallel_conf = strdup("PARALLEL_RU_L1_TRX_SPLIT");
@@ -2672,7 +2668,7 @@ int RCconfig_parallel(void) {
 
   if(worker_config == NULL) {
     if(THREADParamList.numelt>0) {
-      config_getlist( &THREADParamList,ThreadParams,sizeof(ThreadParams)/sizeof(paramdef_t),NULL);
+      config_getlist(config_get_if(), &THREADParamList, ThreadParams, sizeofArray(ThreadParams), NULL);
       worker_conf   = strdup(*(THREADParamList.paramarray[0][THREAD_WORKER_IDX].strptr));
     } else {
       worker_conf   = strdup("WORKER_ENABLE");
@@ -2695,7 +2691,7 @@ void RCConfig(void) {
   char aprefix[MAX_OPTNAME_SIZE*2 + 8];
   /* get global parameters, defined outside any section in the config file */
   printf("Getting ENBSParams\n");
-  config_get( ENBSParams,sizeof(ENBSParams)/sizeof(paramdef_t),NULL);
+  config_get(config_get_if(), ENBSParams, sizeofArray(ENBSParams), NULL);
   //EPC_MODE_ENABLED = ((*ENBSParams[ENB_NOS1_IDX].uptr) == 0);
   RC.nb_inst = ENBSParams[ENB_ACTIVE_ENBS_IDX].numelt;
 
@@ -2704,20 +2700,20 @@ void RCConfig(void) {
 
     for (int i=0; i<RC.nb_inst; i++) {
       sprintf(aprefix,"%s.[%i]",ENB_CONFIG_STRING_ENB_LIST,i);
-      config_getlist( &CCsParamList,NULL,0, aprefix);
+      config_getlist(config_get_if(), &CCsParamList, NULL, 0, aprefix);
       RC.nb_CC[i]    = CCsParamList.numelt;
     }
   }
 
-  config_getlist( &MACRLCParamList,NULL,0, NULL);
+  config_getlist(config_get_if(), &MACRLCParamList, NULL, 0, NULL);
   RC.nb_macrlc_inst  = MACRLCParamList.numelt;
   AssertFatal(RC.nb_macrlc_inst <= MAX_MAC_INST,
               "Too many macrlc instances %d\n",RC.nb_macrlc_inst);
   // Get num L1 instances
-  config_getlist( &L1ParamList,NULL,0, NULL);
+  config_getlist(config_get_if(), &L1ParamList, NULL, 0, NULL);
   RC.nb_L1_inst = L1ParamList.numelt;
   // Get num RU instances
-  config_getlist( &RUParamList,NULL,0, NULL);
+  config_getlist(config_get_if(), &RUParamList, NULL, 0, NULL);
   RC.nb_RU     = RUParamList.numelt;
   RCconfig_parallel();
 }
@@ -2934,8 +2930,4 @@ void read_config_and_init(void) {
     memset((void *)RC.rrc[enb_id], 0, sizeof(eNB_RRC_INST));
     RCconfig_RRC(enb_id, RC.rrc[enb_id]);
   }
-
-  #ifdef ENABLE_RIC_AGENT
-    RCconfig_ric_agent();
-  #endif
 }

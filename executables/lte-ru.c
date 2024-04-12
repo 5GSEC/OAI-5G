@@ -60,7 +60,7 @@
 #include "common/utils/LOG/log.h"
 #include "common/utils/LOG/vcd_signal_dumper.h"
 #include "radio/COMMON/common_lib.h"
-#include "radio/ETHERNET/USERSPACE/LIB/ethernet_lib.h"
+#include "radio/ETHERNET/ethernet_lib.h"
 
 /* these variables have to be defined before including ENB_APP/enb_paramdef.h */
 static int DEFBANDS[] = {7};
@@ -2889,7 +2889,7 @@ RU_t **RCconfig_RU(int nb_RU,int nb_L1_inst,PHY_VARS_eNB ***eNB,uint64_t *ru_mas
   int i = 0;
   paramdef_t RUParams[] = RUPARAMS_DESC;
   paramlist_def_t RUParamList = {CONFIG_STRING_RU_LIST,NULL,0};
-  config_getlist( &RUParamList,RUParams,sizeof(RUParams)/sizeof(paramdef_t), NULL);
+  config_getlist(config_get_if(), &RUParamList, RUParams, sizeofArray(RUParams), NULL);
   RU_t **ru=NULL;
   if ( RUParamList.numelt > 0) {
     ru = (RU_t **)malloc(nb_RU*sizeof(RU_t *));

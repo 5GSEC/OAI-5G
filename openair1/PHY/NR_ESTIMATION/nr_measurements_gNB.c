@@ -38,29 +38,6 @@
 
 extern openair0_config_t openair0_cfg[MAX_CARDS];
 
-void nr_est_timing_advance_pusch(const NR_DL_FRAME_PARMS *frame_parms, const int32_t *ul_ch_estimates_time, NR_ULSCH_delay_t *delay)
-{
-  int max_pos = delay->pusch_delay_max_pos;
-  int max_val = delay->pusch_delay_max_val;
-  const int sync_pos = 0;
-
-  for (int i = 0; i < frame_parms->ofdm_symbol_size; i++) {
-    c16_t *sample = (c16_t *)&ul_ch_estimates_time[i];
-    int temp = (sample->r * sample->r / 2) + (sample->i * sample->i / 2);
-    if (temp > max_val) {
-      max_pos = i;
-      max_val = temp;
-    }
-  }
-
-  if (max_pos > frame_parms->ofdm_symbol_size / 2)
-    max_pos = max_pos - frame_parms->ofdm_symbol_size;
-
-  delay->pusch_delay_max_pos = max_pos;
-  delay->pusch_delay_max_val = max_val;
-  delay->pusch_est_delay = max_pos - sync_pos;
-}
-
 int nr_est_timing_advance_srs(const NR_DL_FRAME_PARMS *frame_parms, 
                               const int32_t srs_estimated_channel_time[][frame_parms->ofdm_symbol_size]) {
   int timing_advance = 0;
@@ -239,8 +216,7 @@ void nr_gnb_measurements(PHY_VARS_gNB *gNB,
   ulsch_measurements_gNB *ulsch_measurements = &ulsch->ulsch_measurements;
 
   int rx_power[fp->nb_antennas_rx];
-  allocCast2D(rx_spatial_power, int, ulsch_measurements->rx_spatial_power, nrOfLayers, fp->nb_antennas_rx, true);
-  allocCast2D(rx_spatial_power_dB, unsigned short, ulsch_measurements->rx_spatial_power_dB, nrOfLayers, fp->nb_antennas_rx, true);
+  int rx_spatial_power[nrOfLayers][fp->nb_antennas_rx];
   for (int aarx = 0; aarx < fp->nb_antennas_rx; aarx++){
     rx_power[aarx] = 0;
 
@@ -253,7 +229,6 @@ void nr_gnb_measurements(PHY_VARS_gNB *gNB,
         rx_spatial_power[aatx][aarx] = 0;
       }
 
-      rx_spatial_power_dB[aatx][aarx] = (unsigned short)dB_fixed(rx_spatial_power[aatx][aarx]);
       rx_power[aarx] += rx_spatial_power[aatx][aarx];
     }
     LOG_D(PHY, "[RNTI %04x] RX power in antenna %d = %d\n", ulsch->rnti, aarx, rx_power[aarx]);

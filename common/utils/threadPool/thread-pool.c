@@ -106,7 +106,7 @@ void *one_thread(void *arg) {
 
 void initNamedTpool(char *params,tpool_t *pool, bool performanceMeas, char *name) {
   memset(pool,0,sizeof(*pool));
-  char *measr=getenv("threadPoolMeasurements");
+  char *measr=getenv("OAI_THREADPOOLMEASUREMENTS");
   pool->measurePerf=performanceMeas;
   // force measurement if the output is defined
   pool->measurePerf |= measr!=NULL;
@@ -150,8 +150,11 @@ void initNamedTpool(char *params,tpool_t *pool, bool performanceMeas, char *name
         //Configure the thread scheduler policy for Linux
         // set the thread name for debugging
         sprintf(pool->allthreads->name,"%s%d_%d",tname,pool->nbThreads,pool->allthreads->coreID);
+        // we set the maximum priority for thread pool threads (which is close
+        // but not equal to Linux maximum). See also the corresponding commit
+        // message; initially introduced for O-RAN 7.2 fronthaul split
         threadCreate(&pool->allthreads->threadID, one_thread, (void *)pool->allthreads,
-                     pool->allthreads->name, pool->allthreads->coreID, OAI_PRIORITY_RT);
+                     pool->allthreads->name, pool->allthreads->coreID, OAI_PRIORITY_RT_MAX);
         pool->nbThreads++;
     }
 
@@ -176,7 +179,7 @@ void initFloatingCoresTpool(int nbThreads,tpool_t *pool, bool performanceMeas, c
 }
 
 #ifdef TEST_THREAD_POOL
-volatile int oai_exit=0;
+int oai_exit = 0;
 
 void exit_function(const char *file, const char *function, const int line, const char *s, const int assert)
 {
@@ -218,13 +221,7 @@ int main() {
   tmp=pullNotifiedFIFO(&myFifo);
   printf("pulled: %lu\n", tmp->key);
   displayList(&myFifo);
-  abortNotifiedFIFOJob(&myFifo,1005);
-  printf("aborted 1005\n");
-  displayList(&myFifo);
   pushNotifiedFIFO(&myFifo,newNotifiedFIFO_elt(sizeof(struct testData), 12345678, NULL, NULL));
-  displayList(&myFifo);
-  abortNotifiedFIFOJob(&myFifo,12345678);
-  printf("aborted 12345678\n");
   displayList(&myFifo);
 
   do {

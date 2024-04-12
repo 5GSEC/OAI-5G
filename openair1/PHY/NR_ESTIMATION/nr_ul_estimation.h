@@ -28,16 +28,17 @@
  * @{
  */
 
-
 /*!
 \brief This function performs channel estimation including frequency interpolation
 \param gNB Pointer to gNB PHY variables
 \param Ns slot number (0..19)
 \param p
 \param symbol symbol within slot
-\param bwp_start_subcarrier, first allocated subcarrier
-\param nb_rb_pusch, number of allocated RBs for this UE
+\param ul_id
+\param bwp_start_subcarrier first allocated subcarrier
+\param pusch_pdu
 \param max_ch maximum value of estimated channel
+\param nvar
 */
 
 int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
@@ -59,10 +60,6 @@ void nr_gnb_measurements(PHY_VARS_gNB *gNB,
                          NR_gNB_PUSCH *pusch_vars,
                          unsigned char symbol,
                          uint8_t nrOfLayers);
-
-void nr_est_timing_advance_pusch(const NR_DL_FRAME_PARMS *frame_parms,
-                                 const int32_t *ul_ch_estimates_time,
-                                 NR_ULSCH_delay_t *delay);
 
 int nr_est_timing_advance_srs(const NR_DL_FRAME_PARMS *frame_parms,
                               const int32_t srs_estimated_channel_time[][frame_parms->ofdm_symbol_size]);
@@ -87,4 +84,16 @@ int nr_srs_channel_estimation(const PHY_VARS_gNB *gNB,
                               int32_t srs_estimated_channel_time_shifted[][1<<srs_pdu->num_ant_ports][gNB->frame_parms.ofdm_symbol_size],
                               int8_t *snr_per_rb,
                               int8_t *snr);
+
+void nr_freq_equalization(NR_DL_FRAME_PARMS *frame_parms,
+                          int *rxdataF_comp,
+                          int *ul_ch_mag,
+                          int *ul_ch_mag_b,
+                          unsigned char symbol,
+                          unsigned short Msc_RS,
+                          unsigned char Qm);
+
+void nr_init_fde(void);
+
 #endif
+/** @}*/

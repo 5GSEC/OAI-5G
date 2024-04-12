@@ -97,7 +97,7 @@
 #include "time_meas.h"
 #include "PHY/CODING/coding_defs.h"
 #include "PHY/TOOLS/tools_defs.h"
-#include "platform_types.h"
+#include "common/platform_types.h"
 #include "NR_UE_TRANSPORT/nr_transport_ue.h"
 
 #if defined(UPGRADE_RAT_NR)
@@ -221,12 +221,7 @@ typedef struct {
   /// For IFFT_FPGA this points to the same memory as PHY_vars->tx_vars[a].TX_DMA_BUFFER.
   /// - first index: tx antenna [0..nb_antennas_tx[
   /// - second index: sample [0..FRAME_LENGTH_COMPLEX_SAMPLES[
-  c16_t **txdata;
-  /// \brief Holds the transmit data in the frequency domain.
-  /// For IFFT_FPGA this points to the same memory as PHY_vars->rx_vars[a].RX_DMA_BUFFER.
-  /// - first index: tx antenna [0..nb_antennas_tx[
-  /// - second index: sample [0..FRAME_LENGTH_COMPLEX_SAMPLES_NO_PREFIX[
-  c16_t **txdataF;
+  c16_t **txData;
 
   /// \brief Holds the received data in time domain.
   /// Should point to the same memory as PHY_vars->rx_vars[a].RX_DMA_BUFFER.
@@ -234,14 +229,6 @@ typedef struct {
   /// - second index: sample [0..2*FRAME_LENGTH_COMPLEX_SAMPLES+2048[
   c16_t **rxdata;
 
-    /// \brief Holds the received data in time domain.
-  /// Should point to the same memory as PHY_vars->rx_vars[a].RX_DMA_BUFFER.
-  /// - first index: rx antenna [0..nb_antennas_rx[
-  /// - second index: sample [0..2*FRAME_LENGTH_COMPLEX_SAMPLES+2048[
-  c16_t **rxdataF;
-
-  /// holds output of the sync correlator
-  int32_t *sync_corr;
   /// estimated frequency offset (in radians) for all subcarriers
   int32_t freq_offset;
   /// nid2 is the PSS value, the PCI (physical cell id) will be: 3*NID1 (SSS value) + NID2 (PSS value)
@@ -267,56 +254,38 @@ typedef struct {
 
 #define MAX_NR_DCI_DECODED_SLOT     10    // This value is not specified
 
-
-
 typedef enum {
-  _format_0_0_found=0,
-  _format_0_1_found=1,
-  _format_1_0_found=2,
-  _format_1_1_found=3,
-  _format_2_0_found=4,
-  _format_2_1_found=5,
-  _format_2_2_found=6,
-  _format_2_3_found=7
+  _format_0_0_found = 0,
+  _format_0_1_found = 1,
+  _format_1_0_found = 2,
+  _format_1_1_found = 3,
+  _format_2_0_found = 4,
+  _format_2_1_found = 5,
+  _format_2_2_found = 6,
+  _format_2_3_found = 7
 } format_found_t;
-#define TOTAL_NBR_SCRAMBLED_VALUES 13
-#define _C_RNTI_           0
-#define _CS_RNTI_          1
-#define _NEW_RNTI_         2
-#define _TC_RNTI_          3
-#define _P_RNTI_           4
-#define _SI_RNTI_          5
-#define _RA_RNTI_          6
-#define _SP_CSI_RNTI_      7
-#define _SFI_RNTI_         8
-#define _INT_RNTI_         9
-#define _TPC_PUSCH_RNTI_  10
-#define _TPC_PUCCH_RNTI_  11
-#define _TPC_SRS_RNTI_    12
-typedef enum {                          /* see 38.321  Table 7.1-2  RNTI usage */
-  _c_rnti         = _C_RNTI_,         /* Cell RNTI */
-  _cs_rnti        = _CS_RNTI_,        /* Configured Scheduling RNTI */
-  _new_rnti       = _NEW_RNTI_,       /* ? */
-  _tc_rnti        = _TC_RNTI_,        /* Temporary C-RNTI */
-  _p_rnti         = _P_RNTI_,         /* Paging RNTI */
-  _si_rnti        = _SI_RNTI_,        /* System information RNTI */
-  _ra_rnti        = _RA_RNTI_,        /* Random Access RNTI */
-  _sp_csi_rnti    = _SP_CSI_RNTI_,    /* Semipersistent CSI reporting on PUSCH */
-  _sfi_rnti       = _SFI_RNTI_,       /* Slot Format Indication on the given cell */
-  _int_rnti       = _INT_RNTI_,       /* Indication pre-emption in DL */
-  _tpc_pusch_rnti = _TPC_PUSCH_RNTI_, /* PUSCH power control */
-  _tpc_pucch_rnti = _TPC_PUCCH_RNTI_, /* PUCCH power control */
-  _tpc_srs_rnti   = _TPC_SRS_RNTI_
-} crc_scrambled_t;
-
 
 #endif
 typedef struct {
   int nb_search_space;
-  uint16_t sfn;
-  uint16_t slot;
   fapi_nr_dl_config_dci_dl_pdu_rel15_t pdcch_config[FAPI_NR_MAX_SS];
 } NR_UE_PDCCH_CONFIG;
+
+#define NR_PSBCH_MAX_NB_CARRIERS 132
+#define NR_PSBCH_MAX_NB_MOD_SYMBOLS 99
+#define NR_PSBCH_DMRS_LENGTH 297 // in mod symbols
+#define NR_PSBCH_DMRS_LENGTH_DWORD 20 // ceil(2(QPSK)*NR_PBCH_DMRS_LENGTH/32)
+
+/* NR Sidelink PSBCH payload fields
+   TODO: This will be removed in the future and
+   filled in by the upper layers once developed. */
+typedef struct {
+  uint32_t coverageIndicator : 1;
+  uint32_t tddConfig : 12;
+  uint32_t DFN : 10;
+  uint32_t slotIndex : 7;
+  uint32_t reserved : 2;
+} PSBCH_payload;
 
 #define PBCH_A 24
 
@@ -359,7 +328,7 @@ typedef struct UE_NR_SCAN_INFO_s {
 } UE_NR_SCAN_INFO_t;
 
 /// Top-level PHY Data Structure for UE
-typedef struct {
+typedef struct PHY_VARS_NR_UE_s {
   /// \brief Module ID indicator for this instance
   uint8_t Mod_id;
   /// \brief Component carrier ID for this PHY instance
@@ -378,8 +347,12 @@ typedef struct {
   int if_freq_off;
   /// \brief Indicator that UE is synchronized to a gNB
   int is_synchronized;
+  /// \brief Indicator that UE is synchronized to a SyncRef UE on Sidelink
+  int is_synchronized_sl;
   /// \brief Target gNB Nid_cell when UE is resynchronizing
   int target_Nid_cell;
+  /// \brief Indicator that UE is an SynchRef UE
+  int sync_ref;
   /// Data structure for UE process scheduling
   UE_nr_proc_t proc;
   /// Flag to indicate the UE shouldn't do timing correction at all
@@ -465,8 +438,8 @@ typedef struct {
 
   // PRS sequence per gNB, per resource
   uint32_t *****nr_gold_prs;
-  
-  uint32_t X_u[64][839];
+
+  c16_t X_u[64][839];
 
   // flag to activate PRB based averaging of channel estimates
   // when off, defaults to frequency domain interpolation
@@ -585,8 +558,6 @@ typedef struct {
   time_stats_t ulsch_interleaving_stats;
   time_stats_t ulsch_multiplexing_stats;
 
-  time_stats_t generic_stat;
-  time_stats_t generic_stat_bis[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t ue_front_end_stat;
   time_stats_t ue_front_end_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t pdcch_procedures_stat;
@@ -640,9 +611,24 @@ typedef struct {
   void *phy_sim_pdsch_dl_ch_estimates_ext;
   uint8_t *phy_sim_dlsch_b;
   notifiedFIFO_t phy_config_ind;
-  notifiedFIFO_t *tx_resume_ind_fifo[NR_MAX_SLOTS_PER_FRAME];
-  int tx_wait_for_dlsch[NR_MAX_SLOTS_PER_FRAME];
+  notifiedFIFO_t tx_resume_ind_fifo[NR_MAX_SLOTS_PER_FRAME];
 } PHY_VARS_NR_UE;
+
+typedef struct {
+  openair0_timestamp timestamp_tx;
+  int gNB_id;
+  /// NR slot index within frame_tx [0 .. slots_per_frame - 1] to act upon for transmission
+  int nr_slot_tx;
+  int rx_slot_type;
+  /// NR slot index within frame_rx [0 .. slots_per_frame - 1] to act upon for transmission
+  int nr_slot_rx;
+  int tx_slot_type;
+  //#endif
+  /// frame to act upon for transmission
+  int frame_tx;
+  /// frame to act upon for reception
+  int frame_rx;
+} UE_nr_rxtx_proc_t;
 
 typedef struct nr_phy_data_tx_s {
   NR_UE_ULSCH_t ulsch;
@@ -687,7 +673,7 @@ typedef struct LDPCDecode_ue_s {
   time_stats_t ts_deinterleave;
   time_stats_t ts_rate_unmatch;
   time_stats_t ts_ldpc_decode;
-  UE_nr_rxtx_proc_t *proc;
+  UE_nr_rxtx_proc_t proc;
 } ldpcDecode_ue_t;
 
 #include "SIMULATION/ETH_TRANSPORT/defs.h"

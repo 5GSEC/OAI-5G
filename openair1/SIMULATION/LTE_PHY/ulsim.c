@@ -306,7 +306,7 @@ void fill_ulsch_dci(PHY_VARS_eNB *eNB,
 
 enum eTypes { eBool, eInt, eFloat, eText };
 static int verbose,help,disable_bundling=0,cqi_flag=0, extended_prefix_flag=0, test_perf=0, subframe=3, transmission_m=1,n_rx=1;
-
+configmodule_interface_t *uniqCfg = NULL;
 int main(int argc, char **argv) {
   int i,j,aa,u;
   PHY_VARS_eNB *eNB;
@@ -395,10 +395,10 @@ int main(int argc, char **argv) {
   cpuf = cpu_freq_GHz;
   set_parallel_conf("PARALLEL_SINGLE_THREAD");
   printf("Detected cpu_freq %f GHz\n",cpu_freq_GHz);
-  AssertFatal(load_configmodule(argc,argv,CONFIG_ENABLECMDLINEONLY) != NULL, "Cannot load configuration module, exiting\n");
+  AssertFatal((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) != NULL,
+              "Cannot load configuration module, exiting\n");
   logInit();
   set_glog(OAILOG_INFO);
-  T_stdout = 1;
   // enable these lines if you need debug info
   // however itti will catch all signals, so ctrl-c won't work anymore
   // alternatively you can disable ITTI completely in CMakeLists.txt
@@ -653,9 +653,6 @@ int main(int argc, char **argv) {
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
     printf("Hostname: %s\n", hostname);
-    //char dirname[FILENAME_MAX];
-    //sprintf(dirname, "%s//SIMU/USER/pre-ci-logs-%s", getenv("OPENAIR_TARGETS"),hostname);
-    //mkdir(dirname, 0777);
     sprintf(time_meas_fname,"time_meas_prb%d_mcs%d_antrx%d_channel%s_tx%d.csv",
             N_RB_DL,mcs,n_rx,channel_model_input,transmission_m);
     time_meas_fd = fopen(time_meas_fname,"w");

@@ -52,7 +52,7 @@ static const f1ap_message_processing_t f1ap_messages_processing[][3] = {
     {DU_handle_UE_CONTEXT_SETUP_REQUEST, CU_handle_UE_CONTEXT_SETUP_RESPONSE, 0}, /* UEContextSetup */
     {DU_handle_UE_CONTEXT_RELEASE_COMMAND, CU_handle_UE_CONTEXT_RELEASE_COMPLETE, 0}, /* UEContextRelease */
     {DU_handle_UE_CONTEXT_MODIFICATION_REQUEST, CU_handle_UE_CONTEXT_MODIFICATION_RESPONSE, 0}, /* UEContextModification */
-    {0, 0, 0}, /* UEContextModificationRequired */
+    {CU_handle_UE_CONTEXT_MODIFICATION_REQUIRED, DU_handle_UE_CONTEXT_MODIFICATION_CONFIRM, DU_handle_UE_CONTEXT_MODIFICATION_REFUSE}, /* UEContextModificationRequired */
     {0, 0, 0}, /* UEMobilityCommand */
     {CU_handle_UE_CONTEXT_RELEASE_REQUEST, 0, 0}, /* UEContextReleaseRequest */
     {CU_handle_INITIAL_UL_RRC_MESSAGE_TRANSFER, 0, 0}, /* InitialULRRCMessageTransfer */
@@ -71,11 +71,11 @@ static const f1ap_message_processing_t f1ap_messages_processing[][3] = {
 };
 
 const char *f1ap_direction2String(int f1ap_dir) {
-  static const char *f1ap_direction_String[] = {
-    "", /* Nothing */
-    "Initiating message", /* initiating message */
-    "Successfull outcome", /* successfull outcome */
-    "UnSuccessfull outcome", /* successfull outcome */
+  static const char *const f1ap_direction_String[] = {
+      "", /* Nothing */
+      "Initiating message", /* initiating message */
+      "Successfull outcome", /* successfull outcome */
+      "UnSuccessfull outcome", /* successfull outcome */
   };
   return(f1ap_direction_String[f1ap_dir]);
 }
@@ -97,7 +97,7 @@ static F1AP_F1AP_PDU_t *f1ap_decode_pdu(const uint8_t *const buffer, uint32_t le
 }
 
 int f1ap_handle_message(instance_t instance,
-                        uint32_t assoc_id,
+                        sctp_assoc_t assoc_id,
                         int32_t stream,
                         const uint8_t *const data,
                         const uint32_t data_length)

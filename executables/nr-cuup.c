@@ -27,6 +27,7 @@
 #include "common/ran_context.h"
 #include "nfapi/oai_integration/vendor_ext.h"
 #include "openair2/F1AP/f1ap_common.h"
+#include "openair2/F1AP/f1ap_ids.h"
 #include "openair2/GNB_APP/gnb_config.h"
 #include "nr_pdcp/nr_pdcp_oai_api.h"
 
@@ -37,6 +38,43 @@ int32_t uplink_frequency_offset[MAX_NUM_CCs][4];
 int asn1_xer_print;
 int oai_exit = 0;
 instance_t CUuniqInstance = 0;
+
+#ifdef E2_AGENT
+#include "openair2/E2AP/flexric/src/agent/e2_agent_api.h"
+#include "openair2/E2AP/RAN_FUNCTION/init_ran_func.h"
+
+static void initialize_agent(ngran_node_t node_type, e2_agent_args_t oai_args)
+{
+  AssertFatal(oai_args.sm_dir != NULL , "Please, specify the directory where the SMs are located in the config file, i.e., add in config file the next line: e2_agent = {near_ric_ip_addr = \"127.0.0.1\"; sm_dir = \"/usr/local/lib/flexric/\");} ");
+  AssertFatal(oai_args.ip != NULL , "Please, specify the IP address of the nearRT-RIC in the config file, i.e., e2_agent = {near_ric_ip_addr = \"127.0.0.1\"; sm_dir = \"/usr/local/lib/flexric/\"");
+
+  printf("After RCconfig_NR_E2agent %s %s \n",oai_args.sm_dir, oai_args.ip  );
+
+  fr_args_t args = { .ip = oai_args.ip }; // init_fr_args(0, NULL);
+  memcpy(args.libs_dir, oai_args.sm_dir, 128);
+
+  sleep(1);
+
+  // Only 1 instances is supported in one executable
+  // Advice: run multiple executables to have multiple instances
+  const instance_t e1_inst = 0;
+  const e1ap_upcp_inst_t *e1inst = getCxtE1(e1_inst);
+
+  const int nb_id = e1inst->gnb_id;
+  const int cu_up_id = e1inst->cuup.setupReq.gNB_cu_up_id;
+  const int mcc = e1inst->cuup.setupReq.plmn[0].id.mcc;
+  const int mnc = e1inst->cuup.setupReq.plmn[0].id.mnc;
+  const int mnc_digit_len = e1inst->cuup.setupReq.plmn[0].id.mnc_digit_length;
+
+  printf("[E2 NODE]: mcc = %d mnc = %d mnc_digit = %d nb_id = %d \n", mcc, mnc, mnc_digit_len, nb_id);
+
+  printf("[E2 NODE]: Args %s %s \n", args.ip, args.libs_dir);
+
+  sm_io_ag_ran_t io = init_ran_func_ag();
+  init_agent_api(mcc, mnc, mnc_digit_len, nb_id, cu_up_id, node_type, io, &args);
+}
+#endif  // E2_AGENT
+
 
 void exit_function(const char *file, const char *function, const int line, const char *s, const int assert)
 {
@@ -70,7 +108,7 @@ rlc_op_status_t rlc_data_req(const protocol_ctxt_t *const pc,
                              const mui_t mui,
                              const confirm_t c,
                              const sdu_size_t size,
-                             mem_block_t *const buf,
+                             uint8_t *const buf,
                              const uint32_t *const a,
                              const uint32_t *const b)
 {
@@ -94,35 +132,34 @@ void nr_rlc_add_drb(int rnti, int drb_id, const NR_RLC_BearerConfig_t *rlc_Beare
   abort();
 }
 
-int nr_rrc_gNB_process_GTPV1U_CREATE_TUNNEL_RESP(const protocol_ctxt_t *const ctxt_pP, const gtpv1u_gnb_create_tunnel_resp_t *const create_tunnel_resp_p, int offset)
-{
-  abort();
-  return 0;
-}
-
 void prepare_and_send_ue_context_modification_f1(rrc_gNB_ue_context_t *ue_context_p, e1ap_bearer_setup_resp_t *e1ap_resp)
 {
   abort();
 }
 
-f1ap_cudu_inst_t *getCxt(F1_t isCU, instance_t instanceP)
+f1ap_cudu_inst_t *getCxt(instance_t instanceP)
 {
-  abort();
-  return NULL;
+  // the E1 module uses F1's getCxt() to decide whether there is F1-U and if
+  // so, what is the GTP instance. In the CU-UP, we don't start the F1 module,
+  // and instead, E1 handles the GTP-U endpoint. In the following, we fake the
+  // instance and put the right GTP-U instance number in.
+  const e1ap_upcp_inst_t *e1inst = getCxtE1(instanceP);
+  static f1ap_cudu_inst_t fake = {0};
+  fake.gtpInst = e1inst->gtpInstF1U;
+  return &fake;
 }
-
-void fill_DRB_configList(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *ue_context_pP, uint8_t xid)
-{
-  abort();
-}
-
+configmodule_interface_t *uniqCfg = NULL;
 int main(int argc, char **argv)
 {
   /// static configuration for NR at the moment
-  if (load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY) == NULL) {
+  if ((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) == NULL) {
     exit_fun("[SOFTMODEM] Error, configuration module init failed\n");
   }
   logInit();
+#ifndef PACKAGE_VERSION
+#  define PACKAGE_VERSION "UNKNOWN-EXPERIMENTAL"
+#endif
+  LOG_I(HW, "Version: %s\n", PACKAGE_VERSION);
   set_softmodem_sighandler();
   itti_init(TASK_MAX, tasks_info);
   int rc;
@@ -132,10 +169,28 @@ int main(int argc, char **argv)
   AssertFatal(rc >= 0, "Create task for GTPV1U failed\n");
   rc = itti_create_task(TASK_CUUP_E1, E1AP_CUUP_task, NULL);
   AssertFatal(rc >= 0, "Create task for CUUP E1 failed\n");
-  nr_pdcp_layer_init();
-  MessageDef *msg = RCconfig_NR_CU_E1(true);
+  nr_pdcp_layer_init(true);
+  cu_init_f1_ue_data(); // for CU-UP/CP mapping: we use the same
+  E1_t e1type = UPtype;
+  MessageDef *msg = RCconfig_NR_CU_E1(&e1type);
   AssertFatal(msg != NULL, "Send init to task for E1AP UP failed\n");
   itti_send_msg_to_task(TASK_CUUP_E1, 0, msg);
+
+  #ifdef E2_AGENT
+  //////////////////////////////////
+  //////////////////////////////////
+  //// Init the E2 Agent
+
+  // OAI Wrapper 
+  e2_agent_args_t oai_args = RCconfig_NR_E2agent();
+
+  if (oai_args.enabled) {
+    const ngran_node_t node_type = get_node_type();
+    assert(node_type == ngran_gNB_CUUP);
+    initialize_agent(node_type, oai_args);
+  }
+
+  #endif // E2_AGENT
 
   printf("TYPE <CTRL-C> TO TERMINATE\n");
   itti_wait_tasks_end(NULL);

@@ -41,6 +41,7 @@
 #include "openair2/LAYER2/NR_MAC_gNB/mac_proto.h"
 #include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.h"
 #include "openair2/RRC/LTE/rrc_eNB_GTPV1U.h"
+#include "openair2/F1AP/f1ap_ids.h"
 #include "executables/softmodem-common.h"
 #include "executables/nr-softmodem.h"
 #include <openair2/RRC/NR/rrc_gNB_UE_context.h>
@@ -104,8 +105,9 @@ void rrc_parse_ue_capabilities(gNB_RRC_INST *rrc, NR_UE_CapabilityRAT_ContainerL
   }
   LOG_A(NR_RRC, "Successfully decoded UE NR capabilities (NR and MRDC)\n");
 
+  AssertFatal(NODE_IS_MONOLITHIC(rrc->node_type), "phy_test and do_ra only work in monolithic\n");
   UE->spCellConfig = calloc(1, sizeof(struct NR_SpCellConfig));
-  UE->spCellConfig->spCellConfigDedicated = rrc->configuration.scd;
+  UE->spCellConfig->spCellConfigDedicated = RC.nrmac[0]->common_channels[0].pre_ServingCellConfig;
   LOG_I(NR_RRC,"Adding new NSA user (%p)\n",ue_context_p);
   rrc_add_nsa_user(rrc,ue_context_p, m);
 }
@@ -118,8 +120,7 @@ void rrc_add_nsa_user(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *ue_context_p, x2a
 {
   AssertFatal(!get_softmodem_params()->sa, "%s() cannot be called in SA mode, it is intrinsically for NSA\n", __func__);
   // generate nr-Config-r15 containers for LTE RRC : inside message for X2 EN-DC (CG-Config Message from 38.331)
-  rrc_gNB_carrier_data_t *carrier=&rrc->carrier;
-  const gNB_RrcConfigurationReq *configuration = &rrc->configuration;
+  const nr_mac_config_t *configuration = &RC.nrmac[0]->radio_config;
   MessageDef *msg;
   msg = itti_alloc_new_message(TASK_RRC_ENB, 0, X2AP_ENDC_SGNB_ADDITION_REQ_ACK);
   gtpv1u_enb_create_tunnel_req_t  create_tunnel_req;
@@ -242,20 +243,21 @@ void rrc_add_nsa_user(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *ue_context_p, x2a
   }
 
   NR_ServingCellConfig_t *scc = UE->spCellConfig ? UE->spCellConfig->spCellConfigDedicated : NULL;
-  UE->secondaryCellGroup = get_default_secondaryCellGroup(carrier->servingcellconfigcommon,
+  // The MAC has the ServingCellConfigCommon; the below code is incorrect: the
+  // CU should send a UE Context Setup Request to request the creating of the
+  // MAC Context
+  NR_ServingCellConfigCommon_t *sccc = RC.nrmac[0]->common_channels[0].ServingCellConfigCommon;
+  UE->secondaryCellGroup = get_default_secondaryCellGroup(sccc,
                                                           scc,
                                                           UE->UE_Capability_nr,
                                                           1,
                                                           1,
                                                           configuration,
-                                                          ue_context_p->ue_context.gNB_ue_ngap_id);
+                                                          ue_context_p->ue_context.rrc_ue_id);
   AssertFatal(UE->secondaryCellGroup != NULL, "out of memory\n");
   xer_fprint(stdout, &asn_DEF_NR_CellGroupConfig, UE->secondaryCellGroup);
 
-  fill_default_reconfig(carrier->servingcellconfigcommon, scc, reconfig_ies, UE->secondaryCellGroup, UE->UE_Capability_nr, configuration, ue_context_p->ue_context.gNB_ue_ngap_id);
-  // the UE context is not yet inserted in the RRC UE manager
-  // rrc_gNB_update_ue_context_rnti(UE->secondaryCellGroup->spCellConfig->reconfigurationWithSync->newUE_Identity, rrc,
-  // UE->gNB_ue_ngap_id);
+  fill_default_reconfig(sccc, scc, reconfig_ies, UE->secondaryCellGroup, UE->UE_Capability_nr, ue_context_p->ue_context.rrc_ue_id);
   UE->rnti = UE->secondaryCellGroup->spCellConfig->reconfigurationWithSync->newUE_Identity;
   NR_CG_Config_t *CG_Config = calloc(1,sizeof(*CG_Config));
   memset((void *)CG_Config,0,sizeof(*CG_Config));
@@ -288,7 +290,7 @@ void rrc_add_nsa_user(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *ue_context_p, x2a
               create_tunnel_req.sgw_S1u_teid[i]);
       }
 
-      create_tunnel_req.rnti = ue_context_p->ue_context.rnti;
+      create_tunnel_req.rnti = ue_context_p->ue_context.rrc_ue_id;
       create_tunnel_req.num_tunnels    = m->nb_e_rabs_tobeadded;
       RB_INSERT(rrc_nr_ue_tree_s, &RC.nrrrc[rrc->module_id]->rrc_ue_head, ue_context_p);
       PROTOCOL_CTXT_SET_BY_MODULE_ID(&ctxt, rrc->module_id, GNB_FLAG_YES, ue_context_p->ue_context.rnti, 0, 0, rrc->module_id);
@@ -343,18 +345,36 @@ void rrc_add_nsa_user(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *ue_context_p, x2a
     itti_send_msg_to_task(TASK_X2AP, ENB_MODULE_ID_TO_INSTANCE(0), msg); //Check right id instead of hardcoding
   }
 
+  // below we configure the stack. In SA, we fully adopted F1, meaning that
+  // layers use different IDs (MAC/RLC use RNTI as DU UE ID, above use NGAP ID
+  // as CU UE ID.
+  uint32_t du_ue_id = ue_context_p->ue_context.rnti;
+  static uint32_t rrc_ue_id = 0;
+  rrc_ue_id++;
+  f1_ue_data_t du_ue_data = {.secondary_ue = rrc_ue_id};
+  du_add_f1_ue_data(du_ue_id, &du_ue_data);
+  f1_ue_data_t cu_ue_data = {.secondary_ue = du_ue_id};
+  cu_add_f1_ue_data(rrc_ue_id, &cu_ue_data);
+  LOG_I(RRC, "Assign CU UE ID %d and DU UE ID %d to UE RNTI %04x\n", rrc_ue_id, du_ue_id, ue_context_p->ue_context.rnti);
+
   // configure MAC and RLC
   bool ret = false;
   if (get_softmodem_params()->phy_test) {
     // phytest mode: we don't set up RA, etc
-    ret = nr_mac_add_test_ue(RC.nrmac[rrc->module_id] , ue_context_p->ue_context.rnti, ue_context_p->ue_context.secondaryCellGroup);
+    ret = nr_mac_add_test_ue(RC.nrmac[rrc->module_id], du_ue_id, ue_context_p->ue_context.secondaryCellGroup);
   } else {
-    ret = nr_mac_prepare_ra_nsa_ue(RC.nrmac[rrc->module_id], ue_context_p->ue_context.rnti, ue_context_p->ue_context.secondaryCellGroup);
+    NR_CellGroupConfig_t *secondaryCellGroup = ue_context_p->ue_context.secondaryCellGroup;
+    DevAssert(secondaryCellGroup->spCellConfig
+              && secondaryCellGroup->spCellConfig->reconfigurationWithSync
+              && secondaryCellGroup->spCellConfig->reconfigurationWithSync->rach_ConfigDedicated
+              && secondaryCellGroup->spCellConfig->reconfigurationWithSync->rach_ConfigDedicated->choice.uplink->cfra);
+    NR_SCHED_LOCK(&RC.nrmac[rrc->module_id]->sched_lock);
+    ret = nr_mac_prepare_ra_ue(RC.nrmac[rrc->module_id], du_ue_id, ue_context_p->ue_context.secondaryCellGroup);
+    NR_SCHED_UNLOCK(&RC.nrmac[rrc->module_id]->sched_lock);
   }
   AssertFatal(ret, "cannot add NSA UE in MAC, aborting\n");
 
-  PROTOCOL_CTXT_SET_BY_MODULE_ID(&ctxt, rrc->module_id, GNB_FLAG_YES, ue_context_p->ue_context.rnti, 0, 0, rrc->module_id);
-  if (get_softmodem_params()->do_ra) ctxt.enb_flag = 0;
+  PROTOCOL_CTXT_SET_BY_MODULE_ID(&ctxt, rrc->module_id, GNB_FLAG_YES, rrc_ue_id, 0, 0, rrc->module_id);
   LOG_W(RRC,
         "Calling RRC PDCP/RLC ASN1 request functions for protocol context %p with module_id %d, rnti %lx, frame %d, subframe %d eNB_index %d \n",
         &ctxt,
@@ -365,14 +385,13 @@ void rrc_add_nsa_user(gNB_RRC_INST *rrc, rrc_gNB_ue_context_t *ue_context_p, x2a
         ctxt.eNB_index);
 
   nr_pdcp_add_drbs(ctxt.enb_flag,
-                   ctxt.rntiMaybeUEid,
-                   0,
+                   rrc_ue_id,
                    ue_context_p->ue_context.rb_config->drb_ToAddModList,
                    (ue_context_p->ue_context.integrity_algorithm << 4) | ue_context_p->ue_context.ciphering_algorithm,
                    kUPenc,
-                   kUPint,
-                   ue_context_p->ue_context.secondaryCellGroup->rlc_BearerToAddModList);
+                   kUPint);
 
+  ctxt.rntiMaybeUEid = du_ue_id;
   // assume only a single bearer
   const NR_DRB_ToAddModList_t *drb_list = ue_context_p->ue_context.rb_config->drb_ToAddModList;
   DevAssert(drb_list->list.count == 1);
@@ -395,7 +414,7 @@ void rrc_remove_nsa_user(gNB_RRC_INST *rrc, int rnti) {
   LOG_D(RRC, "calling rrc_remove_nsa_user rnti %d\n", rnti);
   PROTOCOL_CTXT_SET_BY_MODULE_ID(&ctxt, rrc->module_id, GNB_FLAG_YES, rnti, 0, 0, rrc->module_id);
 
-  ue_context = rrc_gNB_get_ue_context_by_rnti(rrc, rnti);
+  ue_context = rrc_gNB_get_ue_context_by_rnti_any_du(rrc, rnti);
   if (ue_context == NULL) {
     LOG_W(RRC, "rrc_remove_nsa_user: rnti %d not found\n", rnti);
     return;
@@ -421,7 +440,7 @@ void rrc_remove_nsa_user(gNB_RRC_INST *rrc, int rnti) {
     memset(&ue_context->ue_context.nsa_gtp_addrs[e_rab], 0, sizeof(ue_context->ue_context.nsa_gtp_addrs[e_rab]));
     ue_context->ue_context.nsa_gtp_ebi[e_rab] = 0;
   }
-  gtpv1u_delete_s1u_tunnel(rrc->module_id,  &tmp);
+  gtpv1u_delete_all_s1u_tunnel(rrc->module_id, rnti);
   /* remove context */
   rrc_gNB_remove_ue_context(rrc, ue_context);
 }

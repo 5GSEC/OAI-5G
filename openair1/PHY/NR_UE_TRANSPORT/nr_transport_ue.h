@@ -19,16 +19,16 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PHY/NR_TRANSPORT/defs.h
-* \brief data structures for PDSCH/DLSCH/PUSCH/ULSCH physical and transport channel descriptors (TX/RX)
-* \author R. Knopp
-* \date 2011
-* \version 0.1
-* \company Eurecom
-* \email: raymond.knopp@eurecom.fr, florian.kaltenberger@eurecom.fr, oscar.tonelli@yahoo.it
-* \note
-* \warning
-*/
+/*! \file nr_transport_ue.h
+ * \brief data structures for PDSCH/DLSCH/PUSCH/ULSCH physical and transport channel descriptors (TX/RX)
+ * \author R. Knopp
+ * \date 2011
+ * \version 0.1
+ * \company Eurecom
+ * \email: raymond.knopp@eurecom.fr, florian.kaltenberger@eurecom.fr, oscar.tonelli@yahoo.it
+ * \note
+ * \warning
+ */
 #ifndef __NR_TRANSPORT_UE__H__
 #define __NR_TRANSPORT_UE__H__
 #include <limits.h>
@@ -38,29 +38,22 @@
 #include "nfapi/open-nFAPI/nfapi/public_inc/fapi_nr_ue_interface.h"
 #include "../NR_TRANSPORT/nr_transport_common_proto.h"
 
-
 typedef enum {
  NEW_TRANSMISSION_HARQ,
  RETRANSMISSION_HARQ
 } harq_result_t;
 
 typedef struct {
-  /// Indicator of first transmission
-  uint8_t first_tx;
   /// HARQ tx status
   harq_result_t tx_status;
   /// Status Flag indicating for this ULSCH (idle,active,disabled)
   SCH_status_t status;
   /// Last TPC command
   uint8_t TPC;
-  /// The payload + CRC size in bits, "B" from 36-212
-  uint32_t B;
   /// Length of ACK information (bits)
   uint8_t O_ACK;
   /// Index of current HARQ round for this ULSCH
   uint8_t round;
-  /// Last Ndi for this harq process
-  uint8_t ndi;
   /// pointer to pdu from MAC interface (TS 36.212 V15.4.0, Sec 5.1 p. 8)
   unsigned char *a;
   /// Pointer to the payload + CRC 
@@ -101,7 +94,7 @@ typedef struct {
   // UL number of harq processes
   uint8_t number_harq_processes_for_pusch;
   /// RNTI type
-  uint8_t rnti_type;
+  nr_rnti_type_t rnti_type;
   /// Cell ID
   int     Nid_cell;
   /// bit mask of PT-RS ofdm symbol indicies
@@ -111,14 +104,10 @@ typedef struct {
 typedef struct {
   /// Indicator of first reception
   uint8_t first_rx;
-  /// Last Ndi received for this process on DCI (used for C-RNTI only)
-  uint8_t Ndi;
   /// DLSCH status flag indicating
   SCH_status_t status;
   /// Transport block size
   uint32_t TBS;
-  /// The payload + CRC size in bits
-  uint32_t B;
   /// Pointers to transport block segments
   uint8_t **c;
   /// soft bits for each received segment ("d"-sequence)(for definition see 36-212 V8.6 2009-03, p.15)
@@ -143,6 +132,7 @@ typedef struct {
   /// Last index of LLR buffer that contains information.
   /// Used for computing LDPC decoder R
   int llrLen;
+  decode_abort_t abort_decode;
 } NR_DL_UE_HARQ_t;
 
 typedef struct {
@@ -165,7 +155,4 @@ typedef struct {
   // PTRS symbol index, to be updated every PTRS symbol within a slot.
   uint8_t ptrs_symbol_index;
 } NR_UE_DLSCH_t;
-
-
-/**@}*/
 #endif

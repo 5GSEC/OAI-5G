@@ -106,8 +106,16 @@ static inline unsigned long long rdtsc_oai(void) {
   __asm__ volatile ("rdtsc" : "=a" (a), "=d" (d));
   return (d<<32) | a;
 }
+#elif defined(__aarch64__)
+static inline uint64_t rdtsc_oai(void) __attribute__((always_inline));
+static inline uint64_t rdtsc_oai(void)
+{
+	  uint64_t r = 0;
+	    asm volatile("mrs %0, cntvct_el0" : "=r"(r));
+	      return r;
+}
 
-#elif defined(__arm__) || defined(__aarch64__)
+#elif defined(__arm__) 
 static inline uint32_t rdtsc_oai(void) __attribute__((always_inline));
 static inline uint32_t rdtsc_oai(void) {
   uint32_t r = 0;
@@ -210,4 +218,10 @@ time_stats_t *register_meas(char *name);
 void send_meas(time_stats_t *ts, int msgid);
 void end_meas(void);
 
+#define timeIt(a)                                           \
+  {                                                         \
+    uint64_t deb = rdtsc_oai();                             \
+    a;                                                      \
+    LOG_W(UTIL, #a ": %llu\n", (rdtsc_oai() - deb) / 3000); \
+  }
 #endif

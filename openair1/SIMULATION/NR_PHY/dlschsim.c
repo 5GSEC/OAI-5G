@@ -97,6 +97,7 @@ nrUE_params_t nrUE_params={0};
 nrUE_params_t *get_nrUE_params(void) {
   return &nrUE_params;
 }
+configmodule_interface_t *uniqCfg = NULL;
 
 int main(int argc, char **argv)
 {
@@ -138,15 +139,15 @@ int main(int argc, char **argv)
   char gNBthreads[128]="n";
   int Tbslbrm = 950984;
 
-	if (load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY) == 0) {
-		exit_fun("[NR_DLSCHSIM] Error, configuration module init failed\n");
-	}
+  if ((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) == 0) {
+    exit_fun("[NR_DLSCHSIM] Error, configuration module init failed\n");
+  }
 
-	//logInit();
-	randominit(0);
+  // logInit();
+  randominit(0);
 
-	while ((c = getopt(argc, argv, "df:hpVg:i:j:n:l:m:r:s:S:y:z:M:N:F:R:P:L:X:")) != -1) {
-		switch (c) {
+  while ((c = getopt(argc, argv, "df:hpVg:i:j:n:l:m:r:s:S:y:z:M:N:F:R:P:L:X:")) != -1) {
+    switch (c) {
 		/*case 'f':
 			write_output_file = 1;
 			output_fd = fopen(optarg, "w");
@@ -338,11 +339,10 @@ int main(int argc, char **argv)
 			exit(-1);
 			break;
 		}
-	}
+  }
 
-	logInit();
+  logInit();
 	set_glog(loglvl);
-	T_stdout = 1;
 
 	if (snr1set == 0)
 		snr1 = snr0 + 10;
@@ -412,7 +412,7 @@ int main(int argc, char **argv)
 	}
 
 	//configure UE
-	UE = malloc(sizeof(PHY_VARS_NR_UE));
+	UE = calloc(1, sizeof(*UE));
 	memcpy(&UE->frame_parms, frame_parms, sizeof(NR_DL_FRAME_PARMS));
 
 	//phy_init_nr_top(frame_parms);
@@ -447,7 +447,7 @@ int main(int argc, char **argv)
 	//    dlsch->harq_processes[0]->nb_rb,dlsch->harq_processes[0]->mcs,dlsch->harq_processes[0]->Nl);
 	unsigned char mod_order = nr_get_Qm_dl(Imcs, mcs_table);
   uint16_t rate = nr_get_code_rate_dl(Imcs, mcs_table);
-	unsigned int available_bits = nr_get_G(nb_rb, nb_symb_sch, nb_re_dmrs, length_dmrs, mod_order, 1);
+	unsigned int available_bits = nr_get_G(nb_rb, nb_symb_sch, nb_re_dmrs, length_dmrs, 0, mod_order, Nl);
 	TBS = nr_compute_tbs(mod_order,rate, nb_rb, nb_symb_sch, nb_re_dmrs*length_dmrs, 0, 0, Nl);
 	printf("available bits %u TBS %u mod_order %d\n", available_bits, TBS, mod_order);
 	//dlsch->harq_ids[subframe]= 0;
@@ -473,6 +473,7 @@ int main(int argc, char **argv)
 	unsigned char estimated_output_bit[16 * 68 * 384];
 	NR_UE_DLSCH_t *dlsch0_ue = &dlsch_ue[0];
 	NR_DL_UE_HARQ_t *harq_process = &UE->dl_harq_processes[0][harq_pid];
+  harq_process->G = available_bits;
   harq_process->first_rx = 1;
 	dlsch0_ue->dlsch_config.mcs = Imcs;
 	dlsch0_ue->dlsch_config.mcs_table = mcs_table;
@@ -482,6 +483,7 @@ int main(int argc, char **argv)
 	dlsch0_ue->dlsch_config.rv = rvidx;
 	dlsch0_ue->dlsch_config.targetCodeRate = rate;
   dlsch0_ue->dlsch_config.TBS = TBS;
+  dlsch0_ue->dlsch_config.ldpcBaseGraph = get_BG(TBS, rate);
 	dlsch0_ue->dlsch_config.dmrsConfigType = NFAPI_NR_DMRS_TYPE1;
 	dlsch0_ue->dlsch_config.dlDmrsSymbPos = 4;
 	dlsch0_ue->dlsch_config.n_dmrs_cdm_groups = 1;
@@ -672,10 +674,10 @@ int main(int argc, char **argv)
 
 	if (ouput_vcd)
         vcd_signal_dumper_close();
-    end_configmodule();
-    loader_reset();
-    logTerm();
+  end_configmodule(uniqCfg);
+  loader_reset();
+  logTerm();
 
-    return (n_errors);
+  return (n_errors);
 }
 

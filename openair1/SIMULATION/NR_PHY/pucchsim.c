@@ -48,6 +48,7 @@
 #include "openair1/SIMULATION/NR_PHY/nr_unitary_defs.h"
 #include "executables/nr-uesoftmodem.h"
 #include "nfapi/oai_integration/vendor_ext.h"
+#include "executables/softmodem-common.h"
 
 THREAD_STRUCT thread_struct;
 PHY_VARS_gNB *gNB;
@@ -67,7 +68,10 @@ const short conjugate2[8]__attribute__((aligned(16))) = {1,-1,1,-1,1,-1,1,-1};
 PHY_VARS_NR_UE * PHY_vars_UE_g[1][1]={{NULL}};
 
 uint64_t get_softmodem_optmask(void) {return 0;}
-softmodem_params_t *get_softmodem_params(void) {return 0;}
+static softmodem_params_t softmodem_params;
+softmodem_params_t *get_softmodem_params(void) {
+  return &softmodem_params;
+}
 
 void init_downlink_harq_status(NR_DL_UE_HARQ_t *dl_harq) {}
 NR_IF_Module_t *NR_IF_Module_init(int Mod_id) { return (NULL); }
@@ -90,7 +94,7 @@ nrUE_params_t *get_nrUE_params(void) {
   return &nrUE_params;
 }
 
-
+configmodule_interface_t *uniqCfg = NULL;
 int main(int argc, char **argv)
 {
   char c;
@@ -119,7 +123,7 @@ int main(int argc, char **argv)
   int16_t amp=0x7FFF;
   int nr_slot_tx=0;
   int nr_frame_tx=0;
-  uint64_t actual_payload=0,payload_received;
+  uint64_t actual_payload = 0, payload_received = 0;
   bool random_payload = true;
   int nr_bit=1; // maximum value possible is 2
   uint8_t m0=0;// higher layer paramater initial cyclic shift
@@ -144,7 +148,7 @@ int main(int argc, char **argv)
   int pucch_DTX_thres = 50;
   cpuf = get_cpu_freq_GHz();
 
-  if ( load_configmodule(argc,argv,CONFIG_ENABLECMDLINEONLY) == 0) {
+  if ((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) == 0) {
     exit_fun("[NR_PUCCHSIM] Error, configuration module init failed\n");
   }
 
@@ -659,14 +663,13 @@ int main(int argc, char **argv)
 
         nr_decode_pucch0(gNB, nr_frame_tx, nr_slot_tx,&uci_pdu,&pucch_pdu);
         if(sr_flag==1){
-          if (uci_pdu.sr->sr_indication == 0 || uci_pdu.sr->sr_confidence_level == 1)
+          if (uci_pdu.sr.sr_indication == 0 || uci_pdu.sr.sr_confidence_level == 1)
             sr_errors+=1;
-          free(uci_pdu.sr);
         }
         // harq value 0 -> pass
-        nfapi_nr_harq_t *harq_list = uci_pdu.harq->harq_list;
+        nfapi_nr_harq_t *harq_list = uci_pdu.harq.harq_list;
         // confidence value 0 -> good confidence
-        const int confidence_lvl = uci_pdu.harq->harq_confidence_level;
+        const int confidence_lvl = uci_pdu.harq.harq_confidence_level;
         if(nr_bit>0){
           if (nr_bit==1 && do_DTX == 0)
             ack_nack_errors+=(actual_payload^(!harq_list[0].harq_value));
@@ -675,9 +678,7 @@ int main(int argc, char **argv)
           else if ((!confidence_lvl && !harq_list[0].harq_value) ||
                    (!confidence_lvl && nr_bit == 2 && !harq_list[1].harq_value))
             ack_nack_errors++;
-          free(uci_pdu.harq->harq_list);
         }
-        free(uci_pdu.harq);
       }
       else if (format==1) {
         nr_decode_pucch1((c16_t **)rxdataF,PUCCH_GroupHopping,hopping_id,

@@ -33,7 +33,7 @@ Replaces xml_files/enb_usrp210_band40_test_05mhz_tm1.xml
 040101
 030104
 040301 040501 040602 040601 040603 040604 040605 040642 040641 040643 040644 040645 040401 040201
-030201
+030204
 200000
     </TestCaseRequestedList>
     <TestCaseExclusionList></TestCaseExclusionList>
@@ -79,7 +79,7 @@ Replaces xml_files/enb_usrp210_band40_test_05mhz_tm1.xml
         <idle_sleep_time_in_sec>5</idle_sleep_time_in_sec>
     </testCase>
 
-    <testCase id="030201">
+    <testCase id="030204">
         <class>Undeploy_Object</class>
         <desc>Undeploy eNB</desc>
         <yaml_path>ci-scripts/yaml_files/lte_b200_tdd_05Mhz_tm1</yaml_path>
@@ -111,7 +111,7 @@ Replaces xml_files/enb_usrp210_band40_test_05mhz_tm1.xml
     <testCase id="040501">
         <class>Ping</class>
         <desc>ping (5MHz - 20 sec)</desc>
-        <ping_args>-c 20</ping_args>
+        <ping_args>-c 20 %cn_ip%</ping_args>
         <ping_packetloss_threshold>25</ping_packetloss_threshold>
         <id>adb_ue_1 adb_ue_2</id>
     </testCase>
@@ -121,6 +121,7 @@ Replaces xml_files/enb_usrp210_band40_test_05mhz_tm1.xml
         <desc>iperf (5MHz - DL/6.5Mbps/UDP)(30 sec)(balanced)</desc>
         <iperf_args>-u -b 6.5M -t 30 -i 1</iperf_args>
         <iperf_packetloss_threshold>50</iperf_packetloss_threshold>
+        <iperf_bitrate_threshold>50</iperf_bitrate_threshold>
         <iperf_profile>balanced</iperf_profile>
         <direction>DL</direction>
         <id>adb_ue_1 adb_ue_2</id>

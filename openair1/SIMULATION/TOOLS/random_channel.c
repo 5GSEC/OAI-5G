@@ -20,7 +20,6 @@
  */
 
 #include <math.h>
-#include <cblas.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +41,7 @@
 
 #include "assertions.h"
 
-extern void print_shorts(char *s,__m128i *x);
+extern void print_shorts(char *s,simde__m128i *x);
 static mapping channelmod_names[] = {
   CHANNELMOD_MAP_INIT
 };
@@ -110,7 +109,7 @@ void fill_channel_desc(channel_desc_t *chan_desc,
   LOG_D(OCM,"[CHANNEL] Doing delays ...\n");
 
   if (delays==NULL) {
-    chan_desc->delays = (double *) malloc(nb_taps*sizeof(double));
+    chan_desc->delays = calloc(nb_taps, sizeof(double));
     chan_desc->free_flags=chan_desc->free_flags|CHANMODEL_FREE_DELAY ;
     delta_tau = Td/nb_taps;
 
@@ -131,22 +130,22 @@ void fill_channel_desc(channel_desc_t *chan_desc,
   chan_desc->first_run                  = 1;
   chan_desc->ip                         = 0.0;
   chan_desc->max_Doppler                = max_Doppler;
-  chan_desc->ch                         = (struct complexd **) malloc(nb_tx*nb_rx*sizeof(struct complexd *));
-  chan_desc->chF                        = (struct complexd **) malloc(nb_tx*nb_rx*sizeof(struct complexd *));
-  chan_desc->a                          = (struct complexd **) malloc(nb_taps*sizeof(struct complexd *));
+  chan_desc->ch                         = calloc(nb_tx*nb_rx, sizeof(struct complexd *));
+  chan_desc->chF                        = calloc(nb_tx*nb_rx, sizeof(struct complexd *));
+  chan_desc->a                          = calloc(nb_taps, sizeof(struct complexd *));
   LOG_D(OCM,"[CHANNEL] Filling ch \n");
 
   for (i = 0; i<nb_tx*nb_rx; i++)
-    chan_desc->ch[i] = (struct complexd *) malloc(channel_length * sizeof(struct complexd));
+    chan_desc->ch[i] = calloc(channel_length, sizeof(struct complexd));
 
   for (i = 0; i<nb_tx*nb_rx; i++)
-    chan_desc->chF[i] = (struct complexd *) malloc(275 * 12 * sizeof(struct complexd)); // allocate for up to 275 RBs, 12 symbols per RB
+    chan_desc->chF[i] = calloc(275 * 12, sizeof(struct complexd)); // allocate for up to 275 RBs, 12 symbols per RB
 
   LOG_D(OCM,"[CHANNEL] Filling a (nb_taps %d)\n",nb_taps);
 
   for (i = 0; i<nb_taps; i++) {
     LOG_D(OCM,"tap %d (%p,%zu)\n",i,&chan_desc->a[i],nb_tx*nb_rx * sizeof(struct complexd));
-    chan_desc->a[i]         = (struct complexd *) malloc(nb_tx*nb_rx * sizeof(struct complexd));
+    chan_desc->a[i]         = calloc(nb_tx*nb_rx, sizeof(struct complexd));
   }
 
   LOG_D(OCM,"[CHANNEL] Doing R_sqrt ...\n");
@@ -367,7 +366,7 @@ void tdlModel(int  tdl_paths, double *tdl_delays, double *tdl_amps_dB, double DS
                                      2/(M_PI*M_PI)*log(4*M_PI*chan_desc->sampling_rate*chan_desc->Td));
   printf("TDL : %f Ms/s, nb_taps %d, Td %e, channel_length %d\n",chan_desc->sampling_rate,tdl_paths,chan_desc->Td,chan_desc->channel_length);
   double sum_amps = 0;
-  chan_desc->amps           = (double *) malloc(chan_desc->nb_taps*sizeof(double));
+  chan_desc->amps           = calloc(chan_desc->nb_taps, sizeof(double));
 
   for (int i = 0; i<chan_desc->nb_taps; i++) {
     chan_desc->amps[i]      = pow(10,.1*tdl_amps_dB[i]);
@@ -382,19 +381,19 @@ void tdlModel(int  tdl_paths, double *tdl_delays, double *tdl_amps_dB, double DS
   chan_desc->delays         = tdl_delays;
   chan_desc->aoa            = 0;
   chan_desc->random_aoa     = 0;
-  chan_desc->ch             = (struct complexd **) malloc(nb_tx*nb_rx*sizeof(struct complexd *));
-  chan_desc->chF            = (struct complexd **) malloc(nb_tx*nb_rx*sizeof(struct complexd *));
-  chan_desc->a              = (struct complexd **) malloc(chan_desc->nb_taps*sizeof(struct complexd *));
+  chan_desc->ch             = calloc(nb_tx*nb_rx, sizeof(struct complexd *));
+  chan_desc->chF            = calloc(nb_tx*nb_rx, sizeof(struct complexd *));
+  chan_desc->a              = calloc(chan_desc->nb_taps, sizeof(struct complexd *));
   chan_desc->ricean_factor  = 1.0;
 
   for (int i = 0; i<nb_tx*nb_rx; i++)
-    chan_desc->ch[i] = (struct complexd *) malloc(chan_desc->channel_length * sizeof(struct complexd));
+    chan_desc->ch[i] = calloc(chan_desc->channel_length, sizeof(struct complexd));
 
   for (int i = 0; i<nb_tx*nb_rx; i++)
-    chan_desc->chF[i] = (struct complexd *) malloc((2+(275*12)) * sizeof(struct complexd));
+    chan_desc->chF[i] = calloc(2+(275*12), sizeof(struct complexd));
 
   for (int i = 0; i<chan_desc->nb_taps; i++)
-    chan_desc->a[i]         = (struct complexd *) malloc(nb_tx*nb_rx * sizeof(struct complexd));
+    chan_desc->a[i]         = calloc(nb_tx*nb_rx, sizeof(struct complexd));
 
   int matrix_size = nb_tx*nb_rx;
   double *correlation_matrix[matrix_size];
@@ -446,9 +445,9 @@ void tdlModel(int  tdl_paths, double *tdl_delays, double *tdl_amps_dB, double DS
     }
   }
 
-  chan_desc->R_sqrt = (struct complexd **) malloc(matrix_size*sizeof(struct complexd **));
+  chan_desc->R_sqrt = calloc(matrix_size, sizeof(*chan_desc->R_sqrt));
   for (int row = 0; row < matrix_size; row++) {
-    chan_desc->R_sqrt[row] = (struct complexd *) calloc(1, matrix_size*sizeof(struct complexd));
+    chan_desc->R_sqrt[row] = calloc(matrix_size, sizeof(**chan_desc->R_sqrt));
     if (correlation_matrix[row] == NULL) {
       // TS 38.104 - Table G.2.3.1.2-4: MIMO correlation matrices for low correlation
       chan_desc->R_sqrt[row][row].r = 1.0;
@@ -527,15 +526,13 @@ double get_normalization_ch_factor(channel_desc_t *desc)
       bzero(acorr, desc->nb_tx * desc->nb_rx * sizeof(struct complexd));
       for (int aatx = 0; aatx < desc->nb_tx; aatx++) {
         for (int aarx = 0; aarx < desc->nb_rx; aarx++) {
-          cblas_zaxpy(desc->nb_tx * desc->nb_rx,
-                      (void *)&anew[aarx + (aatx * desc->nb_rx)],
-                      (void *)desc->R_sqrt[aarx + (aatx * desc->nb_rx)],
-                      1,
-                      (void *)acorr,
-                      1);
+          for (int inside = 0; inside < desc->nb_tx * desc->nb_rx; inside++) {
+            const cd_t tmp = cdMul(anew[aarx + aatx * desc->nb_rx], desc->R_sqrt[aarx + aatx * desc->nb_rx][inside]);
+            csum(acorr[inside], tmp, acorr[inside]);
+          }
         } // for (int aarx = 0; aarx < desc->nb_rx; aarx++)
       } // for (int aatx = 0; aatx < desc->nb_tx; aatx++)
-      cblas_zcopy(desc->nb_tx * desc->nb_rx, (void *)acorr, 1, (void *)a[l], 1);
+      memcpy(a[l], acorr, desc->nb_tx * desc->nb_rx * sizeof(*acorr));
     } // for (int l = 0; l < (int)desc->nb_taps; l++)
 
     for (int aarx = 0; aarx < desc->nb_rx; aarx++) {
@@ -637,7 +634,7 @@ channel_desc_t *new_channel_desc_scm(uint8_t nb_tx,
       chan_desc->Td             = 4.625;
       chan_desc->channel_length = (int) (2*chan_desc->sampling_rate*chan_desc->Td + 1 + 2/(M_PI*M_PI)*log(4*M_PI*chan_desc->sampling_rate*chan_desc->Td));
       sum_amps = 0;
-      chan_desc->amps           = (double *) malloc(chan_desc->nb_taps*sizeof(double));
+      chan_desc->amps           = calloc(chan_desc->nb_taps, sizeof(double));
       chan_desc->free_flags=chan_desc->free_flags|CHANMODEL_FREE_AMPS ;
 
       for (i = 0; i<chan_desc->nb_taps; i++) {
@@ -657,15 +654,15 @@ channel_desc_t *new_channel_desc_scm(uint8_t nb_tx,
       chan_desc->a              = (struct complexd **) malloc(chan_desc->nb_taps*sizeof(struct complexd *));
 
       for (i = 0; i<nb_tx*nb_rx; i++)
-        chan_desc->ch[i] = (struct complexd *) malloc(chan_desc->channel_length * sizeof(struct complexd));
+        chan_desc->ch[i] = calloc(chan_desc->channel_length, sizeof(struct complexd));
 
       for (i = 0; i<nb_tx*nb_rx; i++)
-        chan_desc->chF[i] = (struct complexd *) malloc(1200 * sizeof(struct complexd));
+        chan_desc->chF[i] = calloc(1200, sizeof(struct complexd));
 
       for (i = 0; i<chan_desc->nb_taps; i++)
-        chan_desc->a[i]         = (struct complexd *) malloc(nb_tx*nb_rx * sizeof(struct complexd));
+        chan_desc->a[i]         = calloc(nb_tx*nb_rx, sizeof(struct complexd));
 
-      chan_desc->R_sqrt  = (struct complexd **) malloc(6*sizeof(struct complexd **));
+      chan_desc->R_sqrt  = calloc(6, sizeof(struct complexd **));
 
       if (nb_tx==2 && nb_rx==2) {
         for (i = 0; i<6; i++)
@@ -680,7 +677,7 @@ channel_desc_t *new_channel_desc_scm(uint8_t nb_tx,
         chan_desc->free_flags=chan_desc->free_flags|CHANMODEL_FREE_RSQRT_6 ;
 
         for (i = 0; i<6; i++) {
-          chan_desc->R_sqrt[i]    = (struct complexd *) malloc(nb_tx*nb_rx*nb_tx*nb_rx * sizeof(struct complexd));
+          chan_desc->R_sqrt[i]    = calloc(nb_tx*nb_rx*nb_tx*nb_rx, sizeof(struct complexd));
 
           for (j = 0; j<nb_tx*nb_rx*nb_tx*nb_rx; j+=(nb_tx*nb_rx+1)) {
             chan_desc->R_sqrt[i][j].r = 1.0;
@@ -1723,8 +1720,9 @@ void free_channel_desc_scm(channel_desc_t *ch) {
   free(ch);
 }
 
-void set_channeldesc_owner(channel_desc_t *cdesc, uint32_t module_id) {
-  cdesc->module_id=module_id;
+void set_channeldesc_owner(channel_desc_t *cdesc, channelmod_moduleid_t module_id)
+{
+  cdesc->module_id = module_id;
 }
 
 void set_channeldesc_name(channel_desc_t *cdesc,char *modelname) {
@@ -1758,7 +1756,7 @@ int random_channel(channel_desc_t *desc, uint8_t abstraction_flag) {
         acorr[aarx+(aatx*desc->nb_rx)].i = desc->ch[aarx+(aatx*desc->nb_rx)][0].i;
       }
     }
-    cblas_zcopy(desc->nb_tx*desc->nb_rx, (void *) acorr, 1, (void *) desc->a[0], 1);
+    memcpy(desc->a[0], acorr, desc->nb_tx * desc->nb_rx * sizeof(*acorr));
     stop_meas(&desc->random_channel);
     desc->first_run = 0;
     return 0;
@@ -1809,16 +1807,17 @@ int random_channel(channel_desc_t *desc, uint8_t abstraction_flag) {
     if (desc->modelid >= TDL_A && desc->modelid <= TDL_E) {
       for (aatx = 0; aatx < desc->nb_tx; aatx++) {
         for (aarx=0; aarx<desc->nb_rx; aarx++) {
-          cblas_zaxpy(desc->nb_tx*desc->nb_rx,
-                      (void *) &anew[aarx+(aatx*desc->nb_rx)],
-                      (void *) desc->R_sqrt[aarx+(aatx*desc->nb_rx)],
-                      1,
-                      (void *) acorr,
-                      1);
+          for (int inside = 0; inside < desc->nb_tx * desc->nb_rx; inside++) {
+            const cd_t tmp = cdMul(anew[aarx + aatx * desc->nb_rx], desc->R_sqrt[aarx + aatx * desc->nb_rx][inside]);
+            csum(acorr[inside], tmp, acorr[inside]);
+          }
         }
       }
     } else {
-      cblas_zaxpy(desc->nb_tx*desc->nb_rx, (void *) desc->R_sqrt[i/3], (void *) anew, 1, (void *) acorr, 1);
+      for (int inside = 0; inside < desc->nb_tx * desc->nb_rx; inside++) {
+        const cd_t tmp = cdMul(desc->R_sqrt[i / 3][0], anew[inside]);
+        csum(acorr[inside], tmp, acorr[inside]);
+      }
     }
 
     /*
@@ -1843,7 +1842,7 @@ int random_channel(channel_desc_t *desc, uint8_t abstraction_flag) {
     */
 
     if (desc->first_run==1) {
-      cblas_zcopy(desc->nb_tx*desc->nb_rx, (void *) acorr, 1, (void *) desc->a[i], 1);
+      memcpy(desc->a[i], acorr, desc->nb_tx * desc->nb_rx * sizeof(*acorr));
     } else {
       // a = alpha*acorr+beta*a
       // a = beta*a
@@ -1852,8 +1851,11 @@ int random_channel(channel_desc_t *desc, uint8_t abstraction_flag) {
       alpha.i = 0;
       beta.r = sqrt(desc->forgetting_factor);
       beta.i = 0;
-      cblas_zscal(desc->nb_tx*desc->nb_rx, (void *) &beta, (void *) desc->a[i], 1);
-      cblas_zaxpy(desc->nb_tx*desc->nb_rx, (void *) &alpha, (void *) acorr, 1, (void *) desc->a[i], 1);
+      for (int inside = 0; inside < desc->nb_tx * desc->nb_rx; inside++) {
+        desc->a[i][inside] = cdMul(beta, desc->a[i][inside]);
+        const cd_t tmp = cdMul(alpha, acorr[inside]);
+        csum(desc->a[i][inside], tmp, desc->a[i][inside]);
+      }
       //  desc->a[i][aarx+(aatx*desc->nb_rx)].x = (sqrt(desc->forgetting_factor)*desc->a[i][aarx+(aatx*desc->nb_rx)].x) + sqrt(1-desc->forgetting_factor)*anew.x;
       //  desc->a[i][aarx+(aatx*desc->nb_rx)].y = (sqrt(desc->forgetting_factor)*desc->a[i][aarx+(aatx*desc->nb_rx)].y) + sqrt(1-desc->forgetting_factor)*anew.y;
     }
@@ -2269,8 +2271,8 @@ double channelmod_get_sinr_dB(void) {
 
 void init_channelmod(void) {
   paramdef_t channelmod_params[] = CHANNELMOD_PARAMS_DESC;
-  int numparams=sizeof(channelmod_params)/sizeof(paramdef_t);
-  int ret = config_get( channelmod_params,numparams,CHANNELMOD_SECTION);
+  int numparams = sizeofArray(channelmod_params);
+  int ret = config_get(config_get_if(), channelmod_params, numparams, CHANNELMOD_SECTION);
   AssertFatal(ret >= 0, "configuration couldn't be performed");
   defined_channels=calloc(max_chan,sizeof( channel_desc_t *));
   AssertFatal(defined_channels!=NULL, "couldn't allocate %u channel descriptors\n",max_chan);
@@ -2288,8 +2290,8 @@ int load_channellist(uint8_t nb_tx, uint8_t nb_rx, double sampling_rate, double 
   paramlist_def_t channel_list;
   memset(&channel_list,0,sizeof(paramlist_def_t));
   memcpy(channel_list.listname,modellist_name,sizeof(channel_list.listname)-1);
-  int numparams = sizeof(achannel_params)/sizeof(paramdef_t);
-  config_getlist( &channel_list,achannel_params,numparams, CHANNELMOD_SECTION);
+  int numparams = sizeofArray(achannel_params);
+  config_getlist(config_get_if(), &channel_list, achannel_params, numparams, CHANNELMOD_SECTION);
   AssertFatal(channel_list.numelt>0, "List %s.%s not found in config file\n",CHANNELMOD_SECTION,channel_list.listname);
   int pindex_NAME = config_paramidx_fromname(achannel_params,numparams, CHANNELMOD_MODEL_NAME_PNAME);
   int pindex_DT = config_paramidx_fromname(achannel_params,numparams, CHANNELMOD_MODEL_DT_PNAME );

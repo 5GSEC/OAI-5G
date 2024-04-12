@@ -339,9 +339,6 @@ int history_cmd(char *buff, int debug, telnet_printfunc_t prnt) {
   memset(cmds,0,sizeof(cmds));
   sscanf(buff,"%9s %9s %9s %9s %9s", cmds[0],cmds[1],cmds[2],cmds[3],cmds[4]  );
 
-  if (cmds[0] == NULL)
-    return CMDSTATUS_VARNOTFOUND;
-
   if (strncasecmp(cmds[0],"list",4) == 0) {
     HIST_ENTRY **hist = history_list();
 
@@ -847,7 +844,7 @@ static bool exec_moduleinit(char *modname) {
 
 int add_embeddedmodules(void) {
   int ret=0;
-  int pindex = config_paramidx_fromname(telnetoptions,sizeof(telnetoptions)/sizeof(paramdef_t), TELNETSRV_OPTNAME_STATICMOD); 
+  int pindex = config_paramidx_fromname(telnetoptions, sizeofArray(telnetoptions), TELNETSRV_OPTNAME_STATICMOD);
   for(int i=0; i<telnetoptions[pindex].numelt; i++) {
     bool success = exec_moduleinit(telnetoptions[pindex].strlistptr[i]);
     if (success)
@@ -859,7 +856,7 @@ int add_embeddedmodules(void) {
 
 int add_sharedmodules(void) {
   int ret=0;
-  int pindex = config_paramidx_fromname(telnetoptions,sizeof(telnetoptions)/sizeof(paramdef_t), TELNETSRV_OPTNAME_SHRMOD); 
+  int pindex = config_paramidx_fromname(telnetoptions, sizeofArray(telnetoptions), TELNETSRV_OPTNAME_SHRMOD);
   for(int i=0; i<telnetoptions[pindex].numelt; i++) {
     char *name = telnetoptions[pindex].strlistptr[i];
     char libname[256];
@@ -878,7 +875,7 @@ int add_sharedmodules(void) {
 */
 int telnetsrv_autoinit(void) {
   memset(&telnetparams,0,sizeof(telnetparams));
-  config_get( telnetoptions,sizeof(telnetoptions)/sizeof(paramdef_t),"telnetsrv");
+  config_get(config_get_if(), telnetoptions, sizeofArray(telnetoptions), "telnetsrv");
   /* possibly load a exec specific shared lib */
   char *execfunc=get_softmodem_function(NULL);
   char libname[64];

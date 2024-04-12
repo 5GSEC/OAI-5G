@@ -21,7 +21,7 @@ In this tutorial we describe how to configure and run a 5G end-to-end setup with
 
 Minimum hardware requirements:
 - Laptop/Desktop/Server for OAI CN5G and OAI gNB
-    - Operating System: [Ubuntu 22.04 LTS](https://releases.ubuntu.com/22.04/ubuntu-22.04.2-desktop-amd64.iso)
+    - Operating System: [Ubuntu 22.04 LTS](https://releases.ubuntu.com/22.04/ubuntu-22.04.3-desktop-amd64.iso)
     - CPU: 8 cores x86_64 @ 3.5 GHz
     - RAM: 32 GB
 - Laptop for UE
@@ -45,7 +45,7 @@ Please install and configure OAI CN5G as described here:
 
 
 ## 2.2  SIM Card
-Program SIM Card with [Open Cells Project](https://open-cells.com/) application [uicc-v2.6](https://open-cells.com/d5138782a8739209ec5760865b1e53b0/uicc-v2.6.tgz).
+Program SIM Card with [Open Cells Project](https://open-cells.com/) application [uicc-v3.2](https://open-cells.com/d5138782a8739209ec5760865b1e53b0/uicc-v3.2.tgz).
 
 ```bash
 sudo ./program_uicc --adm 12345678 --imsi 001010000000001 --isdn 00000001 --acc 0001 --key fec86ba6eb707ed08905757b1bb44b8f --opc C42449363BBAD02B66D16BC975D77CC1 -spn "OpenAirInterface" --authenticate
@@ -58,11 +58,12 @@ sudo ./program_uicc --adm 12345678 --imsi 001010000000001 --isdn 00000001 --acc 
 
 ### Build UHD from source
 ```bash
-sudo apt install -y libboost-all-dev libusb-1.0-0-dev doxygen python3-docutils python3-mako python3-numpy python3-requests python3-ruamel.yaml python3-setuptools cmake build-essential
+# https://files.ettus.com/manual/page_build_guide.html
+sudo apt install -y autoconf automake build-essential ccache cmake cpufrequtils doxygen ethtool g++ git inetutils-tools libboost-all-dev libncurses5 libncurses5-dev libusb-1.0-0 libusb-1.0-0-dev libusb-dev python3-dev python3-mako python3-numpy python3-requests python3-scipy python3-setuptools python3-ruamel.yaml
 
 git clone https://github.com/EttusResearch/uhd.git ~/uhd
 cd ~/uhd
-git checkout v4.4.0.0
+git checkout v4.6.0.0
 cd host
 mkdir build
 cd build
@@ -87,10 +88,8 @@ cd ~/openairinterface5g/cmake_targets
 ./build_oai -I
 
 # Build OAI gNB
-cd ~/openairinterface5g
-source oaienv
-cd cmake_targets
-./build_oai -w USRP --ninja --gNB -c
+cd ~/openairinterface5g/cmake_targets
+./build_oai -w USRP --ninja --gNB -C
 ```
 
 # 4. Run OAI CN5G and OAI gNB
@@ -106,24 +105,18 @@ docker compose up -d
 
 ### USRP B210
 ```bash
-cd ~/openairinterface5g
-source oaienv
-cd cmake_targets/ran_build/build
+cd ~/openairinterface5g/cmake_targets/ran_build/build
 sudo ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band78.fr1.106PRB.usrpb210.conf --sa -E --continuous-tx
 ```
 ### USRP N300
 ```bash
-cd ~/openairinterface5g
-source oaienv
-cd cmake_targets/ran_build/build
+cd ~/openairinterface5g/cmake_targets/ran_build/build
 sudo ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band77.fr1.273PRB.2x2.usrpn300.conf --sa --usrp-tx-thread-config 1
 ```
 
 ### USRP X300
 ```bash
-cd ~/openairinterface5g
-source oaienv
-cd cmake_targets/ran_build/build
+cd ~/openairinterface5g/cmake_targets/ran_build/build
 sudo ./nr-softmodem -O ../../../targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band77.fr1.273PRB.2x2.usrpn300.conf --sa --usrp-tx-thread-config 1 -E --continuous-tx
 ```
 

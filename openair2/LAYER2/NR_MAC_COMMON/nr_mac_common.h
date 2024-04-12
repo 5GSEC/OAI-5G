@@ -67,11 +67,11 @@ int16_t fill_dmrs_mask(const NR_PDSCH_Config_t *pdsch_Config,
                        mappingType_t mappingtype,
                        int length);
 
-int is_nr_DL_slot(NR_TDD_UL_DL_ConfigCommon_t *tdd_UL_DL_ConfigurationCommon,slot_t slotP);
+bool is_nr_DL_slot(NR_TDD_UL_DL_ConfigCommon_t *tdd_UL_DL_ConfigurationCommon, slot_t slotP);
 
-int is_nr_UL_slot(NR_TDD_UL_DL_ConfigCommon_t *tdd_UL_DL_ConfigurationCommon, slot_t slotP, frame_type_t frame_type);
+bool is_nr_UL_slot(NR_TDD_UL_DL_ConfigCommon_t *tdd_UL_DL_ConfigurationCommon, slot_t slotP, frame_type_t frame_type);
 
-uint8_t compute_srs_resource_indicator(NR_PUSCH_ServingCellConfig_t *pusch_servingcellconfig,
+uint8_t compute_srs_resource_indicator(long *maxMIMO_Layers,
                                        NR_PUSCH_Config_t *pusch_Config,
                                        NR_SRS_Config_t *srs_config,
                                        nr_srs_feedback_t *srs_feedback,
@@ -84,18 +84,37 @@ uint8_t compute_precoding_information(NR_PUSCH_Config_t *pusch_Config,
                                       const uint8_t *nrOfLayers,
                                       uint32_t *val);
 
-NR_PDSCH_TimeDomainResourceAllocationList_t *get_dl_tdalist(const NR_UE_DL_BWP_t *DL_BWP, int controlResourceSetId, int ss_type, nr_rnti_type_t rnti_type);
+NR_PDSCH_TimeDomainResourceAllocationList_t *get_dl_tdalist(const NR_UE_DL_BWP_t *DL_BWP,
+                                                            int controlResourceSetId,
+                                                            int ss_type,
+                                                            nr_rnti_type_t rnti_type);
 
-NR_PUSCH_TimeDomainResourceAllocationList_t *get_ul_tdalist(const NR_UE_UL_BWP_t *UL_BWP, int controlResourceSetId, int ss_type, nr_rnti_type_t rnti_type);
+NR_PUSCH_TimeDomainResourceAllocationList_t *get_ul_tdalist(const NR_UE_UL_BWP_t *UL_BWP,
+                                                            int controlResourceSetId,
+                                                            int ss_type,
+                                                            nr_rnti_type_t rnti_type);
 
-NR_tda_info_t get_ul_tda_info(const NR_UE_UL_BWP_t *ul_bwp, int controlResourceSetId, int ss_type, nr_rnti_type_t rnti_type, int tda_index);
+NR_tda_info_t get_ul_tda_info(const NR_UE_UL_BWP_t *ul_bwp,
+                              int controlResourceSetId,
+                              int ss_type,
+                              nr_rnti_type_t rnti_type,
+                              int tda_index);
 
-NR_tda_info_t get_dl_tda_info(const NR_UE_DL_BWP_t *dl_BWP, int ss_type, int tda_index, int dmrs_typeA_pos,
-                              int mux_pattern, nr_rnti_type_t rnti_type, int coresetid, bool sib1);
+NR_tda_info_t get_dl_tda_info(const NR_UE_DL_BWP_t *dl_BWP,
+                              int ss_type,
+                              int tda_index,
+                              int dmrs_typeA_pos,
+                              int mux_pattern,
+                              nr_rnti_type_t rnti_type,
+                              int coresetid,
+                              bool sib1);
+
+uint8_t getRBGSize(uint16_t bwp_size, long rbg_size_config);
 
 uint16_t nr_dci_size(const NR_UE_DL_BWP_t *DL_BWP,
                      const NR_UE_UL_BWP_t *UL_BWP,
-                     const NR_CellGroupConfig_t *cg,
+                     const NR_UE_ServingCell_Info_t *sc_info,
+                     long pdsch_HARQ_ACK_Codebook,
                      dci_pdu_rel15_t *dci_pdu,
                      nr_dci_format_t format,
                      nr_rnti_type_t rnti_type,
@@ -195,19 +214,13 @@ uint32_t nr_get_code_rate_ul(uint8_t Imcs, uint8_t table_idx);
 
 uint16_t get_nr_srs_offset(NR_SRS_PeriodicityAndOffset_t periodicityAndOffset);
 
-int get_dlbw_tbslbrm(int scc_bwpsize,
-                     NR_CellGroupConfig_t *cg);
-
-int get_ulbw_tbslbrm(int scc_bwpsize,
-                     NR_CellGroupConfig_t *cg);
-
 uint32_t nr_compute_tbslbrm(uint16_t table,
 			    uint16_t nb_rb,
 		            uint8_t Nl);
 
 void get_type0_PDCCH_CSS_config_parameters(NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config,
                                            frame_t frameP,
-                                           NR_MIB_t *mib,
+                                           const NR_MIB_t *mib,
                                            uint8_t num_slot_per_frame,
                                            uint8_t ssb_subcarrier_offset,
                                            uint16_t ssb_start_symbol,
@@ -228,7 +241,9 @@ NR_tda_info_t get_info_from_tda_tables(default_table_type_t table_type,
 default_table_type_t get_default_table_type(int mux_pattern);
 
 void fill_coresetZero(NR_ControlResourceSet_t *coreset0, NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config);
-void fill_searchSpaceZero(NR_SearchSpace_t *ss0, NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config);
+void fill_searchSpaceZero(NR_SearchSpace_t *ss0,
+                          int slots_per_frame,
+                          NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config);
 
 uint8_t get_pusch_nb_antenna_ports(NR_PUSCH_Config_t *pusch_Config,
                                    NR_SRS_Config_t *srs_config,
@@ -241,6 +256,9 @@ uint16_t compute_pucch_prb_size(uint8_t format,
                                 uint8_t Qm,
                                 uint8_t n_symb,
                                 uint8_t n_re_ctrl);
+
+float get_max_code_rate(NR_PUCCH_MaxCodeRate_t *maxCodeRate);
+int get_f3_dmrs_symbols(NR_PUCCH_Resource_t *pucchres, NR_PUCCH_Config_t *pucch_Config);
 
 int16_t get_N_RA_RB (int delta_f_RA_PRACH,int delta_f_PUSCH);
 
@@ -301,5 +319,7 @@ void compute_cqi_bitlen(struct NR_CSI_ReportConfig *csi_reportconfig,
 void compute_csi_bitlen(NR_CSI_MeasConfig_t *csi_MeasConfig, nr_csi_report_t *csi_report_template);
 
 uint16_t nr_get_csi_bitlen(nr_csi_report_t *csi_report_template, uint8_t csi_report_id);
+
+uint16_t compute_PDU_length(uint32_t num_TLV, uint16_t total_length);
 
 #endif

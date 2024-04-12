@@ -16,17 +16,17 @@
  * limitations under the License.
  *-------------------------------------------------------------------------------
  * For more information about the OpenAirInterface (OAI) Software Alliance:
- *      conmnc_digit_lengtht@openairinterface.org
+ *      contact@openairinterface.org
  */
 
-/*! \file RRC/LTE/defs.h
-* \brief RRC struct definitions and function prototypes
-* \author Navid Nikaein and Raymond Knopp
-* \date 2010 - 2014
-* \version 1.0
-* \company Eurecom
-* \email: navid.nikaein@eurecom.fr, raymond.knopp@eurecom.fr
-*/
+/*! \file rrc_defs.h
+ * \brief RRC struct definitions and function prototypes
+ * \author Navid Nikaein and Raymond Knopp
+ * \date 2010 - 2014
+ * \version 1.0
+ * \company Eurecom
+ * \email: navid.nikaein@eurecom.fr, raymond.knopp@eurecom.fr
+ */
 
 #ifndef __OPENAIR_RRC_DEFS_H__
 #define __OPENAIR_RRC_DEFS_H__
@@ -45,11 +45,11 @@
 #include "NR_UE-NR-Capability.h"
 
 #include "common/platform_constants.h"
-#include "COMMON/platform_types.h"
+#include "common/platform_types.h"
 
 #include "LAYER2/MAC/mac.h"
 #include "openair2/RRC/common.h"
-//for D2D
+// for D2D
 #define DEBUG_CTRL_SOCKET
 
 #define CONTROL_SOCKET_PORT_NO 8888
@@ -387,7 +387,7 @@ typedef struct HANDOVER_INFO_s {
   HO_STATE_t state; //current state of handover
   uint32_t modid_s; //module_idP of serving cell
   uint32_t modid_t; //module_idP of target cell
-  int assoc_id;
+  sctp_assoc_t assoc_id;
   uint8_t ueid_s; //UE index in serving cell
   uint8_t ueid_t; //UE index in target cell
   LTE_AS_Config_t as_config; /* these two parameters are taken from 36.331 section 10.2.2: HandoverPreparationInformation-r8-IEs */
@@ -800,16 +800,6 @@ typedef struct eNB_RRC_INST_s {
   uint16_t sctp_out_streams;
 
 } eNB_RRC_INST;
-
-#ifdef ENABLE_RIC_AGENT
-typedef struct eNB_RRC_KPI_STATS_s {
-  uint32_t rrc_conn_estab_att_sum; /*RRC.ConnEstabAtt.sum*/
-  uint32_t rrc_conn_estab_succ_sum; /*RRC.ConnEstabSucc.sum*/
-  uint32_t rrc_conn_reestab_att_sum; /*RRC.ConnReEstabAtt.sum*/
-  uint32_t rrc_conn_mean; /*RRC.ConnMean*/
-  uint32_t rrc_conn_max; /*RRC.ConnMax*/
-} eNB_RRC_KPI_STATS;
-#endif
 
 #define MAX_UE_CAPABILITY_SIZE 255
 typedef struct OAI_UECapability_s {

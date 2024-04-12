@@ -340,8 +340,10 @@
 #include "F1AP_Cells-To-Be-Broadcast-Item.h"
 #include "F1AP_QCI.h"
 
+#include "f1ap_default_values.h"
+
 #include "conversions.h"
-#include "platform_types.h"
+#include "common/platform_types.h"
 #include "common/utils/LOG/log.h"
 #include "intertask_interface.h"
 #include "sctp_messages_types.h"
@@ -359,22 +361,13 @@
 
 #include "assertions.h"
 
-#if defined(ENB_MODE)
-  #include "common/utils/LOG/log.h"
-  #include "f1ap_default_values.h"
-  #define F1AP_ERROR(x, args...) LOG_E(F1AP, x, ##args)
-  #define F1AP_WARN(x, args...)  LOG_W(F1AP, x, ##args)
-  #define F1AP_TRAF(x, args...)  LOG_I(F1AP, x, ##args)
-  #define F1AP_INFO(x, args...) LOG_I(F1AP, x, ##args)
-  #define F1AP_DEBUG(x, args...) LOG_I(F1AP, x, ##args)
-#else
-  //# include "mme_default_values.h"
-  #define F1AP_ERROR(x, args...) do { fprintf(stdout, "[F1AP][E]"x, ##args); } while(0)
-  #define F1AP_WARN(x, args...)  do { fprintf(stdout, "[F1AP][W]"x, ##args); } while(0)
-  #define F1AP_TRAF(x, args...)  do { fprintf(stdout, "[F1AP][T]"x, ##args); } while(0)
-  #define F1AP_INFO(x, args...) do { fprintf(stdout, "[F1AP][I]"x, ##args); } while(0)
-  #define F1AP_DEBUG(x, args...) do { fprintf(stdout, "[F1AP][D]"x, ##args); } while(0)
-#endif
+#include "common/utils/LOG/log.h"
+#include "f1ap_default_values.h"
+#define F1AP_ERROR(x, args...) LOG_E(F1AP, x, ##args)
+#define F1AP_WARN(x, args...)  LOG_W(F1AP, x, ##args)
+#define F1AP_TRAF(x, args...)  LOG_I(F1AP, x, ##args)
+#define F1AP_INFO(x, args...) LOG_I(F1AP, x, ##args)
+#define F1AP_DEBUG(x, args...) LOG_I(F1AP, x, ##args)
 
 //Forward declaration
 #define F1AP_FIND_PROTOCOLIE_BY_ID(IE_TYPE, ie, container, IE_ID, mandatory) \
@@ -394,80 +387,42 @@
 
 /** \brief Function array prototype.
  **/
-typedef int (*f1ap_message_processing_t)(
-  instance_t             instance,
-  uint32_t               assoc_id,
-  uint32_t               stream,
-  F1AP_F1AP_PDU_t       *message_p
-);
-int f1ap_handle_message(instance_t instance, uint32_t assoc_id, int32_t stream,
-                        const uint8_t *const data, const uint32_t data_length);
-
-typedef struct f1ap_cudu_ue_inst_s {
-  // used for NB stats generation
-  rnti_t      rnti;
-  instance_t f1ap_uid;
-  instance_t du_ue_f1ap_id;
-  instance_t cu_ue_f1ap_id;
-} f1ap_cudu_ue_t;
+typedef int (*f1ap_message_processing_t)(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, F1AP_F1AP_PDU_t *message_p);
+int f1ap_handle_message(instance_t instance,
+                        sctp_assoc_t assoc_id,
+                        int32_t stream,
+                        const uint8_t *const data,
+                        const uint32_t data_length);
 
 typedef struct f1ap_cudu_inst_s {
   f1ap_setup_req_t setupReq;
+
+  /* The eNB IP address to bind */
+  f1ap_net_config_t net_config;
+
+  /* SCTP information */
+  struct {
+    sctp_assoc_t assoc_id;
+  } du;
   uint16_t sctp_in_streams;
   uint16_t sctp_out_streams;
-  uint16_t default_sctp_stream_id;
-  instance_t gtpInst;
-  uint64_t gNB_DU_id;
-  uint16_t num_ues;
-  f1ap_cudu_ue_t f1ap_ue[MAX_MOBILES_PER_GNB];
-} f1ap_cudu_inst_t;
 
-typedef enum {
-  DUtype=0,
-  CUtype
-} F1_t;
+  /* GTP instance used by F1 */
+  instance_t gtpInst;
+} f1ap_cudu_inst_t;
 
 static const int nrb_lut[29] = {11, 18, 24, 25, 31, 32, 38, 51, 52, 65, 66, 78, 79, 93, 106, 107, 121, 132, 133, 135, 160, 162, 189, 216, 217, 245, 264, 270, 273};
 
 uint8_t F1AP_get_next_transaction_identifier(instance_t mod_idP, instance_t cu_mod_idP);
 
-f1ap_cudu_inst_t *getCxt(F1_t isCU, instance_t instanceP);
+f1ap_cudu_inst_t *getCxt(instance_t instanceP);
 
-void createF1inst(F1_t isCU, instance_t instanceP, f1ap_setup_req_t *req);
-int f1ap_add_ue(F1_t isCu,
-                instance_t     instanceP,
-                rnti_t          rntiP);
-
-int f1ap_remove_ue(F1_t isCu, instance_t instanceP,
-                   rnti_t            rntiP);
-
-int f1ap_get_du_ue_f1ap_id (F1_t isCu, instance_t instanceP,
-                            rnti_t            rntiP);
-
-int f1ap_get_cu_ue_f1ap_id (F1_t isCu, instance_t instanceP,
-                            rnti_t            rntiP);
-
-
-int f1ap_get_rnti_by_du_id(F1_t isCu, instance_t instanceP,
-                           instance_t       du_ue_f1ap_id );
-
-
-int f1ap_get_rnti_by_cu_id(F1_t isCu, instance_t instanceP,
-                           instance_t       cu_ue_f1ap_id );
-
-int f1ap_du_add_cu_ue_id(instance_t instanceP,
-                         instance_t       du_ue_f1ap_id,
-                         instance_t       cu_ue_f1ap_id);
-
-int f1ap_assoc_id(F1_t isCu, instance_t instanceP);
-
-static inline f1ap_setup_req_t *f1ap_req(F1_t isCu, instance_t instanceP) {
-  return &getCxt(isCu, instanceP)->setupReq;
-}
+void createF1inst(instance_t instanceP, f1ap_setup_req_t *req, f1ap_net_config_t *nc);
+void destroyF1inst(instance_t instance);
 
 //lts: C struct type is not homogeneous, so we need macros instead of functions
 #define addnRCGI(nRCGi, servedCelL) \
-  MCC_MNC_TO_PLMNID((servedCelL)->mcc,(servedCelL)-> mnc,(servedCelL)->mnc_digit_length, \
+  MCC_MNC_TO_PLMNID((servedCelL)->plmn.mcc,(servedCelL)->plmn.mnc,(servedCelL)->plmn.mnc_digit_length, \
                     &((nRCGi).pLMN_Identity));        \
   NR_CELL_ID_TO_BIT_STRING((servedCelL)->nr_cellid, &((nRCGi).nRCellIdentity));
 extern RAN_CONTEXT_t RC;

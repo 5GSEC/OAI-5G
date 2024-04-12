@@ -4,6 +4,8 @@
 #define GTPNOK -1
 
 # define GTPU_HEADER_OVERHEAD_MAX 64
+
+#include "common/utils/hashtable/hashtable.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -61,6 +63,7 @@ extern "C" {
                                );
 
   int gtpv1u_delete_s1u_tunnel( const instance_t instance, const gtpv1u_enb_delete_tunnel_req_t *const req_pP);
+  int gtpv1u_delete_all_s1u_tunnel(const instance_t instance, const rnti_t rnti);
 
   int gtpv1u_create_x2u_tunnel(const instance_t instanceP,
                                const gtpv1u_enb_create_x2u_tunnel_req_t   *const create_tunnel_req_pP,
@@ -76,11 +79,8 @@ extern "C" {
 
   int gtpv1u_delete_ngu_tunnel( const instance_t instance,
                                 gtpv1u_gnb_delete_tunnel_req_t *req);
-  
-  int gtpv1u_update_ngu_tunnel( const instance_t                              instanceP,
-                                const gtpv1u_gnb_create_tunnel_req_t *const  create_tunnel_req_pP,
-                                const ue_id_t                                  prior_rnti
-                                );
+
+  int gtpv1u_update_ue_id(const instance_t instanceP, ue_id_t old_ue_id, ue_id_t new_ue_id);
 
   // New API
   teid_t newGtpuCreateTunnel(instance_t instance,
@@ -100,6 +100,7 @@ extern "C" {
                                               in_addr_t newOutgoingAddr,
                                               teid_t newOutgoingTeid);
 
+  int newGtpuDeleteOneTunnel(instance_t instance, ue_id_t ue_id, int rb_id);
   int newGtpuDeleteAllTunnels(instance_t instance, ue_id_t ue_id);
   int newGtpuDeleteTunnels(instance_t instance, ue_id_t ue_id, int nbTunnels, pdusessionid_t *pdusession_id);
   instance_t gtpv1Init(openAddr_t context);

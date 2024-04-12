@@ -41,18 +41,10 @@
 #include "openair1/PHY/NR_UE_ESTIMATION/nr_estimation.h"
 #include <openair1/PHY/impl_defs_nr.h>
 #include <common/utils/nr/nr_common.h>
-
-#ifndef NO_RAT_NR
-
 #include "SCHED_NR_UE/defs.h"
 #include "SCHED_NR_UE/harq_nr.h"
 
-#define DEFINE_VARIABLES_PUCCH_UE_NR_H
 #include "SCHED_NR_UE/pucch_uci_ue_nr.h"
-#undef DEFINE_VARIABLES_PUCCH_UE_NR_H
-
-#endif
-
 
 long
 binary_search_float_nr(
@@ -91,64 +83,7 @@ binary_search_float_nr(
 
   return first;
 }
-/*
-void nr_generate_pucch0(int32_t **txdataF,
-                        NR_DL_FRAME_PARMS *frame_parms,
-                        PUCCH_CONFIG_DEDICATED *pucch_config_dedicated,
-                        int16_t amp,
-                        int nr_slot_tx,
-                        uint8_t mcs,
-                        uint8_t nrofSymbols,
-                        uint8_t startingSymbolIndex,
-                        uint16_t startingPRB);
 
-void nr_generate_pucch1(int32_t **txdataF,
-                        NR_DL_FRAME_PARMS *frame_parms,
-                        PUCCH_CONFIG_DEDICATED *pucch_config_dedicated,
-                        uint64_t payload,
-                        int16_t amp,
-                        int nr_slot_tx,
-                        uint8_t nrofSymbols,
-                        uint8_t startingSymbolIndex,
-                        uint16_t startingPRB,
-                        uint16_t startingPRB_intraSlotHopping,
-                        uint8_t timeDomainOCC,
-                        uint8_t nr_bit);
-
-void nr_generate_pucch2(int32_t **txdataF,
-                        NR_DL_FRAME_PARMS *frame_parms,
-                        PUCCH_CONFIG_DEDICATED *pucch_config_dedicated,
-                        uint64_t payload,
-                        int16_t amp,
-                        int nr_slot_tx,
-                        uint8_t nrofSymbols,
-                        uint8_t startingSymbolIndex,
-                        uint8_t nrofPRB,
-                        uint16_t startingPRB,
-                        uint8_t nr_bit);
-
-void nr_generate_pucch3_4(int32_t **txdataF,
-                         NR_DL_FRAME_PARMS *frame_parms,
-                         pucch_format_nr_t fmt,
-                         PUCCH_CONFIG_DEDICATED *pucch_config_dedicated,
-                         uint64_t payload,
-                         int16_t amp,
-                         int nr_slot_tx,
-                         uint8_t nrofSymbols,
-                         uint8_t startingSymbolIndex,
-                         uint8_t nrofPRB,
-                         uint16_t startingPRB,
-                         uint8_t nr_bit,
-                         uint8_t occ_length_format4,
-                         uint8_t occ_index_format4);
-*/
-/**************** variables **************************************/
-
-
-/**************** functions **************************************/
-
-//extern uint8_t is_cqi_TXOp(PHY_VARS_NR_UE *ue,UE_nr_rxtx_proc_t *proc,uint8_t eNB_id);
-//extern uint8_t is_ri_TXOp(PHY_VARS_NR_UE *ue,UE_nr_rxtx_proc_t *proc,uint8_t eNB_id);
 /*******************************************************************
 *
 * NAME :         pucch_procedures_ue_nr
@@ -198,18 +133,14 @@ void nr_generate_pucch3_4(int32_t **txdataF,
 *
 *********************************************************************/
 
-void pucch_procedures_ue_nr(PHY_VARS_NR_UE *ue, 
-                            UE_nr_rxtx_proc_t *proc,
-                            nr_phy_data_tx_t *phy_data) {
-
-  int nr_slot_tx = proc->nr_slot_tx;
-  fapi_nr_ul_config_pucch_pdu *pucch_pdu;
+void pucch_procedures_ue_nr(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, nr_phy_data_tx_t *phy_data, c16_t **txdataF)
+{
+  const int nr_slot_tx = proc->nr_slot_tx;
   NR_UE_PUCCH *pucch_vars = &phy_data->pucch_vars;
 
   for (int i=0; i<2; i++) {
     if(pucch_vars->active[i]) {
-
-      pucch_pdu = &pucch_vars->pucch_pdu[i];
+      const fapi_nr_ul_config_pucch_pdu *pucch_pdu = &pucch_vars->pucch_pdu[i];
       uint16_t nb_of_prbs = pucch_pdu->prb_size;
       /* Generate PUCCH signal according to its format and parameters */
 
@@ -238,45 +169,23 @@ void pucch_procedures_ue_nr(PHY_VARS_NR_UE *ue,
 
       switch(pucch_pdu->format_type) {
         case 0:
-          nr_generate_pucch0(ue,
-                             ue->common_vars.txdataF,
-                             &ue->frame_parms,
-                             tx_amp,
-                             nr_slot_tx,
-                             pucch_pdu);
+          nr_generate_pucch0(ue, txdataF, &ue->frame_parms, tx_amp, nr_slot_tx, pucch_pdu);
           break;
         case 1:
-          nr_generate_pucch1(ue,
-                             ue->common_vars.txdataF,
-                             &ue->frame_parms,
-                             tx_amp,
-                             nr_slot_tx,
-                             pucch_pdu);
+          nr_generate_pucch1(ue, txdataF, &ue->frame_parms, tx_amp, nr_slot_tx, pucch_pdu);
           break;
         case 2:
-          nr_generate_pucch2(ue,
-                             ue->common_vars.txdataF,
-                             &ue->frame_parms,
-                             tx_amp,
-                             nr_slot_tx,
-                             pucch_pdu);
+          nr_generate_pucch2(ue, txdataF, &ue->frame_parms, tx_amp, nr_slot_tx, pucch_pdu);
           break;
         case 3:
         case 4:
-          nr_generate_pucch3_4(ue,
-                               ue->common_vars.txdataF,
-                               &ue->frame_parms,
-                               tx_amp,
-                               nr_slot_tx,
-                               pucch_pdu);
+          nr_generate_pucch3_4(ue, txdataF, &ue->frame_parms, tx_amp, nr_slot_tx, pucch_pdu);
           break;
       }
     }
     pucch_vars->active[i] = false;
   }
 }
-
-
 
 int      dummy_csi_status = 0;
 uint32_t dummy_csi_payload = 0;

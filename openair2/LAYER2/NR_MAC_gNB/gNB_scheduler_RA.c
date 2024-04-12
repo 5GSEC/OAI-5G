@@ -27,7 +27,7 @@
  * \version
  */
 
-#include "platform_types.h"
+#include "common/platform_types.h"
 #include "uper_decoder.h"
 
 /* MAC */
@@ -44,6 +44,7 @@
 
 /* rlc */
 #include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.h"
+#include "openair2/LAYER2/RLC/rlc.h"
 
 #include <executables/softmodem-common.h>
 extern RAN_CONTEXT_t RC;
@@ -159,7 +160,7 @@ static int16_t ssb_index_from_prach(module_id_t module_idP,
 void find_SSB_and_RO_available(gNB_MAC_INST *nrmac)
 {
   /* already mutex protected through nr_mac_config_scc() */
-  NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
+  //NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
 
   NR_COMMON_channels_t *cc = &nrmac->common_channels[0];
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
@@ -687,9 +688,24 @@ void nr_initiate_ra_proc(module_id_t module_idP,
   }
 
   NR_SCHED_UNLOCK(&nr_mac->sched_lock);
-  LOG_E(NR_MAC, "[gNB %d][RAPROC] FAILURE: CC_id %d Frame %d initiating RA procedure for preamble index %d\n", module_idP, CC_id, frameP, preamble_index);
+  LOG_E(NR_MAC, "[gNB %d][RAPROC] FAILURE: CC_id %d %4d.%2d initiating RA procedure for preamble index %d: no free RA process\n", module_idP, CC_id, frameP, slotP, preamble_index);
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_INITIATE_RA_PROC, 0);
+}
+
+static void start_ra_contention_resolution_timer(NR_RA_t *ra, const long ra_ContentionResolutionTimer, const int K2, const int scs)
+{
+  // 3GPP TS 38.331 Section 6.3.2 Radio resource control information elements
+  // ra-ContentionResolutionTimer ENUMERATED {sf8, sf16, sf24, sf32, sf40, sf48, sf56, sf64}
+  // The initial value for the contention resolution timer.
+  // Value sf8 corresponds to 8 subframes, value sf16 corresponds to 16 subframes, and so on.
+  // We add K2 because we start the timer in the DL slot that schedules Msg3/Msg3 retransmission
+  ra->contention_resolution_timer = ((((int)ra_ContentionResolutionTimer + 1) * 8) << scs) + K2;
+  LOG_D(NR_MAC,
+        "Starting RA Contention Resolution timer with %d ms + %d K2 (%d slots) duration\n",
+        ((int)ra_ContentionResolutionTimer + 1) * 8,
+        K2,
+        ra->contention_resolution_timer);
 }
 
 static void nr_generate_Msg3_retransmission(module_id_t module_idP,
@@ -703,6 +719,7 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
   NR_COMMON_channels_t *cc = &nr_mac->common_channels[CC_id];
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
   NR_UE_UL_BWP_t *ul_bwp = &ra->UL_BWP;
+  NR_UE_ServingCell_Info_t *sc_info = &ra->sc_info;
 
   NR_PUSCH_TimeDomainResourceAllocationList_t *pusch_TimeDomainAllocationList = ul_bwp->tdaList_Common;
   int mu = ul_bwp->scs;
@@ -736,8 +753,8 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
     int buffer_index = ul_buffer_index(sched_frame, sched_slot, mu, nr_mac->vrb_map_UL_size);
     uint16_t *vrb_map_UL = &nr_mac->common_channels[CC_id].vrb_map_UL[buffer_index * MAX_BWP_SIZE];
 
-    const int BWPSize = ul_bwp->initial_BWPSize;
-    const int BWPStart = ul_bwp->initial_BWPStart;
+    const int BWPSize = sc_info->initial_ul_BWPSize;
+    const int BWPStart = sc_info->initial_ul_BWPStart;
 
     int rbStart = 0;
     for (int i = 0; (i < ra->msg3_nb_rb) && (rbStart <= (BWPSize - ra->msg3_nb_rb)); i++) {
@@ -751,8 +768,14 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
       return;
     }
 
-    LOG_I(NR_MAC, "[gNB %d][RAPROC] Frame %d, Slot %d : CC_id %d Scheduling retransmission of Msg3 in (%d,%d)\n",
-          module_idP, frame, slot, CC_id, sched_frame, sched_slot);
+    LOG_I(NR_MAC,
+          "%4d%2d: RA RNTI %04x CC_id %d Scheduling retransmission of Msg3 in (%d,%d)\n",
+          frame,
+          slot,
+          ra->rnti,
+          CC_id,
+          sched_frame,
+          sched_slot);
 
     buffer_index = ul_buffer_index(sched_frame, sched_slot, mu, nr_mac->UL_tti_req_ahead_size);
     nfapi_nr_ul_tti_request_t *future_ul_tti_req = &nr_mac->UL_tti_req_ahead[CC_id][buffer_index];
@@ -794,7 +817,7 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
       ul_dci_request_pdu->PDUSize = (uint8_t)(2+sizeof(nfapi_nr_dl_tti_pdcch_pdu));
       pdcch_pdu_rel15 = &ul_dci_request_pdu->pdcch_pdu.pdcch_pdu_rel15;
       ul_dci_req->numPdus += 1;
-      nr_configure_pdcch(pdcch_pdu_rel15, coreset, false, &ra->sched_pdcch);
+      nr_configure_pdcch(pdcch_pdu_rel15, coreset, &ra->sched_pdcch);
       nr_mac->pdcch_pdu_idx[CC_id][coresetid] = pdcch_pdu_rel15;
     }
 
@@ -822,12 +845,9 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
     dci_pdu->beta_PDCCH_1_0 = 0;
     dci_pdu->powerControlOffsetSS = 1;
 
-    dci_pdu_rel15_t uldci_payload;
-    memset(&uldci_payload, 0, sizeof(uldci_payload));
+    dci_pdu_rel15_t uldci_payload={0};
 
-    const NR_SIB1_t *sib1 = cc->sib1 ? cc->sib1->message.choice.c1->choice.systemInformationBlockType1 : NULL;
-    config_uldci(sib1,
-                 scc,
+    config_uldci(sc_info,
                  pusch_pdu,
                  &uldci_payload,
                  NULL,
@@ -836,17 +856,17 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
                  1, // Not toggling NDI in msg3 retransmissions
                  ul_bwp);
 
-    fill_dci_pdu_rel15(scc,
-                       ra->CellGroup,
+    fill_dci_pdu_rel15(sc_info,
                        &ra->DL_BWP,
                        ul_bwp,
                        dci_pdu,
                        &uldci_payload,
                        NR_UL_DCI_FORMAT_0_0,
-                       NR_RNTI_TC,
+                       TYPE_TC_RNTI_,
                        ul_bwp->bwp_id,
                        ss,
                        coreset,
+                       0, // parameter not needed for DCI 0_0
                        nr_mac->cset0_bwp_size);
 
     // Mark the corresponding RBs as used
@@ -860,6 +880,14 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
     for (int rb = 0; rb < ra->msg3_nb_rb; rb++) {
       vrb_map_UL[rbStart + BWPStart + rb] |= SL_to_bitmap(StartSymbolIndex, NrOfSymbols);
     }
+
+    // Restart RA contention resolution timer in Msg3 retransmission slot (current slot + K2)
+    // 3GPP TS 38.321 Section 5.1.5 Contention Resolution
+    start_ra_contention_resolution_timer(
+        ra,
+        scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->ra_ContentionResolutionTimer,
+        K2,
+        ra->UL_BWP.scs);
 
     // reset state to wait msg3
     ra->state = WAIT_Msg3;
@@ -884,6 +912,7 @@ static void nr_get_Msg3alloc(module_id_t module_id,
   frame_type_t frame_type = mac->common_channels->frame_type;
 
   NR_UE_UL_BWP_t *ul_bwp = &ra->UL_BWP;
+  NR_UE_ServingCell_Info_t *sc_info = &ra->sc_info;
 
   int mu = ul_bwp->scs;
   int StartSymbolIndex = 0;
@@ -961,8 +990,8 @@ static void nr_get_Msg3alloc(module_id_t module_id,
   const int buffer_index = ul_buffer_index(ra->Msg3_frame, ra->Msg3_slot, mu, mac->vrb_map_UL_size);
   uint16_t *vrb_map_UL = &mac->common_channels[CC_id].vrb_map_UL[buffer_index * MAX_BWP_SIZE];
 
-  int bwpSize = ul_bwp->initial_BWPSize;
-  int bwpStart = ul_bwp->initial_BWPStart;
+  int bwpSize = sc_info->initial_ul_BWPSize;
+  int bwpStart = sc_info->initial_ul_BWPStart;
   if (bwpSize != ul_bwp->BWPSize || bwpStart != ul_bwp->BWPStart) {
     int act_bwp_start = ul_bwp->BWPStart;
     int act_bwp_size  = ul_bwp->BWPSize;
@@ -1087,6 +1116,7 @@ static void nr_add_msg3(module_id_t module_idP, int CC_id, frame_t frameP, sub_f
   NR_COMMON_channels_t *cc = &mac->common_channels[CC_id];
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
   NR_UE_UL_BWP_t *ul_bwp = &ra->UL_BWP;
+  NR_UE_ServingCell_Info_t *sc_info = &ra->sc_info;
 
   if (ra->state == RA_IDLE) {
     LOG_W(NR_MAC,"RA is not active for RA %X. skipping msg3 scheduling\n", ra->rnti);
@@ -1121,7 +1151,7 @@ static void nr_add_msg3(module_id_t module_idP, int CC_id, frame_t frameP, sub_f
   nfapi_nr_pusch_pdu_t *pusch_pdu = &future_ul_tti_req->pdus_list[future_ul_tti_req->n_pdus].pusch_pdu;
   memset(pusch_pdu, 0, sizeof(nfapi_nr_pusch_pdu_t));
 
-  const int ibwp_size = ul_bwp->initial_BWPSize;
+  const int ibwp_size = sc_info->initial_ul_BWPSize;
   const int fh = (ul_bwp->pusch_Config && ul_bwp->pusch_Config->frequencyHopping) ? 1 : 0;
   const int startSymbolAndLength = ul_bwp->tdaList_Common->list.array[ra->Msg3_tda_id]->startSymbolAndLength;
   const int mappingtype = ul_bwp->tdaList_Common->list.array[ra->Msg3_tda_id]->mappingType;
@@ -1161,6 +1191,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
   gNB_MAC_INST *nr_mac = RC.nrmac[module_idP];
   NR_COMMON_channels_t *cc = &nr_mac->common_channels[CC_id];
   NR_UE_DL_BWP_t *dl_bwp = &ra->DL_BWP;
+  NR_UE_ServingCell_Info_t *sc_info = &ra->sc_info;
 
   if ((ra->Msg2_frame == frameP) && (ra->Msg2_slot == slotP)) {
 
@@ -1176,7 +1207,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
     NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config = NULL;
     if(*ss->controlResourceSetId != 0) {
       BWPStart = dl_bwp->BWPStart;
-      BWPSize  = dl_bwp->initial_BWPSize;
+      BWPSize = sc_info->initial_dl_BWPSize;
     } else {
       type0_PDCCH_CSS_config = &nr_mac->type0_PDCCH_CSS_config[ra->beam_id];
       BWPStart = type0_PDCCH_CSS_config->cset_start_rb;
@@ -1189,8 +1220,14 @@ static void nr_generate_Msg2(module_id_t module_idP,
     // Calculate number of symbols
     int time_domain_assignment = get_dl_tda(nr_mac, scc, slotP);
     int mux_pattern = type0_PDCCH_CSS_config ? type0_PDCCH_CSS_config->type0_pdcch_ss_mux_pattern : 1;
-    NR_tda_info_t tda_info = get_dl_tda_info(dl_bwp, ss->searchSpaceType->present, time_domain_assignment,
-                                             scc->dmrs_TypeA_Position, mux_pattern, NR_RNTI_RA, coresetid, false);
+    NR_tda_info_t tda_info = get_dl_tda_info(dl_bwp,
+                                             ss->searchSpaceType->present,
+                                             time_domain_assignment,
+                                             scc->dmrs_TypeA_Position,
+                                             mux_pattern,
+                                             TYPE_RA_RNTI_,
+                                             coresetid,
+                                             false);
 
     uint16_t *vrb_map = cc[CC_id].vrb_map;
     for (int i = 0; (i < rbSize) && (rbStart <= (BWPSize - rbSize)); i++) {
@@ -1222,7 +1259,8 @@ static void nr_generate_Msg2(module_id_t module_idP,
                                  true);
 
     if (CCEIndex < 0) {
-      LOG_E(NR_MAC, "%s(): cannot find free CCE for RA RNTI 0x%04x!\n", __func__, ra->rnti);
+      LOG_E(NR_MAC, "cannot find free CCE for Msg2 of RA RNTI 0x%04x!\n", ra->rnti);
+      nr_clear_ra_proc(module_idP, CC_id, frameP, ra);
       return;
     }
 
@@ -1238,7 +1276,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
       dl_tti_pdcch_pdu->PDUSize = (uint8_t)(2 + sizeof(nfapi_nr_dl_tti_pdcch_pdu));
       dl_req->nPDUs += 1;
       pdcch_pdu_rel15 = &dl_tti_pdcch_pdu->pdcch_pdu.pdcch_pdu_rel15;
-      nr_configure_pdcch(pdcch_pdu_rel15, coreset, false, &ra->sched_pdcch);
+      nr_configure_pdcch(pdcch_pdu_rel15, coreset, &ra->sched_pdcch);
       nr_mac->pdcch_pdu_idx[CC_id][coresetid] = pdcch_pdu_rel15;
     }
 
@@ -1312,10 +1350,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
       pdsch_pdu_rel15->TBSize[0] = TBS;
     }
 
-    int bw_tbslbrm = get_dlbw_tbslbrm(dl_bwp->initial_BWPSize, ra->CellGroup);
-    pdsch_pdu_rel15->maintenance_parms_v3.tbSizeLbrmBytes = nr_compute_tbslbrm(mcsTableIdx,
-                                                                               bw_tbslbrm,
-                                                                               1);
+    pdsch_pdu_rel15->maintenance_parms_v3.tbSizeLbrmBytes = nr_compute_tbslbrm(mcsTableIdx, sc_info->dl_bw_tbslbrm, 1);
     pdsch_pdu_rel15->maintenance_parms_v3.ldpcBaseGraph = get_BG(TBS<<3,R);
 
     // Fill PDCCH DL DCI PDU
@@ -1355,25 +1390,26 @@ static void nr_generate_Msg2(module_id_t module_idP,
           dci_payload.tb_scaling);
 
     LOG_D(NR_MAC,
-          "[RAPROC] DCI params: rnti 0x%x, rnti_type %d, dci_format %d coreset params: FreqDomainResource %llx, start_symbol %d  n_symb %d\n",
+          "[RAPROC] DCI params: rnti 0x%x, rnti_type %d, dci_format %d coreset params: FreqDomainResource %llx, start_symbol %d  "
+          "n_symb %d\n",
           pdcch_pdu_rel15->dci_pdu[0].RNTI,
-          NR_RNTI_RA,
+          TYPE_RA_RNTI_,
           NR_DL_DCI_FORMAT_1_0,
           *(unsigned long long *)pdcch_pdu_rel15->FreqDomainResource,
           pdcch_pdu_rel15->StartSymbolIndex,
           pdcch_pdu_rel15->DurationSymbols);
 
-    fill_dci_pdu_rel15(scc,
-                       ra->CellGroup,
+    fill_dci_pdu_rel15(sc_info,
                        dl_bwp,
                        &ra->UL_BWP,
                        &pdcch_pdu_rel15->dci_pdu[pdcch_pdu_rel15->numDlDci - 1],
                        &dci_payload,
                        NR_DL_DCI_FORMAT_1_0,
-                       NR_RNTI_RA,
+                       TYPE_RA_RNTI_,
                        dl_bwp->bwp_id,
                        ss,
                        coreset,
+                       0, // parameter not needed for DCI 1_0
                        nr_mac->cset0_bwp_size);
 
     // DL TX request
@@ -1382,6 +1418,14 @@ static void nr_generate_Msg2(module_id_t module_idP,
     // Program UL processing for Msg3
     nr_get_Msg3alloc(module_idP, CC_id, scc, slotP, frameP, ra, nr_mac->tdd_beam_association);
     nr_add_msg3(module_idP, CC_id, frameP, slotP, ra, (uint8_t *) &tx_req->TLVs[0].value.direct[0]);
+
+    // Start RA contention resolution timer in Msg3 transmission slot (current slot + K2)
+    // 3GPP TS 38.321 Section 5.1.5 Contention Resolution
+    start_ra_contention_resolution_timer(
+        ra,
+        scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->ra_ContentionResolutionTimer,
+        *ra->UL_BWP.tdaList_Common->list.array[ra->Msg3_tda_id]->k2,
+        ra->UL_BWP.scs);
 
     if (ra->cfra) {
       NR_UE_info_t *UE = find_nr_UE(&RC.nrmac[module_idP]->UE_info, ra->rnti);
@@ -1399,10 +1443,10 @@ static void nr_generate_Msg2(module_id_t module_idP,
     T(T_GNB_MAC_DL_RAR_PDU_WITH_DATA, T_INT(module_idP), T_INT(CC_id), T_INT(ra->RA_rnti), T_INT(frameP),
       T_INT(slotP), T_INT(0), T_BUFFER(&tx_req->TLVs[0].value.direct[0], tx_req->TLVs[0].length));
 
-    tx_req->PDU_length = pdsch_pdu_rel15->TBSize[0];
     tx_req->PDU_index = pduindex;
     tx_req->num_TLV = 1;
-    tx_req->TLVs[0].length = tx_req->PDU_length + 2;
+    tx_req->TLVs[0].length = pdsch_pdu_rel15->TBSize[0];
+    tx_req->PDU_length = compute_PDU_length(tx_req->num_TLV, pdsch_pdu_rel15->TBSize[0]);
     TX_req->SFN = frameP;
     TX_req->Number_of_PDUs++;
     TX_req->Slot = slotP;
@@ -1418,7 +1462,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
     }
 
     ra->state = WAIT_Msg3;
-    LOG_W(NR_MAC,"[gNB %d][RAPROC] Frame %d, Subframe %d: rnti %04x RA state %d\n", module_idP, frameP, slotP, ra->rnti, ra->state);
+    LOG_D(NR_MAC,"[gNB %d][RAPROC] Frame %d, Subframe %d: rnti %04x RA state %d\n", module_idP, frameP, slotP, ra->rnti, ra->state);
   }
 }
 
@@ -1458,7 +1502,7 @@ static void prepare_dl_pdus(gNB_MAC_INST *nr_mac,
     dl_tti_pdcch_pdu->PDUSize = (uint8_t)(2 + sizeof(nfapi_nr_dl_tti_pdcch_pdu));
     dl_req->nPDUs += 1;
     pdcch_pdu_rel15 = &dl_tti_pdcch_pdu->pdcch_pdu.pdcch_pdu_rel15;
-    nr_configure_pdcch(pdcch_pdu_rel15, coreset, false, &ra->sched_pdcch);
+    nr_configure_pdcch(pdcch_pdu_rel15, coreset, &ra->sched_pdcch);
     nr_mac->pdcch_pdu_idx[CC_id][coresetid] = pdcch_pdu_rel15;
   }
 
@@ -1522,10 +1566,7 @@ static void prepare_dl_pdus(gNB_MAC_INST *nr_mac,
   int x_Overhead = 0;
   nr_get_tbs_dl(&dl_tti_pdsch_pdu->pdsch_pdu, x_Overhead, pdsch_pdu_rel15->numDmrsCdmGrpsNoData, tb_scaling);
 
-  int bw_tbslbrm = get_dlbw_tbslbrm(dl_bwp->initial_BWPSize, ra->CellGroup);
-  pdsch_pdu_rel15->maintenance_parms_v3.tbSizeLbrmBytes = nr_compute_tbslbrm(mcsTableIdx,
-                                                                             bw_tbslbrm,
-                                                                             1);
+  pdsch_pdu_rel15->maintenance_parms_v3.tbSizeLbrmBytes = nr_compute_tbslbrm(mcsTableIdx, ra->sc_info.dl_bw_tbslbrm, 1);
   pdsch_pdu_rel15->maintenance_parms_v3.ldpcBaseGraph = get_BG(tb_size<<3,R);
 
   pdsch_pdu_rel15->precodingAndBeamforming.num_prgs=1;
@@ -1577,227 +1618,44 @@ static void prepare_dl_pdus(gNB_MAC_INST *nr_mac,
         dci_payload.pdsch_to_harq_feedback_timing_indicator.val);
 
   LOG_D(NR_MAC,
-        "[RAPROC] DCI params: rnti 0x%x, rnti_type %d, dci_format %d coreset params: FreqDomainResource %llx, start_symbol %d  n_symb %d, BWPsize %d\n",
+        "[RAPROC] DCI params: rnti 0x%x, rnti_type %d, dci_format %d coreset params: FreqDomainResource %llx, start_symbol %d  "
+        "n_symb %d, BWPsize %d\n",
         pdcch_pdu_rel15->dci_pdu[0].RNTI,
-        NR_RNTI_TC,
+        TYPE_TC_RNTI_,
         NR_DL_DCI_FORMAT_1_0,
         (unsigned long long)pdcch_pdu_rel15->FreqDomainResource,
         pdcch_pdu_rel15->StartSymbolIndex,
         pdcch_pdu_rel15->DurationSymbols,
         pdsch_pdu_rel15->BWPSize);
 
-  fill_dci_pdu_rel15(scc,
-                     ra->CellGroup,
+  fill_dci_pdu_rel15(&ra->sc_info,
                      dl_bwp,
                      &ra->UL_BWP,
                      &pdcch_pdu_rel15->dci_pdu[pdcch_pdu_rel15->numDlDci - 1],
                      &dci_payload,
                      NR_DL_DCI_FORMAT_1_0,
-                     NR_RNTI_TC,
+                     TYPE_TC_RNTI_,
                      dl_bwp->bwp_id,
                      ss,
                      coreset,
+                     0, // parameter not needed for DCI 1_0
                      nr_mac->cset0_bwp_size);
 
-    LOG_D(NR_MAC,"BWPSize: %i\n", pdcch_pdu_rel15->BWPSize);
-    LOG_D(NR_MAC,"BWPStart: %i\n", pdcch_pdu_rel15->BWPStart);
-    LOG_D(NR_MAC,"SubcarrierSpacing: %i\n", pdcch_pdu_rel15->SubcarrierSpacing);
-    LOG_D(NR_MAC,"CyclicPrefix: %i\n", pdcch_pdu_rel15->CyclicPrefix);
-    LOG_D(NR_MAC,"StartSymbolIndex: %i\n", pdcch_pdu_rel15->StartSymbolIndex);
-    LOG_D(NR_MAC,"DurationSymbols: %i\n", pdcch_pdu_rel15->DurationSymbols);
-    for(int n=0;n<6;n++) LOG_D(NR_MAC,"FreqDomainResource[%i]: %x\n",n, pdcch_pdu_rel15->FreqDomainResource[n]);
-    LOG_D(NR_MAC,"CceRegMappingType: %i\n", pdcch_pdu_rel15->CceRegMappingType);
-    LOG_D(NR_MAC,"RegBundleSize: %i\n", pdcch_pdu_rel15->RegBundleSize);
-    LOG_D(NR_MAC,"InterleaverSize: %i\n", pdcch_pdu_rel15->InterleaverSize);
-    LOG_D(NR_MAC,"CoreSetType: %i\n", pdcch_pdu_rel15->CoreSetType);
-    LOG_D(NR_MAC,"ShiftIndex: %i\n", pdcch_pdu_rel15->ShiftIndex);
-    LOG_D(NR_MAC,"precoderGranularity: %i\n", pdcch_pdu_rel15->precoderGranularity);
-    LOG_D(NR_MAC,"numDlDci: %i\n", pdcch_pdu_rel15->numDlDci);
-}
-
-static void nr_generate_Msg3_dcch_dtch_response(module_id_t module_idP,
-                                                int CC_id,
-                                                frame_t frameP,
-                                                sub_frame_t slotP,
-                                                NR_RA_t *ra,
-                                                nfapi_nr_dl_tti_request_t *DL_req,
-                                                nfapi_nr_tx_data_request_t *TX_req)
-{
-  gNB_MAC_INST *nr_mac = RC.nrmac[module_idP];
-
-  // proceed only if it is a DL slot
-  if (!is_xlsch_in_slot(nr_mac->dlsch_slot_bitmap[slotP / 64], slotP))
-    return;
-
-  // UE is known by the network, C-RNTI to be used instead of TC-RNTI
-  int rnti = ra->crnti;
-
-  NR_UE_info_t *UE = find_nr_UE(&nr_mac->UE_info, rnti);
-  if (!UE) {
-    LOG_E(NR_MAC, "Received Msg3 with C-RNTI but rnti %04x not in the table\n", rnti);
-    return;
-  }
-
-  NR_COMMON_channels_t *cc = &nr_mac->common_channels[CC_id];
-  NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
-  NR_SearchSpace_t *ss = ra->ra_ss;
-
-  NR_ControlResourceSet_t *coreset = ra->coreset;
-  AssertFatal(coreset!=NULL,"Coreset cannot be null for RA-Msg4\n");
-
-  // Only need to schedule DCI with and empty DL
-  NR_UE_DL_BWP_t *dl_bwp = &ra->DL_BWP;
-  long BWPStart = 0;
-  long BWPSize = 0;
-  NR_Type0_PDCCH_CSS_config_t *type0_PDCCH_CSS_config = NULL;
-  if(*ss->controlResourceSetId!=0) {
-    BWPStart = dl_bwp->BWPStart;
-    BWPSize  = dl_bwp->BWPSize;
-  } else {
-    type0_PDCCH_CSS_config = &nr_mac->type0_PDCCH_CSS_config[ra->beam_id];
-    BWPStart = type0_PDCCH_CSS_config->cset_start_rb;
-    BWPSize = type0_PDCCH_CSS_config->num_rbs;
-  }
-
-  // get CCEindex, needed also for PUCCH and then later for PDCCH
-  uint8_t aggregation_level;
-  int CCEIndex = get_cce_index(nr_mac,
-                               CC_id, slotP, 0,
-                               &aggregation_level,
-                               ss,
-                               coreset,
-                               &ra->sched_pdcch,
-                               true);
-
-  if (CCEIndex < 0) {
-    LOG_E(NR_MAC, "%s(): cannot find free CCE for RA RNTI 0x%04x!\n", __func__, rnti);
-    return;
-  }
-
-  // Checking if the DCI allocation is feasible in current subframe
-  nfapi_nr_dl_tti_request_body_t *dl_req = &DL_req->dl_tti_request_body;
-  if (dl_req->nPDUs > NFAPI_NR_MAX_DL_TTI_PDUS - 2) {
-    LOG_I(NR_MAC, "[RAPROC] Subframe %d: FAPI DL structure is full, skip scheduling UE %d\n", slotP, rnti);
-    return;
-  }
-
-  uint8_t time_domain_assignment = get_dl_tda(nr_mac, scc, slotP);
-  int mux_pattern = type0_PDCCH_CSS_config ? type0_PDCCH_CSS_config->type0_pdcch_ss_mux_pattern : 1;
-  NR_tda_info_t tda = get_dl_tda_info(dl_bwp, ss->searchSpaceType->present, time_domain_assignment,
-                                      scc->dmrs_TypeA_Position, mux_pattern, NR_RNTI_C, coreset->controlResourceSetId, false);
-
-  NR_pdsch_dmrs_t dmrs_info = get_dl_dmrs_params(scc,
-                                                 dl_bwp,
-                                                 &tda,
-                                                 1);
-
-  int subheader_len = sizeof(NR_MAC_SUBHEADER_SHORT);
-  int pdu_length = subheader_len + 7; // 7 is contetion resolution length
-
-  int mcsTableIdx = dl_bwp->mcsTableIdx;
-  int mcsIndex = 0;
-  int rbStart = 0;
-  int rbSize = 0;
-  int tb_scaling = 0;
-  uint32_t tb_size = 0;
-
-  // increase PRBs until we get to BWPSize or TBS is bigger than MAC PDU size
-  do {
-    if(rbSize < BWPSize)
-      rbSize++;
-    else
-      mcsIndex++;
-    LOG_D(NR_MAC,"Calling nr_compute_tbs with N_PRB_DMRS %d, N_DMRS_SLOT %d\n",dmrs_info.N_PRB_DMRS,dmrs_info.N_DMRS_SLOT);
-    tb_size = nr_compute_tbs(nr_get_Qm_dl(mcsIndex, mcsTableIdx),
-                             nr_get_code_rate_dl(mcsIndex, mcsTableIdx),
-                             rbSize, tda.nrOfSymbols, dmrs_info.N_PRB_DMRS * dmrs_info.N_DMRS_SLOT, 0, tb_scaling,1) >> 3;
-  } while (tb_size < pdu_length && mcsIndex<=28);
-
-  AssertFatal(tb_size >= pdu_length,"Cannot allocate response to MSG3 with DCCH\n");
-
-  int i = 0;
-  uint16_t *vrb_map = cc[CC_id].vrb_map;
-  while ((i < rbSize) && (rbStart + rbSize <= BWPSize)) {
-    if (vrb_map[BWPStart + rbStart + i]&SL_to_bitmap(tda.startSymbolIndex, tda.nrOfSymbols)) {
-      rbStart += i+1;
-      i = 0;
-    } else {
-      i++;
-    }
-  }
-
-  if (rbStart > (BWPSize - rbSize)) {
-    LOG_E(NR_MAC, "%s(): cannot find free vrb_map for RNTI %04x!\n", __func__, rnti);
-    return;
-  }
-
-  // Remove UE associated to TC-RNTI
-  mac_remove_nr_ue(nr_mac, ra->rnti);
-
-
-  // If the UE used MSG3 to transfer a DCCH or DTCH message, then contention resolution is successful if the UE receives a PDCCH transmission which has its CRC bits scrambled by the C-RNTI
-  // Just send padding LCID
-  uint8_t buf[tb_size];
-  NR_MAC_SUBHEADER_FIXED *padding = (NR_MAC_SUBHEADER_FIXED *) &buf[0];
-  padding->R = 0;
-  padding->LCID = DL_SCH_LCID_PADDING;
-  for(int k = 1; k < tb_size; k++)
-    buf[k] = 0;
-
-  T(T_GNB_MAC_DL_PDU_WITH_DATA, T_INT(module_idP), T_INT(CC_id), T_INT(ra->rnti),
-    T_INT(frameP), T_INT(slotP), T_INT(0), T_BUFFER(buf, tb_size));
-
-  // SCF222: PDU index incremented for each PDSCH PDU sent in TX control message. This is used to associate control
-  // information to data and is reset every slot.
-  const int pduindex = nr_mac->pdu_index[CC_id]++;
-
-  prepare_dl_pdus(nr_mac, ra, dl_bwp, dl_req, NULL, dmrs_info, tda, aggregation_level, CCEIndex, tb_size, 0, 0, 0,
-                  0, time_domain_assignment, CC_id, rnti, 0, mcsIndex, tb_scaling, pduindex, rbStart, rbSize);
-
-  // DL TX request
-  nfapi_nr_pdu_t *tx_req = &TX_req->pdu_list[TX_req->Number_of_PDUs];
-  memcpy(tx_req->TLVs[0].value.direct, buf, sizeof(uint8_t) * tb_size);
-  tx_req->PDU_length =  tb_size;
-  tx_req->PDU_index = pduindex;
-  tx_req->num_TLV = 1;
-  tx_req->TLVs[0].length =  tb_size + 2;
-  TX_req->SFN = frameP;
-  TX_req->Number_of_PDUs++;
-  TX_req->Slot = slotP;
-
-  // Mark the corresponding symbols and RBs as used
-  fill_pdcch_vrb_map(nr_mac,
-                     CC_id,
-                     &ra->sched_pdcch,
-                     CCEIndex,
-                     aggregation_level);
-  for (int rb = 0; rb < rbSize; rb++)
-    vrb_map[BWPStart + rb + rbStart] |= SL_to_bitmap(tda.startSymbolIndex, tda.nrOfSymbols);
-
-
-  // If the UE used MSG3 to transfer a DCCH or DTCH message, then contention resolution is successful upon transmission of PDCCH
-  LOG_A(NR_MAC, "(ue rnti 0x%04x) CBRA procedure succeeded!\n", ra->rnti);
-  nr_clear_ra_proc(module_idP, CC_id, frameP, ra);
-  UE->Msg4_ACKed = true;
-  UE->ra_timer = 0;
-
-  if(!UE->CellGroup) {
-    // In the  specific scenario where UE correctly received MSG4 (assuming it decoded RRCsetup with CellGroup) and gNB didn't correctly received an ACK, 
-    // the UE would already have CG but the UE-dedicated gNB structure wouldn't (because RA didn't complete on gNB side).
-    uper_decode(NULL,
-                &asn_DEF_NR_CellGroupConfig,   //might be added prefix later
-                (void **)&UE->CellGroup,
-                (uint8_t *)UE->cg_buf,
-                (UE->enc_rval.encoded+7)/8, 0, 0);
-  }
-
-  NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
-  process_CellGroup(UE->CellGroup, sched_ctrl);
-  // switching to initial BWP
-  configure_UE_BWP(nr_mac, scc, sched_ctrl, NULL, UE, 0, 0);
-
-  // Reset uplink failure flags/counters/timers at MAC so gNB will resume again scheduling resources for this UE
-  nr_mac_reset_ul_failure(sched_ctrl);
+  LOG_D(NR_MAC, "BWPSize: %i\n", pdcch_pdu_rel15->BWPSize);
+  LOG_D(NR_MAC, "BWPStart: %i\n", pdcch_pdu_rel15->BWPStart);
+  LOG_D(NR_MAC, "SubcarrierSpacing: %i\n", pdcch_pdu_rel15->SubcarrierSpacing);
+  LOG_D(NR_MAC, "CyclicPrefix: %i\n", pdcch_pdu_rel15->CyclicPrefix);
+  LOG_D(NR_MAC, "StartSymbolIndex: %i\n", pdcch_pdu_rel15->StartSymbolIndex);
+  LOG_D(NR_MAC, "DurationSymbols: %i\n", pdcch_pdu_rel15->DurationSymbols);
+  for (int n = 0; n < 6; n++)
+    LOG_D(NR_MAC, "FreqDomainResource[%i]: %x\n", n, pdcch_pdu_rel15->FreqDomainResource[n]);
+  LOG_D(NR_MAC, "CceRegMappingType: %i\n", pdcch_pdu_rel15->CceRegMappingType);
+  LOG_D(NR_MAC, "RegBundleSize: %i\n", pdcch_pdu_rel15->RegBundleSize);
+  LOG_D(NR_MAC, "InterleaverSize: %i\n", pdcch_pdu_rel15->InterleaverSize);
+  LOG_D(NR_MAC, "CoreSetType: %i\n", pdcch_pdu_rel15->CoreSetType);
+  LOG_D(NR_MAC, "ShiftIndex: %i\n", pdcch_pdu_rel15->ShiftIndex);
+  LOG_D(NR_MAC, "precoderGranularity: %i\n", pdcch_pdu_rel15->precoderGranularity);
+  LOG_D(NR_MAC, "numDlDci: %i\n", pdcch_pdu_rel15->numDlDci);
 }
 
 static void nr_generate_Msg4(module_id_t module_idP,
@@ -1813,8 +1671,7 @@ static void nr_generate_Msg4(module_id_t module_idP,
   NR_UE_DL_BWP_t *dl_bwp = &ra->DL_BWP;
 
   // if it is a DL slot, if the RA is in MSG4 state
-  if (is_xlsch_in_slot(nr_mac->dlsch_slot_bitmap[slotP / 64], slotP) &&
-      ra->state == Msg4) {
+  if (is_xlsch_in_slot(nr_mac->dlsch_slot_bitmap[slotP / 64], slotP)) {
 
     NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
     NR_SearchSpace_t *ss = ra->ra_ss;
@@ -1841,14 +1698,13 @@ static void nr_generate_Msg4(module_id_t module_idP,
 
       if (srb_status.bytes_in_buffer == 0) {
         lcid = DL_SCH_LCID_DCCH;
-        // Check for data on SRB1 (RRCReestablishment)
+        // Check for data on SRB1 (RRCReestablishment, RRCReconfiguration)
         srb_status = mac_rlc_status_ind(module_idP, ra->rnti, module_idP, frameP, slotP, ENB_FLAG_YES, MBMS_FLAG_NO, lcid, 0, 0);
       }
 
       // Need to wait until data for Msg4 is ready
       if (srb_status.bytes_in_buffer == 0)
         return;
-      LOG_I(NR_MAC, "(%4d.%2d) SRB%d has %d bytes\n", frameP, slotP, lcid, srb_status.bytes_in_buffer);
       mac_sdu_length = srb_status.bytes_in_buffer;
     }
 
@@ -1888,8 +1744,14 @@ static void nr_generate_Msg4(module_id_t module_idP,
 
     uint8_t time_domain_assignment = get_dl_tda(nr_mac, scc, slotP);
     int mux_pattern = type0_PDCCH_CSS_config ? type0_PDCCH_CSS_config->type0_pdcch_ss_mux_pattern : 1;
-    NR_tda_info_t msg4_tda = get_dl_tda_info(dl_bwp, ss->searchSpaceType->present, time_domain_assignment,
-                                             scc->dmrs_TypeA_Position, mux_pattern, NR_RNTI_TC, coreset->controlResourceSetId, false);
+    NR_tda_info_t msg4_tda = get_dl_tda_info(dl_bwp,
+                                             ss->searchSpaceType->present,
+                                             time_domain_assignment,
+                                             scc->dmrs_TypeA_Position,
+                                             mux_pattern,
+                                             TYPE_TC_RNTI_,
+                                             coreset->controlResourceSetId,
+                                             false);
 
     NR_pdsch_dmrs_t dmrs_info = get_dl_dmrs_params(scc,
                                                    dl_bwp,
@@ -1954,8 +1816,6 @@ static void nr_generate_Msg4(module_id_t module_idP,
       return;
     }
 
-    LOG_I(NR_MAC,"Generate msg4, rnti: %04x\n", ra->rnti);
-
     // HARQ management
     if (current_harq_pid < 0) {
       AssertFatal(sched_ctrl->available_dl_harq.head >= 0,
@@ -2010,7 +1870,6 @@ static void nr_generate_Msg4(module_id_t module_idP,
         ((NR_MAC_SUBHEADER_LONG *)&buf[mac_pdu_length])->L = htons(mac_sdu_length);
         ra->mac_pdu_length = mac_pdu_length + mac_sdu_length + sizeof(NR_MAC_SUBHEADER_LONG);
       }
-      LOG_I(NR_MAC,"Encoded RRCSetup Piggyback (%d + %d bytes), mac_pdu_length %d\n", mac_sdu_length, mac_subheader_len, ra->mac_pdu_length);
       memcpy(&buf[mac_pdu_length + mac_subheader_len], buffer, mac_sdu_length);
     }
 
@@ -2034,10 +1893,10 @@ static void nr_generate_Msg4(module_id_t module_idP,
     // DL TX request
     nfapi_nr_pdu_t *tx_req = &TX_req->pdu_list[TX_req->Number_of_PDUs];
     memcpy(tx_req->TLVs[0].value.direct, harq->transportBlock, sizeof(uint8_t) * harq->tb_size);
-    tx_req->PDU_length =  harq->tb_size;
     tx_req->PDU_index = pduindex;
     tx_req->num_TLV = 1;
-    tx_req->TLVs[0].length =  harq->tb_size + 2;
+    tx_req->TLVs[0].length =  harq->tb_size;
+    tx_req->PDU_length = compute_PDU_length(tx_req->num_TLV, tx_req->TLVs[0].length);
     TX_req->SFN = frameP;
     TX_req->Number_of_PDUs++;
     TX_req->Slot = slotP;
@@ -2053,7 +1912,7 @@ static void nr_generate_Msg4(module_id_t module_idP,
     }
 
     ra->state = WAIT_Msg4_ACK;
-    LOG_D(NR_MAC,"[gNB %d][RAPROC] Frame %d, Subframe %d: RA state %d\n", module_idP, frameP, slotP, ra->state);
+    LOG_I(NR_MAC,"UE %04x Generate msg4: feedback at %4d.%2d, payload %d bytes, next state WAIT_Msg4_ACK\n", ra->rnti, pucch->frame, pucch->ul_slot, harq->tb_size);
   }
 }
 
@@ -2068,29 +1927,21 @@ static void nr_check_Msg4_Ack(module_id_t module_id, int CC_id, frame_t frame, s
 
   NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
   NR_UE_harq_t *harq = &sched_ctrl->harq_processes[current_harq_pid];
-  NR_mac_stats_t *stats = &UE->mac_stats;
 
   LOG_D(NR_MAC, "ue rnti 0x%04x, harq is waiting %d, round %d, frame %d %d, harq id %d\n", ra->rnti, harq->is_waiting, harq->round, frame, slot, current_harq_pid);
 
   if (harq->is_waiting == 0) {
     if (harq->round == 0) {
-
-      if (stats->dl.errors == 0) {
+      if (UE->Msg4_ACKed) {
         LOG_A(NR_MAC, "(UE RNTI 0x%04x) Received Ack of RA-Msg4. CBRA procedure succeeded!\n", ra->rnti);
-        UE->Msg4_ACKed = true;
-        UE->ra_timer = 0;
-
-        // Pause scheduling according to:
-        // 3GPP TS 38.331 Section 12 Table 12.1-1: UE performance requirements for RRC procedures for UEs
-        const NR_ServingCellConfig_t *servingCellConfig = UE->CellGroup ? UE->CellGroup->spCellConfig->spCellConfigDedicated : NULL;
-        uint32_t delay_ms = servingCellConfig && servingCellConfig->downlinkBWP_ToAddModList ?
-            NR_RRC_SETUP_DELAY_MS + NR_RRC_BWP_SWITCHING_DELAY_MS : NR_RRC_SETUP_DELAY_MS;
-
-        sched_ctrl->rrc_processing_timer = (delay_ms << ra->DL_BWP.scs);
-        LOG_I(NR_MAC, "(%d.%d) Activating RRC processing timer for UE %04x with %d ms\n", frame, slot, UE->rnti, delay_ms);
       } else {
-        LOG_I(NR_MAC, "(ue rnti 0x%04x) RA Procedure failed at Msg4!\n", ra->rnti);
+        LOG_I(NR_MAC, "%4d.%2d UE %04x: RA Procedure failed at Msg4!\n", frame, slot, ra->rnti);
+        nr_mac_trigger_ul_failure(sched_ctrl, UE->current_DL_BWP.scs);
       }
+
+      // Pause scheduling according to:
+      // 3GPP TS 38.331 Section 12 Table 12.1-1: UE performance requirements for RRC procedures for UEs
+      nr_mac_enable_ue_rrc_processing_timer(RC.nrmac[module_id], UE, false);
 
       nr_clear_ra_proc(module_id, CC_id, frame, ra);
       if (sched_ctrl->retrans_dl_harq.head >= 0) {
@@ -2112,7 +1963,6 @@ void nr_clear_ra_proc(module_id_t module_idP, int CC_id, frame_t frameP, NR_RA_t
   ra->timing_offset = 0;
   ra->RRC_timer = 20;
   ra->msg3_round = 0;
-  ra->crnti = 0;
   if(ra->cfra == false) {
     ra->rnti = 0;
   }
@@ -2223,7 +2073,7 @@ static void nr_fill_rar(uint8_t Mod_idP, NR_RA_t *ra, uint8_t *dlsch_buffer, nfa
 
   int mcs = (unsigned char) (rar->UL_GRANT_4 >> 4);
   // time alloc
-  int Msg3_t_alloc = (unsigned char) (rar->UL_GRANT_3 & 0x07);
+  int Msg3_t_alloc = (unsigned char) (rar->UL_GRANT_3 & 0x0f);
   // frequency alloc
   int Msg3_f_alloc = (uint16_t) ((rar->UL_GRANT_3 >> 4) | (rar->UL_GRANT_2 << 4) | ((rar->UL_GRANT_1 & 0x03) << 12));
   // frequency hopping
@@ -2262,6 +2112,18 @@ void nr_schedule_RA(module_id_t module_idP,
     for (int i = 0; i < NR_NB_RA_PROC_MAX; i++) {
       NR_RA_t *ra = &cc->ra[i];
       LOG_D(NR_MAC, "RA[state:%d]\n", ra->state);
+
+      // Check RA Contention Resolution timer
+      if (ra->state >= WAIT_Msg3) {
+        ra->contention_resolution_timer--;
+        if (ra->contention_resolution_timer < 0) {
+          LOG_W(NR_MAC, "(%d.%d) RA Contention Resolution timer expired for UE 0x%04x, RA procedure failed...\n", frameP, slotP, ra->rnti);
+          nr_mac_release_ue(mac, ra->rnti);
+          nr_clear_ra_proc(module_idP, CC_id, frameP, ra);
+          continue;
+        }
+      }
+
       switch (ra->state) {
         case Msg2:
           nr_generate_Msg2(module_idP, CC_id, frameP, slotP, ra, DL_req, TX_req);
@@ -2270,7 +2132,7 @@ void nr_schedule_RA(module_id_t module_idP,
           nr_generate_Msg3_retransmission(module_idP, CC_id, frameP, slotP, ra, ul_dci_req);
           break;
         case Msg3_dcch_dtch:
-          nr_generate_Msg3_dcch_dtch_response(module_idP, CC_id, frameP, slotP, ra, DL_req, TX_req);
+          /* fallthrough */
         case Msg4:
           nr_generate_Msg4(module_idP, CC_id, frameP, slotP, ra, DL_req, TX_req);
           break;

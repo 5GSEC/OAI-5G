@@ -49,7 +49,7 @@
 //#undef FRAME_LENGTH_COMPLEX_SAMPLES //there are two conflicting definitions, so we better make sure we don't use it at all
 
 #include "radio/COMMON/common_lib.h"
-#include "radio/ETHERNET/USERSPACE/LIB/if_defs.h"
+#include "radio/ETHERNET/if_defs.h"
 
 //#undef FRAME_LENGTH_COMPLEX_SAMPLES //there are two conflicting definitions, so we better make sure we don't use it at all
 
@@ -132,9 +132,7 @@ double bw = 10.0e6;
 
 static int                      tx_max_power[MAX_NUM_CCs]; /* =  {0,0}*/;
 
-
 uint8_t dci_Format = 0;
-uint8_t agregation_Level =0xFF;
 
 uint8_t nb_antenna_tx = 1;
 uint8_t nb_antenna_rx = 1;
@@ -272,7 +270,8 @@ void exit_function(const char *file, const char *function, const int line, const
 
 extern int16_t dlsch_demod_shift;
 uint16_t node_number;
-static void get_options(void) {
+static void get_options(configmodule_interface_t *cfg)
+{
   int CC_id=0;
   int tddflag=0;
   int dumpframe=0;
@@ -283,11 +282,11 @@ static void get_options(void) {
   CONFIG_SETRTFLAG(CONFIG_NOEXITONHELP);
   /* unknown parameters on command line will be checked in main
      after all init have been performed                         */
-  get_common_options(SOFTMODEM_4GUE_BIT );
+  get_common_options(cfg, SOFTMODEM_4GUE_BIT);
   paramdef_t cmdline_uemodeparams[] =CMDLINE_UEMODEPARAMS_DESC;
   paramdef_t cmdline_ueparams[] =CMDLINE_UEPARAMS_DESC;
-  config_process_cmdline( cmdline_uemodeparams,sizeof(cmdline_uemodeparams)/sizeof(paramdef_t),NULL);
-  config_process_cmdline( cmdline_ueparams,sizeof(cmdline_ueparams)/sizeof(paramdef_t),NULL);
+  config_process_cmdline(cfg, cmdline_uemodeparams, sizeofArray(cmdline_uemodeparams), NULL);
+  config_process_cmdline(cfg, cmdline_ueparams, sizeofArray(cmdline_ueparams), NULL);
   nfapi_setmode(nfapi_mode);
 
   get_softmodem_params()->hw_timing_advance = timingadv;
@@ -357,7 +356,6 @@ static void get_options(void) {
     tx_gain[0][CC_id] = tx_gain[0][0];
   }
 }
-
 
 void set_default_frame_parms(LTE_DL_FRAME_PARMS *frame_parms[MAX_NUM_CCs]) {
   int CC_id;
@@ -520,6 +518,7 @@ AssertFatal(false,"");
 }
 
 int NB_UE_INST = 1;
+configmodule_interface_t *uniqCfg = NULL;
 
 int main( int argc, char **argv ) {
 
@@ -527,11 +526,10 @@ int main( int argc, char **argv ) {
   uint8_t  abstraction_flag=0;
   // Default value for the number of UEs. It will hold,
   // if not changed from the command line option --num-ues
-  configmodule_interface_t *config_mod;
   start_background_system();
-  config_mod = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY);
+  uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY);
 
-  if (config_mod == NULL) {
+  if (uniqCfg == NULL) {
     exit_fun("[SOFTMODEM] Error, configuration module init failed\n");
   }
 
@@ -543,7 +541,7 @@ int main( int argc, char **argv ) {
 
   for (int i=0; i<MAX_NUM_CCs; i++) tx_max_power[i]=23;
 
-  get_options ();
+  get_options(uniqCfg);
 
   if (NFAPI_MODE == NFAPI_MODE_STANDALONE_PNF) {
     sf_ahead = 1;
@@ -682,7 +680,7 @@ int main( int argc, char **argv ) {
   if(IS_SOFTMODEM_DOSCOPE)
     load_softscope("ue",NULL);
 
-  config_check_unknown_cmdlineopt(CONFIG_CHECKALLSECTIONS);
+  config_check_unknown_cmdlineopt(uniqCfg, CONFIG_CHECKALLSECTIONS);
   printf("Sending sync to all threads (%p,%p,%p)\n",&sync_var,&sync_cond,&sync_mutex);
   pthread_mutex_lock(&sync_mutex);
   sync_var=0;

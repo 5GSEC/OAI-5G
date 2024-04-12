@@ -35,10 +35,8 @@
 #include "oai_asn1.h"
 #include "openair2/RRC/LTE/rrc_proto.h"
 
-int DU_handle_Paging(instance_t       instance,
-                     uint32_t         assoc_id,
-                     uint32_t         stream,
-                     F1AP_F1AP_PDU_t *pdu) {
+int DU_handle_Paging(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, F1AP_F1AP_PDU_t *pdu)
+{
   F1AP_Paging_t *paging;
   F1AP_PagingIEs_t *ie;
   long tmsi;
@@ -89,9 +87,7 @@ int DU_handle_Paging(instance_t       instance,
   F1AP_FIND_PROTOCOLIE_BY_ID(F1AP_PagingIEs_t, ie, paging,
                              F1AP_ProtocolIE_ID_id_PagingCell_List, true);
 
-  for (uint8_t CC_id = 0; CC_id < MAX_NUM_CCs; CC_id++) {
-    rrc_gNB_generate_pcch_msg((uint32_t)tmsi, pagingdrx, instance, CC_id);
-  }
+  AssertFatal(false, "not implemented\n");
 
   return 0;
 }

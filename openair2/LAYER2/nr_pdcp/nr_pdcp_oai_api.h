@@ -25,39 +25,60 @@
 #include "pdcp.h"
 #include "nr_pdcp_ue_manager.h"
 
-void nr_pdcp_layer_init(void);
+void nr_pdcp_layer_init(bool uses_e1);
 uint64_t nr_pdcp_module_init(uint64_t _pdcp_optmask, int id);
 
 void du_rlc_data_req(const protocol_ctxt_t *const ctxt_pP,
-                     const srb_flag_t   srb_flagP,
-                     const MBMS_flag_t  MBMS_flagP,
-                     const rb_id_t      rb_idP,
-                     const mui_t        muiP,
-                     confirm_t    confirmP,
-                     sdu_size_t   sdu_sizeP,
-                     mem_block_t *sdu_pP);
+                     const srb_flag_t srb_flagP,
+                     const MBMS_flag_t MBMS_flagP,
+                     const rb_id_t rb_idP,
+                     const mui_t muiP,
+                     confirm_t confirmP,
+                     sdu_size_t sdu_sizeP,
+                     uint8_t *sdu_pP);
 
-bool pdcp_data_ind(const protocol_ctxt_t *const  ctxt_pP,
+bool pdcp_data_ind(const protocol_ctxt_t *const ctxt_pP,
                    const srb_flag_t srb_flagP,
                    const MBMS_flag_t MBMS_flagP,
                    const rb_id_t rb_id,
                    const sdu_size_t sdu_buffer_size,
-                   mem_block_t *const sdu_buffer,
+                   uint8_t *const sdu_buffer,
                    const uint32_t *const srcID,
                    const uint32_t *const dstID);
 
 void nr_pdcp_add_drbs(eNB_flag_t enb_flag,
-                      ue_id_t rntiMaybeUEid,
-                      ue_id_t reestablish_ue_id,
+                      ue_id_t UEid,
                       NR_DRB_ToAddModList_t *const drb2add_list,
                       const uint8_t security_modeP,
                       uint8_t *const kUPenc,
-                      uint8_t *const kUPint,
-                      struct NR_CellGroupConfig__rlc_BearerToAddModList *rlc_bearer2add_list);
+                      uint8_t *const kUPint);
 
-void nr_DRB_preconfiguration(ue_id_t crntiMaybeUEid);
+void add_drb(int is_gnb,
+             ue_id_t UEid,
+             struct NR_DRB_ToAddMod *s,
+             int ciphering_algorithm,
+             int integrity_algorithm,
+             unsigned char *ciphering_key,
+             unsigned char *integrity_key);
 
-bool nr_pdcp_remove_UE(ue_id_t ue_id);
+void nr_pdcp_remove_UE(ue_id_t ue_id);
+void nr_pdcp_reestablishment(ue_id_t ue_id, int rb_id, bool srb_flag);
+
+void nr_pdcp_suspend_srb(ue_id_t ue_id, int srb_id);
+void nr_pdcp_suspend_drb(ue_id_t ue_id, int drb_id);
+void nr_pdcp_reconfigure_srb(ue_id_t ue_id, int srb_id, long t_Reordering);
+void nr_pdcp_reconfigure_drb(ue_id_t ue_id, int drb_id, NR_PDCP_Config_t *pdcp_config, NR_SDAP_Config_t *sdap_config);
+void nr_pdcp_release_srb(ue_id_t ue_id, int srb_id);
+void nr_pdcp_release_drb(ue_id_t ue_id, int drb_id);
+
+
+void add_srb(int is_gnb,
+             ue_id_t UEid,
+             struct NR_SRB_ToAddMod *s,
+             int ciphering_algorithm,
+             int integrity_algorithm,
+             unsigned char *ciphering_key,
+             unsigned char *integrity_key);
 
 void nr_pdcp_config_set_security(ue_id_t ue_id,
                                  const rb_id_t rb_id,
@@ -80,10 +101,7 @@ bool cu_f1u_data_req(protocol_ctxt_t  *ctxt_pP,
 typedef void (*deliver_pdu)(void *data, ue_id_t ue_id, int srb_id,
                             char *buf, int size, int sdu_id);
 /* default implementation of deliver_pdu */
-void deliver_pdu_srb_rlc(void *data, ue_id_t ue_id, int srb_id, char *buf,
-                         int size, int sdu_id);
-void deliver_pdu_srb_f1(void *data, ue_id_t ue_id, int srb_id, char *buf,
-                        int size, int sdu_id);
+void deliver_pdu_srb_rlc(void *data, ue_id_t ue_id, int srb_id, char *buf, int size, int sdu_id);
 bool nr_pdcp_data_req_srb(ue_id_t ue_id,
                           const rb_id_t rb_id,
                           const mui_t muiP,
@@ -106,6 +124,8 @@ void nr_pdcp_tick(int frame, int subframe);
 
 nr_pdcp_ue_manager_t *nr_pdcp_sdap_get_ue_manager();
 
-const bool nr_pdcp_get_statistics(ue_id_t ue_id, int srb_flag, int rb_id, nr_pdcp_statistics_t *out);
+int nr_pdcp_get_num_ues(ue_id_t *ue_list, int len);
+
+bool nr_pdcp_get_statistics(ue_id_t ue_id, int srb_flag, int rb_id, nr_pdcp_statistics_t *out);
 
 #endif /* NR_PDCP_OAI_API_H */

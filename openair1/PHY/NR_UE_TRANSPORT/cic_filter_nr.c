@@ -36,9 +36,7 @@
 
 #include "PHY/defs_nr_UE.h"
 
-#define DEFINE_VARIABLES_CIC_FILTER_NR_H
 #include "PHY/NR_UE_TRANSPORT/cic_filter_nr.h"
-#undef DEFINE_VARIABLES_CIC_FILTER_NR_H
 
 /*******************************************************************
 *
@@ -223,7 +221,7 @@ void fir_filter_basic(int32_t *input, int32_t *output, int length, int taps_fir_
 *
 *********************************************************************/
 
-void fir_filter(int32_t *input, int32_t *output, int length, int taps_fir_number, int *taps_fir, int scaling_shift)
+void fir_filter(int32_t *input, int32_t *output, int length, int taps_fir_number, const int *taps_fir, int scaling_shift)
 {
   int32_t current;
 
@@ -329,7 +327,7 @@ void cic_decimator(int16_t *input_buffer, int16_t *output_buffer, int length, in
   }
 
   /* get working buffers */
-  buffer_one = malloc(length*sizeof(int32_t) * 2);   /* for i&q samples */
+  buffer_one = calloc(length, sizeof(int32_t) * 2);   /* for i&q samples */
   if (buffer_one == NULL) {
      msg("Fatal memory allocation problem \n");
      assert(0);

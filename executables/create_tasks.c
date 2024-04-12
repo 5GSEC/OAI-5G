@@ -34,14 +34,9 @@
     #include "lteRALenb.h"
   #endif
   #include "RRC/LTE/rrc_defs.h"
-  #include "RRC/NR/nr_rrc_defs.h"
 # include "enb_app.h"
 # include "openair2/LAYER2/MAC/mac_proto.h"
 #include <openair3/ocp-gtpu/gtp_itf.h>
-
-#ifdef ENABLE_RIC_AGENT
-  #include "openair2/RIC_AGENT/ric_agent.h"
-#endif
 
 extern RAN_CONTEXT_t RC;
 
@@ -76,14 +71,5 @@ int create_tasks(uint32_t enb_nb) {
       LOG_I(X2AP, "X2AP is disabled.\n");
   }
 
-  #ifdef ENABLE_RIC_AGENT
-  // LTE: create RIC agent task
-  if (RC.rrc != NULL) {
-    rc = itti_create_task(TASK_RIC_AGENT, ric_agent_task, NULL);
-    AssertFatal(rc >= 0, "Create task for RIC_AGENT failed\n");
-  }
-  #endif
-
   return 0;
 }
-

@@ -644,7 +644,7 @@ uint16_t get_n1_pucch(PHY_VARS_UE *ue,
   LTE_DL_FRAME_PARMS *frame_parms=&ue->frame_parms;
   uint8_t nCCE0,nCCE1,nCCE2,nCCE3,harq_ack1,harq_ack0,harq_ack3,harq_ack2;
   ANFBmode_t bundling_flag;
-  uint16_t n1_pucch0=0,n1_pucch1=0,n1_pucch2=0,n1_pucch3=0,n1_pucch_inter;
+  uint16_t n1_pucch0 = 0, n1_pucch1 = 0, n1_pucch2 = 0, n1_pucch3 = 0, n1_pucch_inter = 0;
   static uint8_t candidate_dl[9]; // which downlink(s) the current ACK/NACK is associating to
   uint8_t last_dl=0xff; // the last downlink with valid DL-DCI. for calculating the PUCCH resource index
   int sf;
@@ -951,7 +951,7 @@ uint16_t get_n1_pucch(PHY_VARS_UE *ue,
           //                                           proc->frame_tx%1024,
           //                                           proc->subframe_tx,n1_pucch_inter,
           //                                           b[0],b[1]);
-          return(n1_pucch_inter);
+          return n1_pucch_inter;
         } else if ((bundling_flag==multiplexing)&&(SR==0)) { // Table 10.1
           if (subframe == 3) {
             LOG_I(PHY, "sbuframe=%d \n",subframe);
@@ -2586,13 +2586,9 @@ int ue_pdcch_procedures(uint8_t eNB_id,
                                              ue->transmission_mode[eNB_id]<7?0:ue->transmission_mode[eNB_id],
                                              ue->pdcch_vars[0%RX_NB_TH][eNB_id]->crnti_is_temporary? ue->pdcch_vars[ue->current_thread_id[subframe_rx]][eNB_id]->crnti: 0)==0)) {
         // update TPC for PUCCH
-        if((dci_alloc_rx[i].format == format1)   ||
-            (dci_alloc_rx[i].format == format1A) ||
-            (dci_alloc_rx[i].format == format1B) ||
-            (dci_alloc_rx[i].format == format2)  ||
-            (dci_alloc_rx[i].format == format2A) ||
-            (dci_alloc_rx[i].format == format2B)) {
-          //ue->dlsch[ue->current_thread_id[subframe_rx]][eNB_id][0]->g_pucch += ue->dlsch[ue->current_thread_id[subframe_rx]][eNB_id][0]->harq_processes[ue->dlsch[ue->current_thread_id[subframe_rx]][eNB_id][0]->current_harq_pid]->delta_PUCCH;
+        if ((dci_alloc_rx[i].format == format1) || (dci_alloc_rx[i].format == format1A) || (dci_alloc_rx[i].format == format1B)
+            || (dci_alloc_rx[i].format == format2) || (dci_alloc_rx[i].format == format2A)
+            || (dci_alloc_rx[i].format == format2B)) {
           int32_t delta_pucch = ue->dlsch[ue->current_thread_id[subframe_rx]][eNB_id][0]->harq_processes[ue->dlsch[ue->current_thread_id[subframe_rx]][eNB_id][0]->current_harq_pid]->delta_PUCCH;
 
           for(int th_id=0; th_id<RX_NB_TH; th_id++) {
@@ -2731,6 +2727,7 @@ int ue_pdcch_procedures(uint8_t eNB_id,
                                              CBA_RNTI,
                                              eNB_id,
                                              0)==0)) {
+#if T_TRACER
         int harq_pid = subframe2harq_pid(&ue->frame_parms,
                                          pdcch_alloc2ul_frame(&ue->frame_parms,proc->frame_rx,proc->subframe_rx),
                                          pdcch_alloc2ul_subframe(&ue->frame_parms,proc->subframe_rx));
@@ -2749,6 +2746,7 @@ int ue_pdcch_procedures(uint8_t eNB_id,
                                                pdcch_alloc2ul_subframe(&ue->frame_parms,proc->subframe_rx));
           LOG_D(PHY,"[UE  %d] Generate UE ULSCH C_RNTI format 0 (subframe %d)\n",ue->Mod_id,subframe_rx);
         }
+#endif
       }
     } else if( (dci_alloc_rx[i].rnti == ue->ulsch[eNB_id]->cba_rnti[0]) &&
                (dci_alloc_rx[i].format == format0)) {
@@ -2995,6 +2993,8 @@ void ue_pmch_procedures(PHY_VARS_UE *ue,
 
 void copy_harq_proc_struct(LTE_DL_UE_HARQ_t *harq_processes_dest,
                            LTE_DL_UE_HARQ_t *current_harq_processes) {
+  init_abort(&harq_processes_dest->abort_decode);
+  set_abort(&harq_processes_dest->abort_decode, check_abort(&current_harq_processes->abort_decode));
   harq_processes_dest->B              = current_harq_processes->B              ;
   harq_processes_dest->C              = current_harq_processes->C              ;
   harq_processes_dest->Cminus         = current_harq_processes->Cminus         ;

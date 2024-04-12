@@ -80,7 +80,10 @@ void init_downlink_harq_status(NR_DL_UE_HARQ_t *dl_harq) { }
 
 /* temporary dummy implem of get_softmodem_optmask, till basic simulators implemented as device */
 uint64_t get_softmodem_optmask(void) {return 0;}
-softmodem_params_t *get_softmodem_params(void) {return 0;}
+static softmodem_params_t softmodem_params;
+softmodem_params_t *get_softmodem_params(void) {
+  return &softmodem_params;
+}
 //Fixme: Uniq dirty DU instance, by global var, datamodel need better management
 instance_t DUuniqInstance=0;
 instance_t CUuniqInstance=0;
@@ -100,25 +103,6 @@ void nr_derive_key_ng_ran_star(uint16_t pci, uint64_t nr_arfcn_dl, const uint8_t
 {
 }
 
-void nr_rrc_ue_generate_RRCSetupRequest(module_id_t module_id, const uint8_t gNB_index)
-{
-  return;
-}
-
-int8_t nr_mac_rrc_data_req_ue(const module_id_t Mod_idP,
-                              const int         CC_id,
-                              const uint8_t     gNB_id,
-                              const frame_t     frameP,
-                              const rb_id_t     Srb_id,
-                              uint8_t           *buffer_pP)
-{
-  return 0;
-}
-
-int8_t nr_rrc_RA_succeeded(const module_id_t mod_id, const uint8_t gNB_index) {
-  return 0;
-}
-
 void nr_derive_key(int alg_type, uint8_t alg_id, const uint8_t key[32], uint8_t out[16])
 {
   (void)alg_type;
@@ -134,11 +118,11 @@ nr_bler_struct nr_bler_data[NR_NUM_MCS];
 
 void processSlotTX(void *arg) {}
 int NB_UE_INST = 1;
-
+configmodule_interface_t *uniqCfg = NULL;
 int main(int argc, char **argv){
 
   char c;
-
+  get_softmodem_params()->sl_mode = 0;
   double sigma2, sigma2_dB = 0, SNR, snr0 = -2.0, snr1 = 0.0, ue_speed0 = 0.0, ue_speed1 = 0.0;
   double **s_re, **s_im, **r_re, **r_im, iqim = 0.0, delay_avg = 0, ue_speed = 0, fs=-1, bw;
   int i, l, aa, aarx, trial, n_frames = 1, prach_start, rx_prach_start; //, ntrials=1;
@@ -174,7 +158,7 @@ int main(int argc, char **argv){
   SCM_t channel_model = Rayleigh1;
   cpuf = get_cpu_freq_GHz();
 
-  if ( load_configmodule(argc,argv,CONFIG_ENABLECMDLINEONLY) == 0) {
+  if ((uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY)) == 0) {
     exit_fun("[SOFTMODEM] Error, configuration module init failed\n");
   }
 
@@ -408,7 +392,6 @@ int main(int argc, char **argv){
   // Configure log
   logInit();
   set_glog(loglvl);
-  T_stdout = 1;
   SET_LOG_DEBUG(PRACH); 
 
   // Configure gNB and RU
@@ -594,7 +577,7 @@ int main(int argc, char **argv){
 
   ue_prach_pdu           = &UE->prach_vars[0]->prach_pdu;
   ue_prach_config        = &UE->nrUE_config.prach_config;
-  txdata                 = UE->common_vars.txdata;
+  txdata = UE->common_vars.txData;
 
   UE->prach_vars[0]->amp        = AMP;
   ue_prach_pdu->root_seq_id     = rootSequenceIndex;

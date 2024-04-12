@@ -32,7 +32,7 @@ Replaces xml_files/enb_usrp210_band7_test_05mhz_tm1_rrc_inactivity_no_flexran.xm
 040101
 030102
 000010 040301 040502 000011 040302 000001 000012 040303 000002 000013 040503 040401 040201
-030201
+030202
 200000
     </TestCaseRequestedList>
     <TestCaseExclusionList></TestCaseExclusionList>
@@ -64,7 +64,7 @@ Replaces xml_files/enb_usrp210_band7_test_05mhz_tm1_rrc_inactivity_no_flexran.xm
         <eNB_serverId>0</eNB_serverId>
     </testCase>
 
-    <testCase id="030201">
+    <testCase id="030202">
         <class>Undeploy_Object</class>
         <desc>Undeploy eNB</desc>
         <yaml_path>ci-scripts/yaml_files/lte_b200_fdd_05Mhz_tm1_no_rrc_activity</yaml_path>
@@ -148,7 +148,7 @@ Replaces xml_files/enb_usrp210_band7_test_05mhz_tm1_rrc_inactivity_no_flexran.xm
     <testCase id="040502">
         <class>Ping</class>
         <desc>ping (5MHz - 20 sec)</desc>
-        <ping_args>-c 20</ping_args>
+        <ping_args>-c 20 %cn_ip%</ping_args>
         <ping_packetloss_threshold>5</ping_packetloss_threshold>
         <id>adb_ue_1 adb_ue_2</id>
     </testCase>
@@ -156,7 +156,7 @@ Replaces xml_files/enb_usrp210_band7_test_05mhz_tm1_rrc_inactivity_no_flexran.xm
     <testCase id="040503">
         <class>Ping</class>
         <desc>ping (5MHz - 20 sec)</desc>
-        <ping_args>-c 20</ping_args>
+        <ping_args>-c 20 %cn_ip%</ping_args>
         <ping_packetloss_threshold>5</ping_packetloss_threshold>
         <id>adb_ue_1 adb_ue_2</id>
     </testCase>

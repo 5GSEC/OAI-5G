@@ -239,35 +239,6 @@ typedef struct {
   nfapi_vendor_extension_tlv_t              vendor_extension;
 } nfapi_nr_config_request_t;
 
-
-
-typedef enum {
-  NFAPI_NR_DL_DCI_FORMAT_1_0 = 0,
-  NFAPI_NR_DL_DCI_FORMAT_1_1,
-  NFAPI_NR_DL_DCI_FORMAT_2_0,
-  NFAPI_NR_DL_DCI_FORMAT_2_1,
-  NFAPI_NR_DL_DCI_FORMAT_2_2,
-  NFAPI_NR_DL_DCI_FORMAT_2_3,
-  NFAPI_NR_UL_DCI_FORMAT_0_0,
-  NFAPI_NR_UL_DCI_FORMAT_0_1
-} nfapi_nr_dci_format_e;
-
-typedef enum {
-	NFAPI_NR_RNTI_new = 0,
-	NFAPI_NR_RNTI_C,
-	NFAPI_NR_RNTI_RA,
-	NFAPI_NR_RNTI_P,
-	NFAPI_NR_RNTI_CS,
-	NFAPI_NR_RNTI_TC,
-	NFAPI_NR_RNTI_SP_CSI,
-	NFAPI_NR_RNTI_SI,
-	NFAPI_NR_RNTI_SFI,
-	NFAPI_NR_RNTI_INT,
-	NFAPI_NR_RNTI_TPC_PUSCH,
-	NFAPI_NR_RNTI_TPC_PUCCH,
-	NFAPI_NR_RNTI_TPC_SRS
-} nfapi_nr_rnti_type_e;
-
 typedef enum {
   NFAPI_NR_USS_FORMAT_0_0_AND_1_0,
   NFAPI_NR_USS_FORMAT_0_1_AND_1_1,
@@ -292,14 +263,13 @@ typedef enum {
 } nfapi_nr_ssb_and_cset_mux_pattern_type_e;
 
 typedef enum {
-  NFAPI_NR_CCE_REG_MAPPING_INTERLEAVED=0,
-  NFAPI_NR_CCE_REG_MAPPING_NON_INTERLEAVED=1 
+  NFAPI_NR_CCE_REG_MAPPING_INTERLEAVED=1,
+  NFAPI_NR_CCE_REG_MAPPING_NON_INTERLEAVED=0
 } nfapi_nr_cce_reg_mapping_type_e;
 
 typedef enum {
   NFAPI_NR_CSET_CONFIG_MIB_SIB1=0,
   NFAPI_NR_CSET_CONFIG_PDCCH_CONFIG, // implicit assumption of coreset Id other than 0
-  NFAPI_NR_CSET_CONFIG_PDCCH_CONFIG_CSET_0
 } nfapi_nr_coreset_config_type_e;
 
 typedef enum {

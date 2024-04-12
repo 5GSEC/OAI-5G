@@ -50,19 +50,12 @@
 
 extern int asn1_xer_print;
 
-#if defined(ENB_MODE)
-# include "common/utils/LOG/log.h"
-# include "m3ap_default_values.h"
-# define M3AP_INFO(x, args...) LOG_I(M3AP, x, ##args)
-# define M3AP_ERROR(x, args...) LOG_E(M3AP, x, ##args)
-# define M3AP_WARN(x, args...)  LOG_W(M3AP, x, ##args)
-# define M3AP_DEBUG(x, args...) LOG_D(M3AP, x, ##args)
-#else
-# define M3AP_INFO(x, args...) do { fprintf(stdout, "[M3AP][I]"x, ##args); } while(0)
-# define M3AP_ERROR(x, args...) do { fprintf(stdout, "[M3AP][E]"x, ##args); } while(0)
-# define M3AP_WARN(x, args...)  do { fprintf(stdout, "[M3AP][W]"x, ##args); } while(0)
-# define M3AP_DEBUG(x, args...) do { fprintf(stdout, "[M3AP][D]"x, ##args); } while(0)
-#endif
+#include "common/utils/LOG/log.h"
+#include "m3ap_default_values.h"
+#define M3AP_INFO(x, args...) LOG_I(M3AP, x, ##args)
+#define M3AP_ERROR(x, args...) LOG_E(M3AP, x, ##args)
+#define M3AP_WARN(x, args...)  LOG_W(M3AP, x, ##args)
+#define M3AP_DEBUG(x, args...) LOG_D(M3AP, x, ##args)
 
 #define M3AP_FIND_PROTOCOLIE_BY_ID(IE_TYPE, ie, container, IE_ID, mandatory) \
   do {\
@@ -81,30 +74,15 @@ extern int asn1_xer_print;
 
 /** \brief Function callback prototype.
  **/
-typedef int (*m3ap_message_decoded_callback)(
-  instance_t instance,
-  uint32_t assocId,
-  uint32_t stream,
-  M3AP_M3AP_PDU_t *pdu);
-
+typedef int (*m3ap_message_decoded_callback)(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, M3AP_M3AP_PDU_t *pdu);
 
 /** \brief Function callback prototype.
  **/
-typedef int (*m3ap_MCE_message_decoded_callback)(
-  instance_t instance,
-  uint32_t assocId,
-  uint32_t stream,
-  M3AP_M3AP_PDU_t *pdu);
+typedef int (*m3ap_MCE_message_decoded_callback)(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, M3AP_M3AP_PDU_t *pdu);
 
 /** \brief Function callback prototype.
  **/
-typedef int (*m3ap_MME_message_decoded_callback)(
-  instance_t instance,
-  uint32_t assocId,
-  uint32_t stream,
-  M3AP_M3AP_PDU_t *pdu);
-
-
+typedef int (*m3ap_MME_message_decoded_callback)(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, M3AP_M3AP_PDU_t *pdu);
 
 /** \brief Encode a successfull outcome message
  \param buffer pointer to buffer in which data will be encoded
@@ -162,5 +140,6 @@ ssize_t m3ap_generate_unsuccessfull_outcome(
  @returns void
  **/
 void m3ap_handle_criticality(M3AP_Criticality_t criticality);
+/** @}*/
 
 #endif /* M3AP_COMMON_H_ */

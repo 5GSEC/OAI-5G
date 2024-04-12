@@ -16,20 +16,25 @@
  * limitations under the License.
  *-------------------------------------------------------------------------------
  * For more information about the OpenAirInterface (OAI) Software Alliance:
- *      conmnc_digit_lengtht@openairinterface.org
+ *      contact@openairinterface.org
  */
 
 #ifndef MAC_RRC_DL_H
 #define MAC_RRC_DL_H
 
-#include "platform_types.h"
+#include "common/platform_types.h"
 #include "f1ap_messages_types.h"
 
-typedef void (*ue_context_setup_request_func_t)(const f1ap_ue_context_setup_t *req);
-typedef void (*ue_context_modification_request_func_t)(const f1ap_ue_context_modif_req_t *req);
-typedef void (*ue_context_release_command_func_t)(const f1ap_ue_context_release_cmd_t *cmd);
+typedef void (*f1_setup_response_func_t)(sctp_assoc_t assoc_id, const f1ap_setup_resp_t *resp);
+typedef void (*f1_setup_failure_func_t)(sctp_assoc_t assoc_id, const f1ap_setup_failure_t *fail);
 
-typedef void (*dl_rrc_message_transfer_func_t)(module_id_t module_id, const f1ap_dl_rrc_message_t *dl_rrc);
+typedef void (*ue_context_setup_request_func_t)(sctp_assoc_t assoc_id, const f1ap_ue_context_setup_t *req);
+typedef void (*ue_context_modification_request_func_t)(sctp_assoc_t assoc_id, const f1ap_ue_context_modif_req_t *req);
+typedef void (*ue_context_modification_confirm_func_t)(sctp_assoc_t assoc_id, const f1ap_ue_context_modif_confirm_t *confirm);
+typedef void (*ue_context_modification_refuse_func_t)(sctp_assoc_t assoc_id, const f1ap_ue_context_modif_refuse_t *refuse);
+typedef void (*ue_context_release_command_func_t)(sctp_assoc_t assoc_id, const f1ap_ue_context_release_cmd_t *cmd);
+
+typedef void (*dl_rrc_message_transfer_func_t)(sctp_assoc_t assoc_id, const f1ap_dl_rrc_message_t *dl_rrc);
 
 struct nr_mac_rrc_dl_if_s;
 void mac_rrc_dl_direct_init(struct nr_mac_rrc_dl_if_s *mac_rrc);

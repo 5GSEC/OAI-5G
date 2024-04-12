@@ -63,6 +63,8 @@ Calling the `build_oai` script with the `-h` option gives the list of all availa
 - `--ninja` is to use the `ninja` build tool, which speeds up compilation.
 - `-c` is to clean the workspace and force a complete rebuild.
 
+`build_oai` also provides various options to enable runtime error checkers, i.e. sanitizers in order to find various types of bugs in the codebase and eventually enhance the stability of the OAI softmodems. Refer to [sanitizers.md](./dev_tools/sanitizers.md) for more details.
+
 ## Installing dependencies
 
 Install all dependencies by issuing the `-I` option. To install furthermore libraries for optional libraries, use the `--install-optional-packages` option. The `-I` option will also install dependencies for an SDR when paired with `-w`. For instance, in order to install all dependencies and the ones for USRP, run:
@@ -165,26 +167,26 @@ After completing the build, the binaries are available in the `cmake_targets/ran
 ## Building Optional Binaries
 
 There are a number of optional libraries that can be built in support of the
-RAN, such as telnet, scopes, offloading libraries, etc.
+RAN, such as telnetsrv, scopes, offloading libraries, etc.
 
 Using the help option of the build script you can get the list of available optional libraries.
 
 ```bash
 ./build_oai --build-lib all # build all
-./build_oai --build-lib telnet  # build only telnet
-./build_oai --build-lib "telnet enbscope uescope nrscope nrqtscope"
-./build_oai --build-lib telnet --build-lib nrqtscope
+./build_oai --build-lib telnetsrv  # build only telnetsrv
+./build_oai --build-lib "telnetsrv enbscope uescope nrscope nrqtscope"
+./build_oai --build-lib telnetsrv --build-lib nrqtscope
 ```
 
-The following libraries are build in CI and should always work: `telnet`,
+The following libraries are build in CI and should always work: `telnetsrv`,
 `enbscope`, `uescope`, `nrscope`, `nrqtscope`.
 
 Some libraries have further dependencies and might not build on every system:
 - `enbscope`, `uescope`, `nrscope`: libforms/X
 - `nrqtscope`: Qt5
 - `ldpc_cuda`: CUDA
-- `ldpc_t1`: DPDK and VVDN T1
 - `websrv`: npm and others
+- `ldpc_t2`: DPDK with patch
 
 # Running `cmake` directly
 
@@ -195,7 +197,7 @@ mkdir build && cd build
 cmake .. -GNinja && ninja nr-softmodem nr-uesoftmodem nr-cuup params_libconfig coding rfsimulator ldpc
 ```
 
-To build additional libraries, e.g., telnet, do the following:
+To build additional libraries, e.g., telnetsrv, do the following:
 ```bash
 cmake .. -GNinja -DENABLE_TELNETSRV=ON && ninja telnetsrv
 ```
@@ -215,3 +217,8 @@ ccmake ../../..
 cmake-gui ../../..
 ```
 You can of course use all standard cmake/ninja/make commands in this directory.
+
+# Cross Compile
+
+If you want to use cross-compiler on x86 platform for aarch64 version, please refer the [cross-compile.md](./cross-compile.md) for more information.
+

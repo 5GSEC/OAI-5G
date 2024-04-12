@@ -19,7 +19,7 @@
  *      contact@openairinterface.org
  */
 
-/*! \file nr_ rrc_common.c
+/*! \file nr_rrc_common.c
  * \brief rrc common procedures for gNB
  * \author Navid Nikaein and Raymond Knopp, WEI-TAI CHEN
  * \date 2011 - 2014, 2018
@@ -31,7 +31,7 @@
 #include "nr_rrc_extern.h"
 #include "LAYER2/NR_MAC_COMMON/nr_mac_extern.h"
 #include "COMMON/openair_defs.h"
-#include "COMMON/platform_types.h"
+#include "common/platform_types.h"
 #include "RRC/L2_INTERFACE/openair_rrc_L2_interface.h"
 #include "LAYER2/RLC/rlc.h"
 #include "COMMON/mac_rrc_primitives.h"

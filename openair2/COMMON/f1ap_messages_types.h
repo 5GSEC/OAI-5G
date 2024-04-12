@@ -22,13 +22,17 @@
 #ifndef F1AP_MESSAGES_TYPES_H_
 #define F1AP_MESSAGES_TYPES_H_
 
-#include "rlc.h"
+#include <netinet/in.h>
+#include <netinet/sctp.h>
 #include "s1ap_messages_types.h"
+#include "ngap_messages_types.h"
 
 //-------------------------------------------------------------------------------------------//
 // Defines to access message fields.
 
 #define F1AP_CU_SCTP_REQ(mSGpTR)                   (mSGpTR)->ittiMsg.f1ap_cu_sctp_req
+
+#define F1AP_DU_REGISTER_REQ(mSGpTR)               (mSGpTR)->ittiMsg.f1ap_du_register_req
 
 #define F1AP_SETUP_REQ(mSGpTR)                     (mSGpTR)->ittiMsg.f1ap_setup_req
 #define F1AP_SETUP_RESP(mSGpTR)                    (mSGpTR)->ittiMsg.f1ap_setup_resp
@@ -37,6 +41,8 @@
 #define F1AP_GNB_CU_CONFIGURATION_UPDATE_FAILURE(mSGpTR)   (mSGpTR)->ittiMsg.f1ap_gnb_cu_configuration_update_failure
 #define F1AP_SETUP_FAILURE(mSGpTR)                 (mSGpTR)->ittiMsg.f1ap_setup_failure
 
+#define F1AP_LOST_CONNECTION(mSGpTR)   (mSGpTR)->ittiMsg.f1ap_lost_connection
+
 #define F1AP_INITIAL_UL_RRC_MESSAGE(mSGpTR)        (mSGpTR)->ittiMsg.f1ap_initial_ul_rrc_message
 #define F1AP_UL_RRC_MESSAGE(mSGpTR)                (mSGpTR)->ittiMsg.f1ap_ul_rrc_message
 #define F1AP_UE_CONTEXT_SETUP_REQ(mSGpTR)          (mSGpTR)->ittiMsg.f1ap_ue_context_setup_req
@@ -44,6 +50,9 @@
 #define F1AP_UE_CONTEXT_MODIFICATION_REQ(mSGpTR)   (mSGpTR)->ittiMsg.f1ap_ue_context_modification_req
 #define F1AP_UE_CONTEXT_MODIFICATION_RESP(mSGpTR)  (mSGpTR)->ittiMsg.f1ap_ue_context_modification_resp
 #define F1AP_UE_CONTEXT_MODIFICATION_FAIL(mSGpTR)  (mSGpTR)->ittiMsg.f1ap_ue_context_modification_fail
+#define F1AP_UE_CONTEXT_MODIFICATION_REQUIRED(mSGpTR)   (mSGpTR)->ittiMsg.f1ap_ue_context_modification_required
+#define F1AP_UE_CONTEXT_MODIFICATION_CONFIRM(mSGpTR)  (mSGpTR)->ittiMsg.f1ap_ue_context_modification_confirm
+#define F1AP_UE_CONTEXT_MODIFICATION_REFUSE(mSGpTR)  (mSGpTR)->ittiMsg.f1ap_ue_context_modification_refuse
 
 #define F1AP_DL_RRC_MESSAGE(mSGpTR)                (mSGpTR)->ittiMsg.f1ap_dl_rrc_message
 #define F1AP_UE_CONTEXT_RELEASE_REQ(mSGpTR)        (mSGpTR)->ittiMsg.f1ap_ue_context_release_req
@@ -65,140 +74,103 @@
 #define F1AP_MAX_NO_OF_TNL_ASSOCIATIONS 32
 #define F1AP_MAX_NO_UE_ID 1024
 
-typedef struct f1ap_net_ip_address_s {
-  unsigned ipv4:1;
-  unsigned ipv6:1;
-  char ipv4_address[16];
-  char ipv6_address[46];
-} f1ap_net_ip_address_t;
+typedef net_ip_address_t f1ap_net_ip_address_t;
 
-typedef struct f1ap_cu_setup_req_s {
-  // This dummy element is to avoid CLANG warning: empty struct has size 0 in C, size 1 in C++
-  // To be removed if the structure is filled
-  uint32_t dummy;
-} f1ap_cu_setup_req_t;
-
-typedef struct cellIDs_s {
-
-  // Served Cell Information
-  /* Tracking area code */
-  uint32_t tac;
-
-  /* Mobile Country Codes
-   * Mobile Network Codes
-   */
-  uint16_t mcc;
-  uint16_t mnc;
-  uint8_t  mnc_digit_length;
-
-  // NR Global Cell Id
-  uint64_t nr_cellid;
-  // NR Physical Cell Ids
-  uint16_t nr_pci;
-  // Number of slide support items (max 16, could be increased to as much as 1024)
-  uint16_t num_ssi;
-  uint8_t sst;
-  uint8_t sd;
-} cellIDs_t;
-
-typedef struct f1ap_setup_req_s {
-
-  // Midhaul networking parameters
-
-  /* Connexion id used between SCTP/F1AP */
-  uint16_t cnx_id;
-
-  /* SCTP association id */
-  int32_t  assoc_id;
-
-  /* The eNB IP address to bind */
+typedef struct f1ap_net_config_t {
   f1ap_net_ip_address_t CU_f1_ip_address;
   f1ap_net_ip_address_t DU_f1_ip_address;
   uint16_t CUport;
   uint16_t DUport;
+} f1ap_net_config_t;
 
-  /* Number of SCTP streams used for a mme association */
-  uint16_t sctp_in_streams;
-  uint16_t sctp_out_streams;
+typedef struct f1ap_plmn_t {
+  uint16_t mcc;
+  uint16_t mnc;
+  uint8_t  mnc_digit_length;
+} f1ap_plmn_t;
 
-  uint16_t default_sctp_stream_id;
+typedef enum f1ap_mode_t { F1AP_MODE_TDD = 0, F1AP_MODE_FDD = 1 } f1ap_mode_t;
+
+typedef struct f1ap_nr_frequency_info_t {
+  uint32_t arfcn;
+  int band;
+} f1ap_nr_frequency_info_t;
+
+typedef struct f1ap_transmission_bandwidth_t {
+  uint8_t scs;
+  uint16_t nrb;
+} f1ap_transmission_bandwidth_t;
+
+typedef struct f1ap_fdd_info_t {
+  f1ap_nr_frequency_info_t ul_freqinfo;
+  f1ap_nr_frequency_info_t dl_freqinfo;
+  f1ap_transmission_bandwidth_t ul_tbw;
+  f1ap_transmission_bandwidth_t dl_tbw;
+} f1ap_fdd_info_t;
+
+typedef struct f1ap_tdd_info_t {
+  f1ap_nr_frequency_info_t freqinfo;
+  f1ap_transmission_bandwidth_t tbw;
+} f1ap_tdd_info_t;
+
+typedef struct f1ap_served_cell_info_t {
+  // NR CGI
+  f1ap_plmn_t plmn;
+  uint64_t nr_cellid; // NR Global Cell Id
+
+  // NR Physical Cell Ids
+  uint16_t nr_pci;
+
+  /* Tracking area code */
+  uint32_t *tac;
+
+  // Number of slide support items (max 16, could be increased to as much as 1024)
+  uint16_t num_ssi;
+  uint8_t sst;
+  uint8_t sd;
+
+  f1ap_mode_t mode;
+  union {
+    f1ap_fdd_info_t fdd;
+    f1ap_tdd_info_t tdd;
+  };
+
+  char *measurement_timing_information;
+} f1ap_served_cell_info_t;
+
+typedef struct f1ap_gnb_du_system_info_t {
+  uint8_t *mib;
+  int mib_length;
+  uint8_t *sib1;
+  int sib1_length;
+} f1ap_gnb_du_system_info_t;
+
+typedef struct f1ap_setup_req_s {
+  /// ulong transaction id
+  uint64_t transaction_id;
 
   // F1_Setup_Req payload
   uint64_t gNB_DU_id;
   char *gNB_DU_name;
 
-  /* The type of the cell */
-  enum cell_type_e cell_type;
-  
+  /// rrc version
+  uint8_t rrc_ver[3];
+
   /// number of DU cells available
   uint16_t num_cells_available; //0< num_cells_available <= 512;
-  cellIDs_t cell[F1AP_MAX_NB_CELLS];
-  // fdd_flag = 1 means FDD, 0 means TDD
-  int  fdd_flag;
-
-  union {
-    struct fdd_s {
-      uint32_t ul_nr_arfcn;
-      uint8_t ul_scs;
-      uint16_t ul_nrb;
-
-      uint32_t dl_nr_arfcn;
-      uint8_t dl_scs;
-      uint16_t dl_nrb;
-
-      uint32_t sul_active;
-      uint32_t sul_nr_arfcn;
-      uint8_t sul_scs;
-      uint16_t sul_nrb;
-
-      uint8_t ul_num_frequency_bands;
-      uint16_t ul_nr_band[32];
-      uint8_t ul_num_sul_frequency_bands;
-      uint16_t ul_nr_sul_band[32];
-
-      uint8_t dl_num_frequency_bands;
-      uint16_t dl_nr_band[32];
-      uint8_t dl_num_sul_frequency_bands;
-      uint16_t dl_nr_sul_band[32];
-    } fdd;
-    struct tdd_s {
-
-      uint32_t nr_arfcn;
-      uint8_t scs;
-      uint16_t nrb;
-
-      uint32_t sul_active;
-      uint32_t sul_nr_arfcn;
-      uint8_t sul_scs;
-      uint16_t sul_nrb;
-
-      uint8_t num_frequency_bands;
-      uint16_t nr_band[32];
-      uint8_t num_sul_frequency_bands;
-      uint16_t nr_sul_band[32];
-
-    } tdd;
-  } nr_mode_info[F1AP_MAX_NB_CELLS];
-
-  char *measurement_timing_information[F1AP_MAX_NB_CELLS];
-  uint8_t ranac[F1AP_MAX_NB_CELLS];
-
-  // System Information
-  uint8_t *mib[F1AP_MAX_NB_CELLS];
-  int     mib_length[F1AP_MAX_NB_CELLS];
-  uint8_t *sib1[F1AP_MAX_NB_CELLS];
-  int     sib1_length[F1AP_MAX_NB_CELLS];
-
-
+  struct {
+    f1ap_served_cell_info_t info;
+    f1ap_gnb_du_system_info_t *sys_info;
+  } cell[F1AP_MAX_NB_CELLS];
 } f1ap_setup_req_t;
 
+typedef struct f1ap_du_register_req_t {
+  f1ap_setup_req_t setup_req;
+  f1ap_net_config_t net_config;
+} f1ap_du_register_req_t;
+
 typedef struct served_cells_to_activate_s {
-  /// mcc of DU cells
-  uint16_t mcc;
-  /// mnc of DU cells
-  uint16_t mnc;
-  /// mnc digit length of DU cells
-  uint8_t mnc_digit_length;
+  f1ap_plmn_t plmn;
   // NR Global Cell Id
   uint64_t nr_cellid;
   /// NRPCI
@@ -212,21 +184,17 @@ typedef struct served_cells_to_activate_s {
 } served_cells_to_activate_t;
 
 typedef struct f1ap_setup_resp_s {
-  /* Connexion id used between SCTP/F1AP */
-  uint16_t cnx_id;
-
-  /* SCTP association id */
-  int32_t  assoc_id;
-
-  /* Number of SCTP streams used for a mme association */
-  uint16_t sctp_in_streams;
-  uint16_t sctp_out_streams;
-
+  /// ulong transaction id
+  uint64_t transaction_id;
   /// string holding gNB_CU_name
   char     *gNB_CU_name;
   /// number of DU cells to activate
   uint16_t num_cells_to_activate; //0< num_cells_to_activate <= 512;
   served_cells_to_activate_t cells_to_activate[F1AP_MAX_NB_CELLS];
+
+  /// rrc version
+  uint8_t rrc_ver[3];
+
 } f1ap_setup_resp_t;
 
 typedef struct f1ap_gnb_cu_configuration_update_s {
@@ -234,7 +202,7 @@ typedef struct f1ap_gnb_cu_configuration_update_s {
   uint16_t cnx_id;
 
   /* SCTP association id */
-  int32_t  assoc_id;
+  sctp_assoc_t assoc_id;
 
   /* Number of SCTP streams used for a mme association */
   uint16_t sctp_in_streams;
@@ -255,9 +223,7 @@ typedef struct f1ap_setup_failure_s {
 
 typedef struct f1ap_gnb_cu_configuration_update_acknowledge_s {
   uint16_t num_cells_failed_to_be_activated;
-  uint16_t mcc[F1AP_MAX_NB_CELLS];
-  uint16_t mnc[F1AP_MAX_NB_CELLS];
-  uint8_t mnc_digit_length[F1AP_MAX_NB_CELLS];
+  f1ap_plmn_t plmn[F1AP_MAX_NB_CELLS];
   uint64_t nr_cellid[F1AP_MAX_NB_CELLS];
   uint16_t cause[F1AP_MAX_NB_CELLS];
   int have_criticality;
@@ -270,9 +236,7 @@ typedef struct f1ap_gnb_cu_configuration_update_acknowledge_s {
   uint16_t cause_failed[F1AP_MAX_NO_OF_TNL_ASSOCIATIONS];
   uint16_t noofDedicatedSIDeliveryNeededUEs;
   uint32_t gNB_CU_ue_id[F1AP_MAX_NO_UE_ID]; 
-  uint16_t ue_mcc[F1AP_MAX_NO_UE_ID]; 
-  uint16_t ue_mnc[F1AP_MAX_NO_UE_ID]; 
-  uint8_t  ue_mnc_digit_length[F1AP_MAX_NO_UE_ID]; 
+  f1ap_plmn_t ue_plmn[F1AP_MAX_NO_UE_ID];
   uint64_t ue_nr_cellid[F1AP_MAX_NO_UE_ID];  
 } f1ap_gnb_cu_configuration_update_acknowledge_t;
 
@@ -286,8 +250,7 @@ typedef struct f1ap_dl_rrc_message_s {
 
   uint32_t gNB_CU_ue_id;
   uint32_t gNB_DU_ue_id;
-  uint32_t old_gNB_DU_ue_id;
-  uint16_t rnti; 
+  uint32_t *old_gNB_DU_ue_id;
   uint8_t  srb_id;
   uint8_t  execute_duplication;
   uint8_t *rrc_container;
@@ -301,12 +264,7 @@ typedef struct f1ap_dl_rrc_message_s {
 
 typedef struct f1ap_initial_ul_rrc_message_s {
   uint32_t gNB_DU_ue_id;
-  /// mcc of DU cell
-  uint16_t mcc;
-  /// mnc of DU cell
-  uint16_t mnc;
-  /// mnc digit length of DU cells
-  uint8_t mnc_digit_length;
+  f1ap_plmn_t plmn;
   /// nr cell id
   uint64_t nr_cellid;
   /// crnti
@@ -318,7 +276,8 @@ typedef struct f1ap_initial_ul_rrc_message_s {
 } f1ap_initial_ul_rrc_message_t;
 
 typedef struct f1ap_ul_rrc_message_s {
-  uint16_t rnti;
+  uint32_t gNB_CU_ue_id;
+  uint32_t gNB_DU_ue_id;
   uint8_t  srb_id;
   uint8_t *rrc_container;
   int      rrc_container_length;
@@ -330,13 +289,66 @@ typedef struct f1ap_up_tnl_s {
   uint16_t port;
 } f1ap_up_tnl_t;
 
+typedef enum preemption_capability_e {
+  SHALL_NOT_TRIGGER_PREEMPTION,
+  MAY_TRIGGER_PREEMPTION,
+} preemption_capability_t;
+
+typedef enum preemption_vulnerability_e {
+  NOT_PREEMPTABLE,
+  PREEMPTABLE,
+} preemption_vulnerability_t;
+
+typedef struct f1ap_qos_characteristics_s {
+  union {
+    struct {
+      long fiveqi;
+      long qos_priority_level;
+    } non_dynamic;
+    struct {
+      long fiveqi; // -1 -> optional
+      long qos_priority_level;
+      long packet_delay_budget;
+      struct {
+        long per_scalar;
+        long per_exponent;
+      } packet_error_rate;
+    } dynamic;
+  };
+  fiveQI_type_t qos_type;
+} f1ap_qos_characteristics_t;
+
+typedef struct f1ap_ngran_allocation_retention_priority_s {
+  uint16_t priority_level;
+  preemption_capability_t preemption_capability;
+  preemption_vulnerability_t preemption_vulnerability;
+} f1ap_ngran_allocation_retention_priority_t;
+
+typedef struct f1ap_qos_flow_level_qos_parameters_s {
+  f1ap_qos_characteristics_t qos_characteristics;
+  f1ap_ngran_allocation_retention_priority_t alloc_reten_priority;
+} f1ap_qos_flow_level_qos_parameters_t;
+
+typedef struct f1ap_flows_mapped_to_drb_s {
+  long qfi; // qos flow identifier
+  f1ap_qos_flow_level_qos_parameters_t qos_params;
+} f1ap_flows_mapped_to_drb_t;
+
+typedef struct f1ap_drb_information_s {
+  f1ap_qos_flow_level_qos_parameters_t drb_qos;
+  f1ap_flows_mapped_to_drb_t *flows_mapped_to_drb;
+  uint8_t flows_to_be_setup_length;
+} f1ap_drb_information_t;
+
 typedef struct f1ap_drb_to_be_setup_s {
   long           drb_id;
   f1ap_up_tnl_t  up_ul_tnl[2];
   uint8_t        up_ul_tnl_length;
   f1ap_up_tnl_t  up_dl_tnl[2];
   uint8_t        up_dl_tnl_length;
+  f1ap_drb_information_t drb_info;
   rlc_mode_t     rlc_mode;
+  nssai_t nssai;
 } f1ap_drb_to_be_setup_t;
 
 typedef struct f1ap_srb_to_be_setup_s {
@@ -347,6 +359,10 @@ typedef struct f1ap_srb_to_be_setup_s {
 typedef struct f1ap_rb_failed_to_be_setup_s {
   long           rb_id;
 } f1ap_rb_failed_to_be_setup_t;
+
+typedef struct f1ap_drb_to_be_released_t {
+  long rb_id;
+} f1ap_drb_to_be_released_t;
 
 typedef struct cu_to_du_rrc_information_s {
   uint8_t * cG_ConfigInfo;
@@ -378,13 +394,10 @@ typedef enum ReconfigurationCompl_e {
 } ReconfigurationCompl_t;
 
 typedef struct f1ap_ue_context_setup_s {
-  uint32_t gNB_CU_ue_id;    // BK: need to replace by use from rnti
+  uint32_t gNB_CU_ue_id;
   uint32_t gNB_DU_ue_id;
-  uint16_t rnti; 
   // SpCell Info
-  uint16_t mcc;
-  uint16_t mnc;
-  uint8_t  mnc_digit_length;
+  f1ap_plmn_t plmn;
   uint64_t nr_cellid;
   uint8_t servCellIndex;
   uint8_t *cellULConfigured;
@@ -404,6 +417,8 @@ typedef struct f1ap_ue_context_setup_s {
   f1ap_srb_to_be_setup_t *srbs_to_be_setup;
   uint8_t  srbs_to_be_setup_length;
   uint8_t  srbs_failed_to_be_setup_length;
+  uint8_t drbs_to_be_released_length;
+  f1ap_drb_to_be_released_t *drbs_to_be_released;
   f1ap_rb_failed_to_be_setup_t *srbs_failed_to_be_setup;
   ReconfigurationCompl_t ReconfigComplOutcome;
   uint8_t *rrc_container;
@@ -418,8 +433,31 @@ typedef enum F1ap_Cause_e {
   F1AP_CAUSE_MISC,
 } f1ap_Cause_t;
 
+typedef struct f1ap_ue_context_modif_required_t {
+  uint32_t gNB_CU_ue_id;
+  uint32_t gNB_DU_ue_id;
+  du_to_cu_rrc_information_t *du_to_cu_rrc_information;
+  f1ap_Cause_t cause;
+  long cause_value;
+} f1ap_ue_context_modif_required_t;
+
+typedef struct f1ap_ue_context_modif_confirm_t {
+  uint32_t gNB_CU_ue_id;
+  uint32_t gNB_DU_ue_id;
+  uint8_t *rrc_container;
+  int      rrc_container_length;
+} f1ap_ue_context_modif_confirm_t;
+
+typedef struct f1ap_ue_context_modif_refuse_t {
+  uint32_t gNB_CU_ue_id;
+  uint32_t gNB_DU_ue_id;
+  f1ap_Cause_t cause;
+  long cause_value;
+} f1ap_ue_context_modif_refuse_t;
+
 typedef struct f1ap_ue_context_release_s {
-  uint16_t      rnti;
+  uint32_t gNB_CU_ue_id;
+  uint32_t gNB_DU_ue_id;
   f1ap_Cause_t  cause;
   long          cause_value;
   uint8_t      *rrc_container;
@@ -431,11 +469,13 @@ typedef struct f1ap_paging_ind_s {
   uint16_t ueidentityindexvalue;
   uint64_t fiveg_s_tmsi;
   uint8_t  fiveg_s_tmsi_length;
-  uint16_t mcc;
-  uint16_t mnc;
-  uint8_t  mnc_digit_length;
+  f1ap_plmn_t plmn;
   uint64_t nr_cellid;
   uint8_t  paging_drx;
 } f1ap_paging_ind_t;
+
+typedef struct f1ap_lost_connection_t {
+  int dummy;
+} f1ap_lost_connection_t;
 
 #endif /* F1AP_MESSAGES_TYPES_H_ */

@@ -21,7 +21,7 @@ In this tutorial we describe how to configure and run a 5G end-to-end setup with
 
 Minimum hardware requirements:
 - Laptop/Desktop/Server for OAI CN5G and OAI gNB
-    - Operating System: [Ubuntu 22.04 LTS](https://releases.ubuntu.com/22.04/ubuntu-22.04.2-desktop-amd64.iso)
+    - Operating System: [Ubuntu 22.04 LTS](https://releases.ubuntu.com/22.04/ubuntu-22.04.3-desktop-amd64.iso)
     - CPU: 8 cores x86_64 @ 3.5 GHz
     - RAM: 32 GB
 
@@ -32,11 +32,14 @@ Minimum hardware requirements:
 ```bash
 sudo apt install -y git net-tools putty
 
-sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+# https://docs.docker.com/engine/install/ubuntu/
+sudo apt install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt update
-sudo apt install -y docker docker-ce
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Add your username to the docker group, otherwise you will have to run in sudo mode.
 sudo usermod -a -G docker $(whoami)
@@ -55,16 +58,8 @@ rm -r ~/openairinterface5g-develop-doc-tutorial_resources-oai-cn5g ~/oai-cn5g.zi
 ## 2.3 Pull OAI CN5G docker images
 
 ```bash
-docker pull mysql:8.0
-docker pull oaisoftwarealliance/oai-amf:develop
-docker pull oaisoftwarealliance/oai-nrf:develop
-docker pull oaisoftwarealliance/oai-smf:develop
-docker pull oaisoftwarealliance/oai-udr:develop
-docker pull oaisoftwarealliance/oai-udm:develop
-docker pull oaisoftwarealliance/oai-ausf:develop
-docker pull oaisoftwarealliance/oai-spgwu-tiny:develop
-docker pull oaisoftwarealliance/trf-gen-cn5g:latest
-docker build --target ims --tag asterisk-ims:latest --file ~/oai-cn5g/Dockerfile .
+cd ~/oai-cn5g
+docker compose pull
 ```
 
 # 3. Run OAI CN5G

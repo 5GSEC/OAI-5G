@@ -30,17 +30,19 @@
 extern "C" {
 #include <intertask_interface.h>
 #include <common/utils/system.h>
+#include "executables/softmodem-common.h"
 
-  typedef struct timer_elm_s {
-    timer_type_t type;     ///< Timer type
-    long instance;
-    long duration;
-    uint64_t timeout;
-    void *timer_arg; ///< Optional argument that will be passed when timer expires
-  } timer_elm_t ;
+typedef struct timer_elm_s {
+  timer_type_t type; ///< Timer type
+  long instance;
+  long duration;
+  uint64_t timeout;
+  void *timer_arg; ///< Optional argument that will be passed when timer expires
+} timer_elm_t;
 
   typedef struct task_list_s {
     task_info_t admin;
+    ittiTask_parms_t task_parms;
     pthread_t thread;
     pthread_mutex_t queue_cond_lock;
     std::vector<MessageDef *> message_queue;
@@ -49,35 +51,13 @@ extern "C" {
     int nb_fd_epoll=0;
     int epoll_fd=-1;
     int sem_fd=-1;
+    size_t last_log_size = 0;
   } task_list_t;
 
   int timer_expired(int fd);
   static task_list_t **tasks=NULL;
   static int nb_queues=0;
   static pthread_mutex_t lock_nb_queues;
-
-  void *pool_buffer_init (void) {
-    return 0;
-  }
-
-  void *pool_buffer_clean (void *arg) {
-    //-----------------------------------------------------------------------------
-    return 0;
-  }
-
-  void free_mem_block (mem_block_t *leP, const char *caller) {
-    AssertFatal(leP!=NULL,"");
-    free(leP);
-  }
-
-  mem_block_t *get_free_mem_block (uint32_t sizeP, const char *caller) {
-    mem_block_t *ptr=(mem_block_t *)malloc(sizeP+sizeof(mem_block_t));
-    ptr->next = NULL;
-    ptr->previous = NULL;
-    ptr->data=((unsigned char *)ptr)+sizeof(mem_block_t);
-    ptr->size=sizeP;
-    return ptr;
-  }
 
   void *itti_malloc(task_id_t origin_task_id, task_id_t destination_task_id, ssize_t size) {
     void *ptr = NULL;
@@ -131,16 +111,28 @@ extern "C" {
     int message_id = message->ittiMsgHeader.messageId;
     size_t s=t->message_queue.size();
 
-    if ( s > t->admin.queue_size )
-      LOG_E(TMR,"Queue for %s task contains %ld messages\n", itti_get_task_name(destination_task_id), s );
-
-    if ( s > 50 )
-      LOG_I(ITTI,"Queue for %s task size: %ld (last message %s)\n",itti_get_task_name(destination_task_id), s+1,ITTI_MSG_NAME(message));
+    // to reduce the number of logs, we give a message each increase of 25%
+    if ((s > t->last_log_size * 1.25) && (s > t->admin.queue_size / 10)) {
+      if (s > t->admin.queue_size) {
+        LOG_E(TMR, "Queue for %s task contains %ld messages\n", itti_get_task_name(destination_task_id), s);
+      } else {
+        LOG_I(ITTI,
+              "Queue for %s task size: %ld (last message %s)\n",
+              itti_get_task_name(destination_task_id),
+              s + 1,
+              ITTI_MSG_NAME(message));
+      }
+      t->last_log_size = s;
+    } else if (t->last_log_size && s < t->admin.queue_size / 10) {
+      // Inform when the queue decreases
+      LOG_I(ITTI, "Queue for %s task size is back under 10%% of max size\n", itti_get_task_name(destination_task_id));
+      t->last_log_size = 0;
+    }
 
     t->message_queue.insert(t->message_queue.begin(), message);
     eventfd_t sem_counter = 1;
     AssertFatal ( sizeof(sem_counter) == write(t->sem_fd, &sem_counter, sizeof(sem_counter)), "");
-    LOG_D(ITTI,"sent messages id=%d to %s\n",message_id, t->admin.name);
+    LOG_D(ITTI, "sent messages id=%s messages_info to %s\n", messages_info[message_id].name, t->admin.name);
     return 0;
   }
 
@@ -149,12 +141,12 @@ extern "C" {
     pthread_mutex_lock (&t->queue_cond_lock);
     int ret=itti_send_msg_to_task_locked(destination_task_id, destinationInstance, message);
 
-    while ( t->message_queue.size()>0 && t->admin.func != NULL ) {
+    while (t->message_queue.size() > 0 && t->task_parms.shortcut_func != NULL) {
       if (t->message_queue.size()>1)
         LOG_W(ITTI,"queue in no thread mode is %ld\n", t->message_queue.size());
 
       pthread_mutex_unlock (&t->queue_cond_lock);
-      t->admin.func(NULL);
+      t->task_parms.shortcut_func(NULL);
       pthread_mutex_lock (&t->queue_cond_lock);
     }
 
@@ -314,11 +306,20 @@ extern "C" {
     pthread_mutex_unlock (&t->queue_cond_lock);
   }
 
-  int itti_create_task(task_id_t task_id,
-                       void *(*start_routine)(void *),
-                       void *args_p) {
+  int itti_create_task(const task_id_t task_id, void *(*start_routine)(void *), const ittiTask_parms_t *parms)
+  {
     task_list_t *t=tasks[task_id];
-    threadCreate (&t->thread, start_routine, args_p, (char *)itti_get_task_name(task_id),-1,OAI_PRIORITY_RT);
+    if (get_softmodem_params()->no_itti && task_id < sizeofArray(tasks_info) && parms && parms->shortcut_func) {
+      LOG_W(ITTI, "not starting the thread for %s, the msg processing will be done in place\n", tasks_info[task_id].name);
+      t->task_parms.shortcut_func = parms->shortcut_func;
+      return 0;
+    }
+    threadCreate(&t->thread,
+                 start_routine,
+                 parms ? parms->args_to_start_routine : NULL,
+                 (char *)itti_get_task_name(task_id),
+                 -1,
+                 OAI_PRIORITY_RT);
     LOG_I(ITTI,"Created Posix thread %s\n",  itti_get_task_name(task_id) );
     return 0;
   }
@@ -340,6 +341,7 @@ extern "C" {
     AssertFatal(new_tasks != NULL, "could not realloc() tasks list");
     tasks = new_tasks;
     tasks[newQueue]= new task_list_t;
+    tasks[newQueue]->task_parms = {0};
     pthread_mutex_unlock (&lock_nb_queues);
     LOG_I(ITTI,"Starting itti queue: %s as task %d\n", taskInfo->name, newQueue);
     pthread_mutex_init(&tasks[newQueue]->queue_cond_lock, NULL);
@@ -347,9 +349,6 @@ extern "C" {
     AssertFatal( ( tasks[newQueue]->epoll_fd = epoll_create1(0) ) >=0, "");
     AssertFatal( ( tasks[newQueue]->sem_fd = eventfd(0, EFD_SEMAPHORE) ) >=0, "");
     itti_subscribe_event_fd((task_id_t)newQueue, tasks[newQueue]->sem_fd);
-
-    if (tasks[newQueue]->admin.threadFunc != NULL)
-      itti_create_task((task_id_t)newQueue, tasks[newQueue]->admin.threadFunc, NULL);
 
     return newQueue;
   }

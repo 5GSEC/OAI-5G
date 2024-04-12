@@ -33,6 +33,7 @@
 
 #include "sctp_eNB_defs.h"
 
+#include "m2ap_default_values.h"
 #include "m2ap_ids.h" //looks X2AP specific for HO
 #include "m2ap_timers.h"
 
@@ -114,7 +115,7 @@ typedef struct m2ap_MCE_data_s {
   uint16_t cnx_id;
 
   /* SCTP association id */
-  int32_t  assoc_id;
+  sctp_assoc_t assoc_id;
 
   /* Nid cells */
   uint32_t                Nid_cell[MAX_NUM_CCs];

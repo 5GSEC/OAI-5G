@@ -10,6 +10,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#ifndef _STANDALONE_TESTING_
+#include "common/utils/LOG/log.h"
+#endif
+
 /*
  * GNB_AM <rx_maxsize> <tx_maxsize> <t_poll_retransmit> <t_reassembly>
  *       <t_status_prohibit> <poll_pdu> <poll_byte> <max_retx_threshold>
@@ -223,6 +227,10 @@ int test_main(void)
   int gnb_pdu_size = 1000;
   int ue_pdu_size = 1000;
 
+#ifndef _STANDALONE_TESTING_
+  logInit();
+#endif
+
   printf("TEST: start\n");
 
   sdu = malloc(16001);
@@ -418,8 +426,8 @@ int test_main(void)
     }
   }
 
-  gnb->delete(gnb);
-  ue->delete(ue);
+  gnb->delete_entity(gnb);
+  ue->delete_entity(ue);
 
   free(sdu);
   free(pdu);

@@ -34,135 +34,200 @@
 #define __LAYER2_MAC_UE_PROTO_H__
 
 #include "mac_defs.h"
+#include "oai_asn1.h"
 #include "RRC/NR_UE/rrc_defs.h"
 
 #define NR_DL_MAX_DAI                            (4)                      /* TS 38.213 table 9.1.3-1 Value of counter DAI for DCI format 1_0 and 1_1 */
 #define NR_DL_MAX_NB_CW                          (2)                      /* number of downlink code word */
 
+// Macro updates DESTINATION with configuration from ORIGIN by swapping pointers
+// Old configuration is freed after completing configuration
+#define UPDATE_MAC_IE(DESTINATION, ORIGIN, TYPE) \
+  do {                                           \
+    TYPE *tmp = ORIGIN;                          \
+    ORIGIN = DESTINATION;                        \
+    DESTINATION = tmp;                           \
+  } while(0);                                    \
+
+// Same as above but swapping ASN1 elements that are not pointers
+#define UPDATE_MAC_NP_IE(DESTINATION, ORIGIN, TYPE) \
+  do {                                              \
+    TYPE tmp = ORIGIN;                              \
+    ORIGIN = DESTINATION;                           \
+    DESTINATION = tmp;                              \
+  } while(0);                                       \
+
+// Macro handles reception of SetupRelease element ORIGIN (see NR_SetupRelease.h)
+// If release (NR_SetupRelease_xxx_PR_release equivalent to 1), removing structure from DESTINATION
+// If setup (NR_SetupRelease_xxx_PR_setup equivalent to 2), add or modify structure in DESTINATION
+// Destination is not a SetupRelease structure
+#define HANDLE_SETUPRELEASE_DIRECT(DESTINATION, ORIGIN, TYPE, ASN_DEF) \
+  do {                                                                 \
+    if (ORIGIN->present == 1) {                                        \
+      asn1cFreeStruc(ASN_DEF, DESTINATION);                            \
+    }                                                                  \
+    if (ORIGIN->present == 2)                                          \
+      UPDATE_MAC_IE(DESTINATION, ORIGIN->choice.setup, TYPE);          \
+  } while(0);                                                          \
+
+// Macro handles reception of SetupRelease element ORIGIN (see NR_SetupRelease.h)
+// If release (NR_SetupRelease_xxx_PR_release equivalent to 1), removing structure from DESTINATION
+// If setup (NR_SetupRelease_xxx_PR_setup equivalent to 2), add or modify structure in DESTINATION
+// Destination is a SetupRelease structure
+#define HANDLE_SETUPRELEASE_IE(DESTINATION, ORIGIN, TYPE, ASN_DEF)          \
+  do {                                                                      \
+    if (ORIGIN->present == 1) {                                             \
+      asn1cFreeStruc(ASN_DEF, DESTINATION);                                 \
+    }                                                                       \
+    if (ORIGIN->present == 2) {                                             \
+      if (!DESTINATION)                                                     \
+        DESTINATION = calloc(1, sizeof(*DESTINATION));                      \
+      DESTINATION->present = ORIGIN->present;                               \
+      UPDATE_MAC_IE(DESTINATION->choice.setup, ORIGIN->choice.setup, TYPE); \
+    }                                                                       \
+  } while(0);                                                               \
+
+// Macro releases entries in list TARGET if the corresponding ID is found in list SOURCE.
+// Prints an error if ID not found in list.
+#define RELEASE_IE_FROMLIST(SOURCE, TARGET, FIELD)                                 \
+  do {                                                                             \
+    for (int iI = 0; iI < SOURCE->list.count; iI++) {                              \
+      long eL = *SOURCE->list.array[iI];                                           \
+      int iJ;                                                                      \
+      for (iJ = 0; iJ < TARGET->list.count; iJ++) {                                \
+        if (eL == TARGET->list.array[iJ]->FIELD)                                   \
+          break;                                                                   \
+      }                                                                            \
+      if (iJ == TARGET->list.count)                                                \
+        asn_sequence_del(&TARGET->list, iJ, 1);                                    \
+      else                                                                         \
+        LOG_E(NR_MAC, "Element not present in the list, impossible to release\n"); \
+    }                                                                              \
+  } while (0)                                                                      \
+
+// Macro adds or modifies entries of type TYPE in list TARGET with elements received in list SOURCE
+#define ADDMOD_IE_FROMLIST(SOURCE, TARGET, FIELD, TYPE) \
+  do {                                                  \
+    for (int iI = 0; iI < SOURCE->list.count; iI++) {   \
+      long eL = SOURCE->list.array[iI]->FIELD;          \
+      int iJ;                                           \
+      for (iJ = 0; iJ < TARGET->list.count; iJ++) {     \
+        if (eL == TARGET->list.array[iJ]->FIELD)        \
+          break;                                        \
+      }                                                 \
+      if (iJ == TARGET->list.count) {                   \
+        TYPE *nEW = calloc(1, sizeof(*nEW));            \
+        ASN_SEQUENCE_ADD(&TARGET->list, nEW);           \
+      }                                                 \
+      UPDATE_MAC_IE(TARGET->list.array[iJ],             \
+                    SOURCE->list.array[iI],             \
+                    TYPE);                              \
+    }                                                   \
+  } while (0)                                           \
+
+// Macro adds or modifies entries of type TYPE in list TARGET with elements received in list SOURCE
+// Action performed by function FUNC
+#define ADDMOD_IE_FROMLIST_WFUNCTION(SOURCE, TARGET, FIELD, TYPE, FUNC) \
+  do {                                                                  \
+    for (int iI = 0; iI < SOURCE->list.count; iI++) {                   \
+      long eL = SOURCE->list.array[iI]->FIELD;                          \
+      int iJ;                                                           \
+      for (iJ = 0; iJ < TARGET->list.count; iJ++) {                     \
+        if (eL == TARGET->list.array[iJ]->FIELD)                        \
+          break;                                                        \
+      }                                                                 \
+      if (iJ == TARGET->list.count) {                                   \
+        TYPE *nEW = calloc(1, sizeof(*nEW));                            \
+        ASN_SEQUENCE_ADD(&TARGET->list, nEW);                           \
+      }                                                                 \
+      FUNC(TARGET->list.array[iJ],                                      \
+           SOURCE->list.array[iI]);                                     \
+    }                                                                   \
+  } while (0)
+
 /**\brief initialize the field in nr_mac instance
-   \param module_id      module id */
-void nr_ue_init_mac(module_id_t module_idP);
+   \param mac      MAC pointer */
+void nr_ue_init_mac(NR_UE_MAC_INST_t *mac);
+
+void send_srb0_rrc(int ue_id, const uint8_t *sdu, sdu_size_t sdu_len, void *data);
 
 /**\brief apply default configuration values in nr_mac instance
    \param mac           mac instance */
 void nr_ue_mac_default_configs(NR_UE_MAC_INST_t *mac);
 
-/**\brief decode mib pdu in NR_UE, from if_module ul_ind with P7 tx_ind message
-   \param module_id      module id
-   \param cc_id          component carrier id
-   \param gNB_index      gNB index
-   \param phy_data       PHY structure to be filled in by the callee in the FAPI call (L1 caller -> indication to L2 -> FAPI call to L1 callee)
-   \param extra_bits     extra bits for frame calculation
-   \param l_ssb_equal_64 check if ssb number of candicate is equal 64, 1=equal; 0=non equal. Reference 38.212 7.1.1
-   \param pduP           pointer to pdu
-   \param pdu_length     length of pdu
-   \param cell_id        cell id */
-int8_t nr_ue_decode_mib(
-    module_id_t module_id, 
-    int cc_id, 
-    uint8_t gNB_index,
-    void *phy_data, 
-    uint8_t extra_bits, 
-    uint32_t ssb_length, 
-    uint32_t ssb_index,
-    void *pduP,
-    uint16_t ssb_start_subcarrier,
-    uint16_t cell_id );
+void nr_ue_decode_mib(NR_UE_MAC_INST_t *mac, int cc_id);
+
+void release_common_ss_cset(NR_BWP_PDCCH_t *pdcch);
 
 /**\brief decode SIB1 and other SIs pdus in NR_UE, from if_module dl_ind
-   \param module_id      module id
+   \param mac            pointer to MAC instance
    \param cc_id          component carrier id
    \param gNB_index      gNB index
    \param sibs_mask      sibs mask
    \param pduP           pointer to pdu
    \param pdu_length     length of pdu */
-int8_t nr_ue_decode_BCCH_DL_SCH(module_id_t module_id,
+int8_t nr_ue_decode_BCCH_DL_SCH(NR_UE_MAC_INST_t *mac,
                                 int cc_id,
                                 unsigned int gNB_index,
                                 uint8_t ack_nack,
                                 uint8_t *pduP,
                                 uint32_t pdu_len);
 
-/**\brief primitive from RRC layer to MAC layer to set if bearer exists for a logical channel. todo handle mac_LogicalChannelConfig
-   \param module_id                 module id
-   \param cc_id                     component carrier id
-   \param gNB_index                 gNB index
-   \param long                      logicalChannelIdentity
-   \param bool                      status*/
-int nr_rrc_mac_config_req_ue_logicalChannelBearer(module_id_t module_id,
-                                                  int         cc_idP,
-                                                  uint8_t     gNB_index,
-                                                  long        logicalChannelIdentity,
-                                                  bool        status);
+void release_dl_BWP(NR_UE_MAC_INST_t *mac, int index);
+void release_ul_BWP(NR_UE_MAC_INST_t *mac, int index);
+void nr_release_mac_config_logicalChannelBearer(NR_UE_MAC_INST_t *mac, long channel_identity);
 
-void nr_rrc_mac_config_req_scg(module_id_t module_id,
-                               int cc_idP,
-                               NR_CellGroupConfig_t *scell_group_config);
-
-void nr_rrc_mac_config_req_mcg(module_id_t module_id,
-                               int cc_idP,
-                               NR_CellGroupConfig_t *scell_group_config);
+void nr_rrc_mac_config_req_cg(module_id_t module_id,
+                              int cc_idP,
+                              NR_CellGroupConfig_t *cell_group_config);
 
 void nr_rrc_mac_config_req_mib(module_id_t module_id,
                                int cc_idP,
                                NR_MIB_t *mibP,
-                               bool sched_sib1);
+                               int sched_sib1);
 
 void nr_rrc_mac_config_req_sib1(module_id_t module_id,
                                 int cc_idP,
+                                NR_SI_SchedulingInfo_t *si_SchedulingInfo,
                                 NR_ServingCellConfigCommonSIB_t *scc);
 
-/**\brief initialization NR UE MAC instance(s), total number of MAC instance based on NB_NR_UE_MAC_INST*/
-NR_UE_MAC_INST_t * nr_l2_init_ue(NR_UE_RRC_INST_t* rrc_inst);
+void nr_rrc_mac_config_req_reset(module_id_t module_id, NR_UE_MAC_reset_cause_t cause);
 
-/**\brief fetch MAC instance by module_id, within 0 - (NB_NR_UE_MAC_INST-1)
+/**\brief initialization NR UE MAC instance(s)*/
+NR_UE_MAC_INST_t * nr_l2_init_ue(int nb_inst);
+
+/**\brief fetch MAC instance by module_id
    \param module_id index of MAC instance(s)*/
-NR_UE_MAC_INST_t *get_mac_inst(
-    module_id_t module_id);
+NR_UE_MAC_INST_t *get_mac_inst(module_id_t module_id);
+
+void reset_mac_inst(NR_UE_MAC_INST_t *nr_mac);
+void reset_ra(RA_config_t *ra);
+void release_mac_configuration(NR_UE_MAC_INST_t *mac);
 
 /**\brief called at each slot, slot length based on numerology. now use u=0, scs=15kHz, slot=1ms
           performs BSR/SR/PHR procedures, random access procedure handler and DLSCH/ULSCH procedures.
    \param dl_info     DL indication
    \param ul_info     UL indication*/
-void nr_ue_ul_scheduler(nr_uplink_indication_t *ul_info);
-void nr_ue_dl_scheduler(nr_downlink_indication_t *dl_info);
+void nr_ue_ul_scheduler(NR_UE_MAC_INST_t *mac, nr_uplink_indication_t *ul_info);
+void nr_ue_dl_scheduler(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info);
 
-/**\brief fill nr_scheduled_response struct instance
-   @param nr_scheduled_response_t *    pointer to scheduled_response instance to fill
-   @param fapi_nr_dl_config_request_t* pointer to dl_config,
-   @param fapi_nr_ul_config_request_t* pointer to ul_config,
-   @param fapi_nr_tx_request_t*        pointer to tx_request;
-   @param module_id_t mod_id           module ID
-   @param int cc_id                    CC ID
-   @param frame_t frame                frame number
-   @param int slot                     reference number
-   @param void *phy_pata               pointer to a PHY specific structure to be filled in the scheduler response (can be null) */
-void fill_scheduled_response(nr_scheduled_response_t *scheduled_response,
-                             fapi_nr_dl_config_request_t *dl_config,
-                             fapi_nr_ul_config_request_t *ul_config,
-                             fapi_nr_tx_request_t *tx_request,
-                             module_id_t mod_id,
-                             int cc_id,
-                             frame_t frame,
-                             int slot,
-                             void *phy_data);
-
-/*! \fn int8_t nr_ue_get_SR(module_id_t module_idP, frame_t frameP, slot_t slotP);
-   \brief Called by PHY to get sdu for PUSCH transmission.  It performs the following operations: Checks BSR for DCCH, DCCH1 and DTCH corresponding to previous values computed either in SR or BSR procedures.  It gets rlc status indications on DCCH,DCCH1 and DTCH and forms BSR elements and PHR in MAC header.  CRNTI element is not supported yet.  It computes transport block for up to 3 SDUs and generates header and forms the complete MAC SDU.
-\param[in] Mod_id Instance id of UE in machine
-\param[in] frameP subframe number
-\param[in] slotP slot number
+/*! \fn int8_t nr_ue_get_SR(NR_UE_MAC_INST_t *mac, frame_t frameP, slot_t slotP);
+   \brief Called by PHY to get sdu for PUSCH transmission.  It performs the following operations: Checks BSR for DCCH, DCCH1 and
+DTCH corresponding to previous values computed either in SR or BSR procedures.  It gets rlc status indications on DCCH,DCCH1 and
+DTCH and forms BSR elements and PHR in MAC header.  CRNTI element is not supported yet.  It computes transport block for up to 3
+SDUs and generates header and forms the complete MAC SDU. \param[in]  mac pointer to MAC instance \param[in] frameP
+subframe number \param[in] slotP slot number
 */
-int8_t nr_ue_get_SR(module_id_t module_idP, frame_t frameP, slot_t slotP);
+int8_t nr_ue_get_SR(NR_UE_MAC_INST_t *mac, frame_t frameP, slot_t slotP);
 
-/*! \fn  bool update_bsr(module_id_t module_idP, frame_t frameP, slot_t slotP, uint8_t gNB_index)
+/*! \fn  nr_update_bsr
    \brief get the rlc stats and update the bsr level for each lcid
-\param[in] Mod_id instance of the UE
+\param[in] mac pointer to UE MAC instance
 \param[in] frameP Frame index
-\param[in] slot slotP number
-\param[in] uint8_t gNB_index
+\param[in] slotP number
+\param[in] gNB_index
 */
-bool nr_update_bsr(module_id_t module_idP, frame_t frameP, slot_t slotP, uint8_t gNB_index);
+bool nr_update_bsr(NR_UE_MAC_INST_t *mac, frame_t frameP, slot_t slotP, uint8_t gNB_index);
 
 /*! \fn  nr_locate_BsrIndexByBufferSize (int *table, int size, int value)
    \brief locate the BSR level in the table as defined in 38.321. This function requires that he values in table to be monotonic, either increasing or decreasing. The returned value is not less than 0, nor greater than n-1, where n is the size of table.
@@ -173,6 +238,13 @@ bool nr_update_bsr(module_id_t module_idP, frame_t frameP, slot_t slotP, uint8_t
 */
 uint8_t nr_locate_BsrIndexByBufferSize(const uint32_t *table, int size,
                                     int value);
+
+/*! \fn  int nr_get_pbr(long prioritizedbitrate)
+   \brief get the rate in kbps from the rate configured by the higher layer
+\param[in]  prioritizedbitrate
+\return the rate in kbps
+*/
+uint32_t nr_get_pbr(long prioritizedbitrate);
 
 /*! \fn  int nr_get_sf_periodicBSRTimer(uint8_t periodicBSR_Timer)
    \brief get the number of subframe from the periodic BSR timer configured by the higher layers
@@ -188,12 +260,22 @@ int nr_get_sf_periodicBSRTimer(uint8_t bucketSize);
 */
 int nr_get_sf_retxBSRTimer(uint8_t retxBSR_Timer);
 
-int8_t nr_ue_process_dci(module_id_t module_id, int cc_id, uint8_t gNB_index, frame_t frame, int slot, dci_pdu_rel15_t *dci, fapi_nr_dci_indication_pdu_t *dci_ind);
-int nr_ue_process_dci_indication_pdu(module_id_t module_id, int cc_id, int gNB_index, frame_t frame, int slot, fapi_nr_dci_indication_pdu_t *dci);
-int8_t nr_ue_process_csirs_measurements(module_id_t module_id, frame_t frame, int slot, fapi_nr_csirs_measurements_t *csirs_measurements);
-
-uint32_t get_ssb_frame(uint32_t test);
-
+int8_t nr_ue_process_dci(NR_UE_MAC_INST_t *mac,
+                         int cc_id,
+                         frame_t frame,
+                         int slot,
+                         dci_pdu_rel15_t *dci,
+                         fapi_nr_dci_indication_pdu_t *dci_ind);
+int nr_ue_process_dci_indication_pdu(NR_UE_MAC_INST_t *mac,
+                                     int cc_id,
+                                     int gNB_index,
+                                     frame_t frame,
+                                     int slot,
+                                     fapi_nr_dci_indication_pdu_t *dci);
+int8_t nr_ue_process_csirs_measurements(NR_UE_MAC_INST_t *mac,
+                                        frame_t frame,
+                                        int slot,
+                                        fapi_nr_csirs_measurements_t *csirs_measurements);
 void nr_ue_aperiodic_srs_scheduling(NR_UE_MAC_INST_t *mac, long resource_trigger, int frame, int slot);
 
 bool trigger_periodic_scheduling_request(NR_UE_MAC_INST_t *mac,
@@ -235,11 +317,9 @@ uint8_t get_rsrp_diff_index(int best_rsrp,int current_rsrp);
 @param pdu_id             index of DL PDU
 @returns void
 */
-void nr_ue_send_sdu(nr_downlink_indication_t *dl_info,
-                    int pdu_id);
+void nr_ue_send_sdu(NR_UE_MAC_INST_t *mac, nr_downlink_indication_t *dl_info, int pdu_id);
 
-void nr_ue_process_mac_pdu(nr_downlink_indication_t *dl_info,
-                           int pdu_id);
+void nr_ue_process_mac_pdu(NR_UE_MAC_INST_t *mac,nr_downlink_indication_t *dl_info, int pdu_id);
 
 int nr_write_ce_ulsch_pdu(uint8_t *mac_ce,
                           NR_UE_MAC_INST_t *mac,
@@ -257,19 +337,13 @@ void config_dci_pdu(NR_UE_MAC_INST_t *mac,
 
 void ue_dci_configuration(NR_UE_MAC_INST_t *mac, fapi_nr_dl_config_request_t *dl_config, const frame_t frame, const int slot);
 
-NR_BWP_DownlinkCommon_t *get_bwp_downlink_common(NR_UE_MAC_INST_t *mac, NR_BWP_Id_t dl_bwp_id);
-
-uint8_t nr_ue_get_sdu(module_id_t module_idP,
+uint8_t nr_ue_get_sdu(NR_UE_MAC_INST_t *mac,
                       int cc_id,
                       frame_t frameP,
                       sub_frame_t subframe,
                       uint8_t gNB_index,
                       uint8_t *ulsch_buffer,
                       uint16_t buflen);
-
-void set_tdd_config_nr_ue(fapi_nr_config_request_t *cfg,
-                          int mu,
-                          NR_TDD_UL_DL_ConfigCommon_t *tdd_config);
 
 void set_harq_status(NR_UE_MAC_INST_t *mac,
                      uint8_t pucch_id,
@@ -283,8 +357,6 @@ void set_harq_status(NR_UE_MAC_INST_t *mac,
                      int slot);
 
 bool get_downlink_ack(NR_UE_MAC_INST_t *mac, frame_t frame, int slot, PUCCH_sched_t *pucch);
-
-int find_pucch_resource_set(NR_UE_MAC_INST_t *mac, int uci_size);
 
 void multiplex_pucch_resource(NR_UE_MAC_INST_t *mac, PUCCH_sched_t *pucch, int num_res);
 
@@ -307,7 +379,7 @@ int get_deltatf(uint16_t nb_of_prbs,
                 int N_sc_ctrl_RB,
                 int O_UCI);
 
-void nr_ue_configure_pucch(NR_UE_MAC_INST_t *mac,
+int nr_ue_configure_pucch(NR_UE_MAC_INST_t *mac,
                            int slot,
                            uint16_t rnti,
                            PUCCH_sched_t *pucch,
@@ -319,13 +391,12 @@ int nr_get_Pcmax(NR_UE_MAC_INST_t *mac, int Qm, bool powerBoostPi2BPSK, int scs,
 
 /* \brief This function schedules the PRACH according to prach_ConfigurationIndex and TS 38.211 tables 6.3.3.2.x
 and fills the PRACH PDU per each FD occasion.
-@param module_idP Index of UE instance
+@param mac pointer to MAC instance
 @param frameP Frame index
 @param slotP Slot index
 @returns void
 */
-void nr_ue_prach_scheduler(module_id_t module_idP, frame_t frameP, sub_frame_t slotP);
-void nr_ue_pucch_scheduler(module_id_t module_idP, frame_t frameP, int slotP, void *phy_data);
+void nr_ue_pucch_scheduler(NR_UE_MAC_INST_t *mac, frame_t frameP, int slotP, void *phy_data);
 void nr_schedule_csirs_reception(NR_UE_MAC_INST_t *mac, int frame, int slot);
 void nr_schedule_csi_for_im(NR_UE_MAC_INST_t *mac, int frame, int slot);
 void schedule_ta_command(fapi_nr_dl_config_request_t *dl_config, NR_UL_TIME_ALIGNMENT_t *ul_time_alignment);
@@ -341,35 +412,11 @@ void nr_ue_msg3_scheduler(NR_UE_MAC_INST_t *mac,
                           sub_frame_t current_slot,
                           uint8_t Msg3_tda_id);
 
-void nr_ue_sib1_scheduler(module_id_t module_idP,
-                          int cc_id,
-                          uint16_t ssb_start_symbol,
-                          uint16_t frame,
-                          uint8_t ssb_subcarrier_offset,
-                          uint32_t ssb_index,
-                          uint16_t ssb_start_subcarrier,
-                          frequency_range_t frequency_range,
-                          void *phy_data);
+void nr_ue_contention_resolution(NR_UE_MAC_INST_t *mac, int cc_id, frame_t frame, int slot, NR_PRACH_RESOURCES_t *prach_resources);
 
-/* \brief Function called by PHY to process the received RAR and check that the preamble matches what was sent by the gNB. It provides the timing advance and t-CRNTI.
-@param Mod_id Index of UE instance
-@param CC_id Index to a component carrier
-@param frame Frame index
-@param ra_rnti RA_RNTI value
-@param dlsch_buffer  Pointer to dlsch_buffer containing RAR PDU
-@param t_crnti Pointer to PHY variable containing the T_CRNTI
-@param preamble_index Preamble Index used by PHY to transmit the PRACH.  This should match the received RAR to trigger the rest of
-random-access procedure
-@param selected_rar_buffer the output buffer for storing the selected RAR header and RAR payload
-@returns timing advance or 0xffff if preamble doesn't match
-*/
-int nr_ue_process_rar(nr_downlink_indication_t *dl_info, int pdu_id);
+void nr_ra_failed(NR_UE_MAC_INST_t *mac, uint8_t CC_id, NR_PRACH_RESOURCES_t *prach_resources, frame_t frame, int slot);
 
-void nr_ue_contention_resolution(module_id_t module_id, int cc_id, frame_t frame, int slot, NR_PRACH_RESOURCES_t *prach_resources);
-
-void nr_ra_failed(uint8_t mod_id, uint8_t CC_id, NR_PRACH_RESOURCES_t *prach_resources, frame_t frame, int slot);
-
-void nr_ra_succeeded(const module_id_t mod_id, const uint8_t gNB_index, const frame_t frame, const int slot);
+void nr_ra_succeeded(NR_UE_MAC_INST_t *mac, const uint8_t gNB_index, const frame_t frame, const int slot);
 
 void nr_get_RA_window(NR_UE_MAC_INST_t *mac);
 
@@ -384,54 +431,56 @@ andom-access to transmit a BSR along with the C-RNTI control element (see 5.1.4 
 @param gNB_id gNB index
 @param nr_slot_tx slot for PRACH transmission
 @returns indication to generate PRACH to phy */
-uint8_t nr_ue_get_rach(module_id_t mod_id,
-                       int CC_id,
-                       frame_t frame,
-                       uint8_t gNB_id,
-                       int nr_slot_tx);
+void nr_ue_get_rach(NR_UE_MAC_INST_t *mac, int CC_id, frame_t frame, uint8_t gNB_id, int nr_slot_tx);
 
 /* \brief Function implementing the routine for the selection of Random Access resources (5.1.2 TS 38.321).
-@param module_idP Index of UE instance
+@param mac pointer to MAC instance
 @param CC_id Component Carrier Index
 @param gNB_index gNB index
 @param rach_ConfigDedicated
 @returns void */
-void nr_get_prach_resources(module_id_t mod_id,
+void nr_get_prach_resources(NR_UE_MAC_INST_t *mac,
                             int CC_id,
                             uint8_t gNB_id,
                             NR_PRACH_RESOURCES_t *prach_resources,
                             NR_RACH_ConfigDedicated_t * rach_ConfigDedicated);
 
-void init_RA(module_id_t mod_id,
+void prepare_msg4_feedback(NR_UE_MAC_INST_t *mac, int pid, int ack_nack);
+void configure_initial_pucch(PUCCH_sched_t *pucch, int res_ind);
+
+void init_RA(NR_UE_MAC_INST_t *mac,
              NR_PRACH_RESOURCES_t *prach_resources,
              NR_RACH_ConfigCommon_t *nr_rach_ConfigCommon,
              NR_RACH_ConfigGeneric_t *rach_ConfigGeneric,
              NR_RACH_ConfigDedicated_t *rach_ConfigDedicated);
 
-int16_t get_prach_tx_power(module_id_t mod_id);
+int16_t get_prach_tx_power(NR_UE_MAC_INST_t *mac);
 
 void set_ra_rnti(NR_UE_MAC_INST_t *mac, fapi_nr_ul_config_prach_pdu *prach_pdu);
 
-void nr_Msg1_transmitted(module_id_t mod_id);
-
-void nr_Msg3_transmitted(module_id_t mod_id, uint8_t CC_id, frame_t frameP, slot_t slotP, uint8_t gNB_id);
-
-void nr_ue_msg2_scheduler(module_id_t mod_id, uint16_t rach_frame, uint16_t rach_slot, uint16_t *msg2_frame, uint16_t *msg2_slot);
+void nr_Msg1_transmitted(NR_UE_MAC_INST_t *mac);
+void nr_Msg3_transmitted(NR_UE_MAC_INST_t *mac, uint8_t CC_id, frame_t frameP, slot_t slotP, uint8_t gNB_id);
+void nr_get_msg3_payload(NR_UE_MAC_INST_t *mac, uint8_t *buf, int TBS_max);
 
 int8_t nr_ue_process_dci_freq_dom_resource_assignment(nfapi_nr_ue_pusch_pdu_t *pusch_config_pdu,
                                                       fapi_nr_dl_config_dlsch_pdu_rel15_t *dlsch_config_pdu,
+                                                      NR_PDSCH_Config_t *pdsch_Config,
                                                       uint16_t n_RB_ULBWP,
                                                       uint16_t n_RB_DLBWP,
-                                                      uint16_t riv);
+                                                      int start_DLBWP,
+                                                      dci_field_t frequency_domain_assignment);
 
 void build_ssb_to_ro_map(NR_UE_MAC_INST_t *mac);
 
 void ue_init_config_request(NR_UE_MAC_INST_t *mac, int scs);
 
-fapi_nr_ul_config_request_t *get_ul_config_request(NR_UE_MAC_INST_t *mac, int slot, int fb_time);
 fapi_nr_dl_config_request_t *get_dl_config_request(NR_UE_MAC_INST_t *mac, int slot);
 
-void fill_ul_config(fapi_nr_ul_config_request_t *ul_config, frame_t frame_tx, int slot_tx, uint8_t pdu_type);
+fapi_nr_ul_config_request_pdu_t *lockGet_ul_config(NR_UE_MAC_INST_t *mac, frame_t frame_tx, int slot_tx, uint8_t pdu_type);
+void remove_ul_config_last_item(fapi_nr_ul_config_request_pdu_t *pdu);
+fapi_nr_ul_config_request_pdu_t *fapiLockIterator(fapi_nr_ul_config_request_t *ul_config, frame_t frame_tx, int slot_tx);
+
+void release_ul_config(fapi_nr_ul_config_request_pdu_t *pdu, bool clearIt);
 
 int16_t compute_nr_SSB_PL(NR_UE_MAC_INST_t *mac, short ssb_rsrp_dBm);
 
@@ -441,7 +490,13 @@ int16_t compute_nr_SSB_PL(NR_UE_MAC_INST_t *mac, short ssb_rsrp_dBm);
 // - in which ULSCH should be scheduled. K2 is configured in RRC configuration.  
 // PUSCH Msg3 scheduler:
 // - scheduled by RAR UL grant according to 8.3 of TS 38.213
-int nr_ue_pusch_scheduler(NR_UE_MAC_INST_t *mac, uint8_t is_Msg3, frame_t current_frame, int current_slot, frame_t *frame_tx, int *slot_tx, long k2);
+int nr_ue_pusch_scheduler(const NR_UE_MAC_INST_t *mac,
+                          const uint8_t is_Msg3,
+                          const frame_t current_frame,
+                          const int current_slot,
+                          frame_t *frame_tx,
+                          int *slot_tx,
+                          const long k2);
 
 int get_rnti_type(NR_UE_MAC_INST_t *mac, uint16_t rnti);
 
@@ -459,6 +514,29 @@ int nr_config_pusch_pdu(NR_UE_MAC_INST_t *mac,
                         dci_pdu_rel15_t *dci,
                         RAR_grant_t *rar_grant,
                         uint16_t rnti,
-                        const nr_dci_format_t *dci_format);
+                        const nr_dci_format_t dci_format);
+
+int nr_rrc_mac_config_req_sl_preconfig(module_id_t module_id,
+                                       NR_SL_PreconfigurationNR_r16_t *sl_preconfiguration,
+                                       uint8_t sync_source);
+
+void nr_rrc_mac_transmit_slss_req(module_id_t module_id,
+                                  uint8_t *sl_mib_payload,
+                                  uint16_t tx_slss_id,
+                                  NR_SL_SSB_TimeAllocation_r16_t *ssb_ta);
+void nr_rrc_mac_config_req_sl_mib(module_id_t module_id,
+                                  NR_SL_SSB_TimeAllocation_r16_t *ssb_ta,
+                                  uint16_t rx_slss_id,
+                                  uint8_t *sl_mib);
+void sl_prepare_psbch_payload(NR_TDD_UL_DL_ConfigCommon_t *TDD_UL_DL_Config,
+                              uint8_t *bits_0_to_7, uint8_t *bits_8_to_11,
+                              uint8_t mu, uint8_t L, uint8_t Y);
+
+uint8_t sl_decode_sl_TDD_Config(NR_TDD_UL_DL_ConfigCommon_t *TDD_UL_DL_Config,
+                                uint8_t bits_0_to_7, uint8_t bits_8_to_11,
+                                uint8_t mu, uint8_t L, uint8_t Y);
+
+uint8_t sl_determine_sci_1a_len(uint16_t *num_subchannels,
+                                NR_SL_ResourcePool_r16_t *rpool,
+                                sidelink_sci_format_1a_fields_t *sci_1a);
 #endif
-/** @}*/

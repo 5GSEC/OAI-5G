@@ -27,13 +27,13 @@
 #include <inttypes.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <platform_types.h>
+#include "common/platform_types.h"
 
 #define OAI_EXIT_NORMAL 0
 #define OAI_EXIT_ASSERT 1
 
 #define _Assert_Exit_							\
-  if (getenv("gdbStacks")) {						\
+  if (getenv("OAI_GDBSTACKS")) {						\
     char tmp [1000];							\
     sprintf(tmp,"gdb -ex='set confirm off' -ex 'thread apply all bt' -ex q -p %d < /dev/null", getpid());  \
     __attribute__((unused)) int dummy=system(tmp);						\

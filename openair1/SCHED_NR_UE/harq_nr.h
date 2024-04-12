@@ -40,7 +40,6 @@
 #define DL_ACKNACK_NO_SET                        (2)
 #define DL_NACK                                  (0)
 #define DL_ACK                                   (1)
-#define DL_MAX_NB_FEEDBACK                       (NR_DL_MAX_DAI * NR_DL_MAX_NB_CW)
 #define DL_DAI_NO_SET                            (0xFF)
 #define UL_DAI_NO_SET                            (DL_DAI_NO_SET)
 
@@ -55,13 +54,6 @@
 
 
 /*************** FUNCTIONS ****************************************/
-
-/** \brief This function update uplink harq context and return transmission type (new transmission or retransmission)
-    @param ulsch uplink harq context
-    @param harq process identifier harq_pid
-    @returns retransmission or new transmission */
-
-harq_result_t uplink_harq_process(NR_UE_ULSCH_t *ulsch, int harq_pid, NR_UL_UE_HARQ_t harq_processes[NR_MAX_ULSCH_HARQ_PROCESSES], int ndi, uint8_t rnti_type);
 
 /** \brief This function initialises downlink HARQ status
     @param pointer to downlink harq status

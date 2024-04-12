@@ -27,7 +27,7 @@
 #include "openair2/PHY_INTERFACE/phy_stub_UE.h"
 #include "openair2/ENB_APP/L1_paramdef.h"
 #include "openair2/ENB_APP/enb_paramdef.h"
-#include "radio/ETHERNET/USERSPACE/LIB/if_defs.h"
+#include "radio/ETHERNET/if_defs.h"
 #include "common/config/config_load_configmodule.h"
 #include "common/config/config_userapi.h"
 #include <arpa/inet.h>
@@ -1150,7 +1150,7 @@ void UE_config_stub_pnf(void) {
   paramdef_t L1_Params[] = L1PARAMS_DESC;
   paramlist_def_t L1_ParamList = {CONFIG_STRING_L1_LIST, NULL, 0};
 
-  config_getlist(&L1_ParamList, L1_Params, sizeof(L1_Params) / sizeof(paramdef_t), NULL);
+  config_getlist(config_get_if(), &L1_ParamList, L1_Params, sizeofArray(L1_Params), NULL);
   if (L1_ParamList.numelt > 0) {
     for (j = 0; j < L1_ParamList.numelt; j++) {
       // nb_L1_CC = *(L1_ParamList.paramarray[j][L1_CC_IDX].uptr); // Number of

@@ -33,25 +33,22 @@
 #define SYNCH_HYST 2
 
 /* A function to perform the channel estimation of DL PRS signal */
-int nr_prs_channel_estimation(uint8_t rsc_id,
+int nr_prs_channel_estimation(uint8_t gNB_id,
+                              uint8_t rsc_id,
                               uint8_t rep_num,
                               PHY_VARS_NR_UE *ue,
-                              UE_nr_rxtx_proc_t *proc,
+                              const UE_nr_rxtx_proc_t *proc,
                               NR_DL_FRAME_PARMS *frame_params,
                               c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
 
 /* Generic function to find the peak of channel estimation buffer */
-void peak_estimator(int32_t *buffer, int32_t buf_len, int32_t *peak_idx, int32_t *peak_val);
+void peak_estimator(int32_t *buffer, int32_t buf_len, int32_t *peak_idx, int32_t *peak_val, int32_t mean_val);
 
 /*!
 \brief This function performs channel estimation including frequency and temporal interpolation
-\param ue Pointer to UE PHY variables
-\param gNB_id Index of target gNB
-\param Ns slot number (0..19)
-\param symbol symbol within slot
 */
 void nr_pdcch_channel_estimation(PHY_VARS_NR_UE *ue,
-                                 UE_nr_rxtx_proc_t *proc,
+                                 const UE_nr_rxtx_proc_t *proc,
                                  unsigned char symbol,
                                  fapi_nr_coreset_t *coreset,
                                  uint16_t first_carrier_offset,
@@ -61,7 +58,7 @@ void nr_pdcch_channel_estimation(PHY_VARS_NR_UE *ue,
                                  c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
 
 int nr_pbch_dmrs_correlation(PHY_VARS_NR_UE *ue,
-                             UE_nr_rxtx_proc_t *proc,
+                             const UE_nr_rxtx_proc_t *proc,
                              unsigned char symbol,
                              int dmrss,
                              NR_UE_SSB *current_ssb,
@@ -71,7 +68,7 @@ int nr_pbch_channel_estimation(PHY_VARS_NR_UE *ue,
                                int estimateSz,
                                struct complex16 dl_ch_estimates[][estimateSz],
                                struct complex16 dl_ch_estimates_time[][ue->frame_parms.ofdm_symbol_size],
-                               UE_nr_rxtx_proc_t *proc,
+                               const UE_nr_rxtx_proc_t *proc,
                                unsigned char symbol,
                                int dmrss,
                                uint8_t ssb_index,
@@ -79,14 +76,14 @@ int nr_pbch_channel_estimation(PHY_VARS_NR_UE *ue,
                                c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
 
 int nr_pdsch_channel_estimation(PHY_VARS_NR_UE *ue,
-                                UE_nr_rxtx_proc_t *proc,
-                                bool is_SI,
+                                const UE_nr_rxtx_proc_t *proc,
                                 unsigned short p,
                                 unsigned char symbol,
                                 unsigned char nscid,
                                 unsigned short scrambling_id,
                                 unsigned short BWPStart,
                                 uint8_t config_type,
+                                uint16_t rb_offset,
                                 unsigned short bwp_start_subcarrier,
                                 unsigned short nb_rb_pdsch,
                                 uint32_t pdsch_est_size,
@@ -103,20 +100,20 @@ void nr_adjust_synch_ue(NR_DL_FRAME_PARMS *frame_parms,
                         uint8_t subframe,
                         unsigned char clear,
                         short coef);
-                      
+
 void nr_ue_measurements(PHY_VARS_NR_UE *ue,
-                        UE_nr_rxtx_proc_t *proc,
+                        const UE_nr_rxtx_proc_t *proc,
                         NR_UE_DLSCH_t *dlsch,
                         uint32_t pdsch_est_size,
                         int32_t dl_ch_estimates[][pdsch_est_size]);
 
 void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
                                  uint8_t gNB_index,
-                                 UE_nr_rxtx_proc_t *proc,
+                                 const UE_nr_rxtx_proc_t *proc,
                                  c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
 
 void nr_ue_rrc_measurements(PHY_VARS_NR_UE *ue,
-                            UE_nr_rxtx_proc_t *proc,
+                            const UE_nr_rxtx_proc_t *proc,
                             c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]);
 
 void phy_adjust_gain_nr(PHY_VARS_NR_UE *ue,
@@ -140,5 +137,5 @@ void nr_pdsch_ptrs_processing(PHY_VARS_NR_UE *ue,
                               NR_UE_DLSCH_t dlsch[2]);
 
 float_t get_nr_RSRP(module_id_t Mod_id,uint8_t CC_id,uint8_t gNB_index);
-
+/** @}*/
 #endif

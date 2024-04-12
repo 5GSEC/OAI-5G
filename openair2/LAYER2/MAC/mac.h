@@ -19,7 +19,7 @@
 *      contact@openairinterface.org
 */
 
-/*! \file LAYER2/MAC/defs.h
+/*! \file mac.h
 * \brief MAC data structures, constant, and function prototype
 * \author Navid Nikaein and Raymond Knopp
 * \date 2011
@@ -32,7 +32,7 @@
  * @{
  */
 
-/*@}*/
+/**@}*/
 
 #ifndef __LAYER2_MAC_DEFS_H__
 #define __LAYER2_MAC_DEFS_H__
@@ -139,7 +139,7 @@
 #define MIN_CQI_VALUE  0
 /*!\brief maximum value for channel quality indicator */
 #define MAX_CQI_VALUE  15
-/*!\briefmaximum number of supported bandwidth (1.4, 5, 10, 20 MHz) */
+/*!\brief maximum number of supported bandwidth (1.4, 5, 10, 20 MHz) */
 #define MAX_SUPPORTED_BW  4
 /*!\brief CQI values range from 1 to 15 (4 bits) */
 #define CQI_VALUE_RANGE 16
@@ -467,7 +467,6 @@ typedef struct {
 #define SHORT_BSR 29
 /*!\brief LCID of long BSR for ULSCH */
 #define LONG_BSR 30
-/*!\bitmaps for BSR Triggers */
 #define BSR_TRIGGER_NONE    (0) /* No BSR Trigger */
 #define BSR_TRIGGER_REGULAR   (1) /* For Regular and ReTxBSR Expiry Triggers */
 #define BSR_TRIGGER_PERIODIC  (2) /* For BSR Periodic Timer Expiry Trigger */
@@ -1298,8 +1297,6 @@ typedef struct {
 /*! \brief top level eNB MAC structure */
 
 typedef struct eNB_MAC_INST_s {
-  /// Ethernet parameters for northbound midhaul interface
-  eth_params_t eth_params_n;
   /// Ethernet parameters for fronthaul interface
   eth_params_t eth_params_s;
   ///
@@ -1662,8 +1659,6 @@ typedef struct {
   int ra_frame;   // This variable keeps the frame in which the RA started for the specific UE. It is used in order
   // to make sure that different UEs RA starts within a number of frames difference.
 
-  eth_params_t         eth_params_n;
-
 } UE_MAC_INST;
 
 typedef struct {
@@ -1684,78 +1679,5 @@ typedef  struct {
 
 #include "mac_proto.h"
 
-#ifdef ENABLE_RAN_SLICING
-
-typedef enum apiid_e {
-    SLICE_CREATE_UPDATE_REQ = 1,
-    UE_SLICE_ASSOC_REQ,
-    SLICE_CREATE_UPDATE_RESP,
-    UE_SLICE_ASSOC_RESP,
-    SLICE_DELETE_REQ,
-    SLICE_DELETE_RESP
-}apiId;
-
-typedef enum resp_status_e {
-    API_RESP_SUCCESS =1,
-    API_RESP_FAILURE 
-}apiRespStatus;
-/*
-typedef struct msg_st {
-  unsigned int   apiID;
-  unsigned int   apiSize;
-  uint8_t        apiBuff[500];
-}apiMsg;
-
-typedef struct ue_status {
-  uint16_t      rnti;
-  int           ueId;
-  uint32_t      eNB_ue_s1ap_id :24;
-  uint32_t      mme_ue_s1ap_id;
-  uint8_t       e_rab_id;
-  uint8_t       qci;
-  uint16_t      cu_ue_f1ap_id;
-  uint16_t      du_ue_f1ap_id;
-}ueStatusInd;
-*/
-
-typedef struct slice_req {
-  uint32_t  sliceId;
-  uint32_t  timeSchd;
-  long      sliceType;
-}sliceCreateUpdateReq;
-
-typedef struct slice_del {
-  uint32_t  sliceId;
-  long      sliceType;
-}sliceDeleteReq;
-
-typedef struct ue_slice_assoc {
-  unsigned int      rnti;
-  uint32_t          sliceId;
-  uint32_t          ulSliceId;
-}ueSliceAssocReq;
-
-typedef struct slice_resp {
-  uint8_t   status;
-  uint32_t  sliceId;
-  uint32_t  timeSchd;
-}sliceCreateUpdateResp;
-
-typedef struct ue_slice_assoc_resp {
-  uint8_t       status;
-  int           ueId;
-  uint32_t      sliceId;
-}ueSliceAssocResp;
-
-typedef struct slice_del_resp {
-  uint8_t       status;
-  uint32_t      sliceId;
-}sliceDeleteResp;
-
-//#define DU_SLICE_API_RESP(mSGpTR)        (mSGpTR)->ittiMsg.du_slice_api_resp
-//MESSAGE_DEF(DU_SLICE_API_RESP, MESSAGE_PRIORITY_MED, apiMsg, du_slice_api_resp)
-
-#endif
-
-/*@}*/
+/**@}*/
 #endif /*__LAYER2_MAC_DEFS_H__ */

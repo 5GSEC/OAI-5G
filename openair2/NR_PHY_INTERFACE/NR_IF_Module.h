@@ -38,7 +38,7 @@
 #include "nfapi_nr_interface.h"
 #include "nfapi_nr_interface_scf.h"
 #include "common/platform_constants.h"
-#include "platform_types.h"
+#include "common/platform_types.h"
 
 #define MAX_NUM_DL_PDU 100
 #define MAX_NUM_UL_PDU 100
@@ -113,6 +113,7 @@ typedef struct NR_IF_Module_s {
   //define the function pointer
   void (*NR_UL_indication)(NR_UL_IND_t *UL_INFO);
   void (*NR_Schedule_response)(NR_Sched_Rsp_t *Sched_INFO);
+  void (*NR_slot_indication)(module_id_t module_idP, int CC_id, int frame, int slot);
   void (*NR_PHY_config_req)(NR_PHY_Config_t *config_INFO);
   uint32_t CC_mask;
   uint16_t current_frame;

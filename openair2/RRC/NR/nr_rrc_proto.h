@@ -46,14 +46,6 @@
 
 #define NR_MAX_SUPPORTED_DL_LAYERS 2
 
-uint16_t mac_rrc_nr_data_req(const module_id_t Mod_idP,
-                             const int         CC_id,
-                             const frame_t     frameP,
-                             const rb_id_t     Srb_id,
-                             const rnti_t      rnti,
-                             const uint8_t     Nb_tb,
-                             uint8_t *const    buffer_pP);
-
 void rrc_gNB_process_SgNBAdditionRequest( 
      const protocol_ctxt_t  *const ctxt_pP,
      rrc_gNB_ue_context_t   *ue_context_pP 
@@ -77,7 +69,6 @@ void fill_default_reconfig(NR_ServingCellConfigCommon_t *servingcellconfigcommon
                            NR_RRCReconfiguration_IEs_t *reconfig,
                            NR_CellGroupConfig_t *secondaryCellGroup,
                            NR_UE_NR_Capability_t *uecap,
-                           const gNB_RrcConfigurationReq *configuration,
                            int uid);
 
 int generate_CG_Config(gNB_RRC_INST *rrc, 
@@ -90,7 +81,9 @@ int parse_CG_ConfigInfo(gNB_RRC_INST *rrc, NR_CG_ConfigInfo_t *CG_ConfigInfo, x2
 void
 rrc_gNB_generate_SecurityModeCommand(
   const protocol_ctxt_t *const ctxt_pP,
-  rrc_gNB_ue_context_t          *const ue_context_pP
+  rrc_gNB_ue_context_t          *const ue_context_pP,
+  int n_drbs,
+  const f1ap_drb_to_be_setup_t *drbs
 );
 
 unsigned int rrc_gNB_get_next_transaction_identifier(module_id_t gnb_mod_idP);
@@ -108,7 +101,7 @@ rrc_gNB_generate_RRCRelease(
 );
 
 /**\brief RRC eNB task.
-   \param void *args_p Pointer on arguments to start the task. */
+   \param args_p Pointer on arguments to start the task. */
 void *rrc_gnb_task(void *args_p);
 
 /**\ Function to set or overwrite PTRS DL RRC parameters.
@@ -118,16 +111,6 @@ void *rrc_gnb_task(void *args_p);
    \ *epre_Ratio Pointer to ep_ratio
    \ *reOffset Pointer to RE Offset Value */
 void rrc_config_dl_ptrs_params(NR_BWP_Downlink_t *bwp, long *ptrsNrb, long *ptrsMcs, long *epre_Ratio, long *reOffset);
-
-void nr_rrc_mac_remove_ue(rnti_t rntiP);
-void nr_rrc_mac_update_cellgroup(rnti_t rntiMaybeUEid, NR_CellGroupConfig_t *cgc);
-
-int8_t nr_mac_rrc_bwp_switch_req(const module_id_t     module_idP,
-                                 const frame_t         frameP,
-                                 const sub_frame_t     sub_frameP,
-                                 const rnti_t          rntiP,
-                                 const int             dl_bwp_id,
-                                 const int             ul_bwp_id);
 
 int nr_rrc_reconfiguration_req(rrc_gNB_ue_context_t         *const ue_context_pP,
                                protocol_ctxt_t              *const ctxt_pP,
@@ -144,6 +127,14 @@ rrc_gNB_generate_dedicatedRRCReconfiguration_release(
 
 void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *ue_context_pP);
 
+bool ue_associated_to_cuup(const gNB_RRC_INST *rrc, const gNB_RRC_UE_t *ue);
+sctp_assoc_t get_existing_cuup_for_ue(const gNB_RRC_INST *rrc, const gNB_RRC_UE_t *ue);
+sctp_assoc_t get_new_cuup_for_ue(const gNB_RRC_INST *rrc, const gNB_RRC_UE_t *ue, int sst, int sd);
+int rrc_gNB_process_e1_setup_req(sctp_assoc_t assoc_id, e1ap_setup_req_t *req);
+
+/* Process indication of E1 connection loss on CU-CP */
+void rrc_gNB_process_e1_lost_connection(gNB_RRC_INST *rrc, e1ap_lost_connection_t *lc, sctp_assoc_t assoc_id);
+
 void bearer_context_setup_direct(e1ap_bearer_setup_req_t *req,
                                  instance_t instance);
 
@@ -156,20 +147,24 @@ void ue_cxt_mod_send_e1ap(MessageDef *msg,
 void ue_cxt_mod_direct(MessageDef *msg,
                        instance_t instance);
 
-void fill_DRB_configList(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *ue_context_pP, uint8_t xid);
-
 void prepare_and_send_ue_context_modification_f1(rrc_gNB_ue_context_t *ue_context_p,
                                                  e1ap_bearer_setup_resp_t *e1ap_resp);
-void nr_pdcp_add_srbs(eNB_flag_t enb_flag, ue_id_t rntiMaybeUEid, NR_SRB_ToAddModList_t *const srb2add_list, const uint8_t security_modeP, uint8_t *const kRRCenc, uint8_t *const kUPint);
+void nr_pdcp_add_srbs(eNB_flag_t enb_flag,
+                      ue_id_t UEid,
+                      NR_SRB_ToAddModList_t *const srb2add_list,
+                      const uint8_t security_modeP,
+                      uint8_t *const kRRCenc,
+                      uint8_t *const kUPint);
 
 void nr_pdcp_add_drbs(eNB_flag_t enb_flag,
                       ue_id_t rntiMaybeUEid,
-                      ue_id_t reestablish_ue_id,
                       NR_DRB_ToAddModList_t *const drb2add_list,
                       const uint8_t security_modeP,
                       uint8_t *const kUPenc,
-                      uint8_t *const kUPint,
-                      struct NR_CellGroupConfig__rlc_BearerToAddModList *rlc_bearer2add_list);
+                      uint8_t *const kUPint);
 
-int rrc_gNB_generate_pcch_msg(uint32_t tmsi, uint8_t paging_drx, instance_t instance, uint8_t CC_id);
+int rrc_gNB_generate_pcch_msg(sctp_assoc_t assoc_id, const NR_SIB1_t *sib, uint32_t tmsi, uint8_t paging_drx);
+
+void nr_rrc_transfer_protected_rrc_message(const gNB_RRC_INST *rrc, const gNB_RRC_UE_t *ue_p, uint8_t srb_id, const uint8_t* buffer, int size);
+/** @}*/
 #endif

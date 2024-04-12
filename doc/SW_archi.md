@@ -33,7 +33,7 @@ rx_func_implem[rx_func]
       handle_nr_slot_ind
       --> rnti_to_remove-mgmt
       --> L1_nr_prach_procedures
-      --> apply_nr_rotation_ul
+      --> apply_nr_rotation_RX
     end 
     subgraph phy_procedures_gNB_uespec_RX
       fill_ul_rb_mask
@@ -67,7 +67,7 @@ subgraph tx
        phy_procedures_gNB_TX
        --> dcitop[nr_generate dci top]
        --> nr_generate_csi_rs
-       --> apply_nr_rotation
+       --> apply_nr_rotation_TX
        -- send_msg --> end_tx_func((L1_tx_out))
     end
     subgraph tx_reorder_thread
@@ -211,7 +211,7 @@ The scheduler also calls "run_pdcp()", as this is not a autonomous thread, it ne
 After calling run_pdcp, it updates "rlc" time data but it doesn't actually process rlc 
 it sends a iiti message to activate the thread for RRC, the answer will be asynchronous in ????  
 
-Calls schedule_nr_mib() that calls mac_rrc_nr_data_req() to fill MIB,  
+Calls schedule_nr_mib() that fills MIB,
 
 Calls schedule_nr_prach() which schedules the (fixed) PRACH region one frame in
 advance.

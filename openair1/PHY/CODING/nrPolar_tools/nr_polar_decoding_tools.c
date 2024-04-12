@@ -45,20 +45,23 @@ static inline void updateBit(uint8_t listSize,
 			     uint8_t bit[xlen][ylen][zlen],
 			     uint8_t bitU[xlen][ylen])
 {
-	uint16_t offset = ( xlen/(pow(2,(ylen-col))) );
+  uint16_t offset = (xlen / (pow(2, (ylen - col))));
 
-	for (uint8_t i=0; i<listSize; i++) {
-		if (( (row) % (2*offset) ) >= offset ) {
-		  if (bitU[row][col-1]==0) updateBit(listSize, row, (col-1), xlen, ylen, zlen, bit, bitU);
-			bit[row][col][i] = bit[row][col-1][i];
-		} else {
-		  if (bitU[row][col-1]==0) updateBit(listSize, row, (col-1), xlen, ylen, zlen, bit, bitU);
-		  if (bitU[row+offset][col-1]==0) updateBit(listSize, (row+offset), (col-1), xlen, ylen, zlen, bit, bitU);
-			bit[row][col][i] = ( (bit[row][col-1][i]+bit[row+offset][col-1][i]) % 2);
-		}
-	}
+  for (uint8_t i = 0; i < listSize; i++) {
+    if (((row) % (2 * offset)) >= offset) {
+      if (bitU[row][col - 1] == 0)
+        updateBit(listSize, row, (col - 1), xlen, ylen, zlen, bit, bitU);
+      bit[row][col][i] = bit[row][col - 1][i];
+    } else {
+      if (bitU[row][col - 1] == 0)
+        updateBit(listSize, row, (col - 1), xlen, ylen, zlen, bit, bitU);
+      if (bitU[row + offset][col - 1] == 0)
+        updateBit(listSize, (row + offset), (col - 1), xlen, ylen, zlen, bit, bitU);
+      bit[row][col][i] = ((bit[row][col - 1][i] + bit[row + offset][col - 1][i]) % 2);
+    }
+  }
 
-	bitU[row][col]=1;
+  bitU[row][col] = 1;
 }
 
 static inline void computeLLR(uint16_t row,
@@ -75,35 +78,38 @@ static inline void computeLLR(uint16_t row,
   llr[row][col][i] = log((exp(a + b) + 1) / (exp(a) + exp(b))); //eq. (8a)
 }
 
-
 void updateLLR(uint8_t listSize,
-	       uint16_t row,
-	       uint16_t col,
-	        uint16_t xlen,
-	       uint8_t ylen,
-	       int zlen,
-	       double  llr[xlen][ylen][zlen],
-	       uint8_t llrU[xlen][ylen],
-	       uint8_t bit[xlen][ylen][zlen],
-	       uint8_t bitU[xlen][ylen]
-	       )
+               uint16_t row,
+               uint16_t col,
+               uint16_t xlen,
+               uint8_t ylen,
+               int zlen,
+               double llr[xlen][ylen][zlen],
+               uint8_t llrU[xlen][ylen],
+               uint8_t bit[xlen][ylen][zlen],
+               uint8_t bitU[xlen][ylen])
 {
-	uint16_t offset = (xlen/(pow(2,(ylen-col-1))));
-	for (uint8_t i=0; i<listSize; i++) {
-		if (( (row) % (2*offset) ) >= offset ) {
-		  if(bitU[row-offset][col]==0) updateBit(listSize, (row-offset), col, xlen, ylen, zlen, bit, bitU);
-		  if(llrU[row-offset][col+1]==0) updateLLR(listSize, (row-offset), (col+1), xlen, ylen, zlen, llr, llrU, bit, bitU );
-		  if(llrU[row][col+1]==0) updateLLR(listSize, row, (col+1), xlen, ylen, zlen, llr, llrU, bit, bitU);
-			llr[row][col][i] = (pow((-1),bit[row-offset][col][i])*llr[row-offset][col+1][i]) + llr[row][col+1][i];
-		} else {
-		  if(llrU[row][col+1]==0) updateLLR(listSize, row, (col+1), xlen, ylen, zlen, llr, llrU, bit, bitU );
-		  if(llrU[row+offset][col+1]==0) updateLLR(listSize, (row+offset), (col+1), xlen, ylen, zlen, llr, llrU, bit, bitU );
-		  computeLLR(row, col, i, offset, xlen, ylen, zlen, llr);
-		}
-	}
-	llrU[row][col]=1;
+  uint16_t offset = (xlen / (pow(2, (ylen - col - 1))));
+  for (uint8_t i = 0; i < listSize; i++) {
+    if ((row % (2 * offset)) >= offset) {
+      if (bitU[row - offset][col] == 0)
+        updateBit(listSize, (row - offset), col, xlen, ylen, zlen, bit, bitU);
+      if (llrU[row - offset][col + 1] == 0)
+        updateLLR(listSize, (row - offset), (col + 1), xlen, ylen, zlen, llr, llrU, bit, bitU);
+      if (llrU[row][col + 1] == 0)
+        updateLLR(listSize, row, (col + 1), xlen, ylen, zlen, llr, llrU, bit, bitU);
+      llr[row][col][i] = (pow((-1), bit[row - offset][col][i]) * llr[row - offset][col + 1][i]) + llr[row][col + 1][i];
+    } else {
+      if (llrU[row][col + 1] == 0)
+        updateLLR(listSize, row, (col + 1), xlen, ylen, zlen, llr, llrU, bit, bitU);
+      if (llrU[row + offset][col + 1] == 0)
+        updateLLR(listSize, (row + offset), (col + 1), xlen, ylen, zlen, llr, llrU, bit, bitU);
+      computeLLR(row, col, i, offset, xlen, ylen, zlen, llr);
+    }
+  }
+  llrU[row][col] = 1;
 
-	//	printf("LLR (a %f, b %f): llr[%d][%d] %f\n",32*a,32*b,col,row,32*llr[col][row]);
+  //	printf("LLR (a %f, b %f): llr[%d][%d] %f\n",32*a,32*b,col,row,32*llr[col][row]);
 }
 
 void updatePathMetric(double *pathMetric,
@@ -233,18 +239,6 @@ void build_decoder_tree(t_nrPolar_params *polarParams)
 #endif
 }
 
-#if defined(__arm__) || defined(__aarch64__)
-// translate 1-1 SIMD functions from SSE to NEON
-#define __m128i int16x8_t
-#define __m64 int8x8_t
-#define _mm_abs_epi16(a) vabsq_s16(a)
-#define _mm_min_epi16(a,b) vminq_s16(a,b)
-#define _mm_subs_epi16(a,b) vsubq_s16(a,b)
-#define _mm_abs_pi16(a) vabs_s16(a)
-#define _mm_min_pi16(a,b) vmin_s16(a,b)
-#define _mm_subs_pi16(a,b) vsub_s16(a,b)
-#endif
-
 void applyFtoleft(const t_nrPolar_params *pp, decoder_node_t *node) {
   int16_t *alpha_v=node->alpha;
   int16_t *alpha_l=node->left->alpha;
@@ -263,36 +257,36 @@ void applyFtoleft(const t_nrPolar_params *pp, decoder_node_t *node) {
   if (node->left->all_frozen == 0) {
     int avx2mod = (node->Nv/2)&15;
     if (avx2mod == 0) {
-      __m256i a256,b256,absa256,absb256,minabs256;
+      simde__m256i a256,b256,absa256,absb256,minabs256;
       int avx2len = node->Nv/2/16;
 
       //      printf("avx2len %d\n",avx2len);
       for (int i=0;i<avx2len;i++) {
-	a256       =((__m256i*)alpha_v)[i];
-	b256       =((__m256i*)alpha_v)[i+avx2len];
+	a256       =((simde__m256i*)alpha_v)[i];
+	b256       =((simde__m256i*)alpha_v)[i+avx2len];
 	absa256    =simde_mm256_abs_epi16(a256);
 	absb256    =simde_mm256_abs_epi16(b256);
 	minabs256  =simde_mm256_min_epi16(absa256,absb256);
-	((__m256i*)alpha_l)[i] =simde_mm256_sign_epi16(minabs256,simde_mm256_sign_epi16(a256,b256));
+	((simde__m256i*)alpha_l)[i] =simde_mm256_sign_epi16(minabs256,simde_mm256_sign_epi16(a256,b256));
       }
     }
     else if (avx2mod == 8) {
-      __m128i a128,b128,absa128,absb128,minabs128;
-      a128       =*((__m128i*)alpha_v);
-      b128       =((__m128i*)alpha_v)[1];
-      absa128    =_mm_abs_epi16(a128);
-      absb128    =_mm_abs_epi16(b128);
-      minabs128  =_mm_min_epi16(absa128,absb128);
-      *((__m128i*)alpha_l) =_mm_sign_epi16(minabs128,_mm_sign_epi16(a128,b128));
+      simde__m128i a128,b128,absa128,absb128,minabs128;
+      a128       =*((simde__m128i*)alpha_v);
+      b128       =((simde__m128i*)alpha_v)[1];
+      absa128    =simde_mm_abs_epi16(a128);
+      absb128    =simde_mm_abs_epi16(b128);
+      minabs128  =simde_mm_min_epi16(absa128,absb128);
+      *((simde__m128i*)alpha_l) =simde_mm_sign_epi16(minabs128,simde_mm_sign_epi16(a128,b128));
     }
     else if (avx2mod == 4) {
-      __m64 a64,b64,absa64,absb64,minabs64;
-      a64       =*((__m64*)alpha_v);
-      b64       =((__m64*)alpha_v)[1];
-      absa64    =_mm_abs_pi16(a64);
-      absb64    =_mm_abs_pi16(b64);
-      minabs64  =_mm_min_pi16(absa64,absb64);
-      *((__m64*)alpha_l) =_mm_sign_pi16(minabs64,_mm_sign_pi16(a64,b64));
+      simde__m64 a64,b64,absa64,absb64,minabs64;
+      a64       =*((simde__m64*)alpha_v);
+      b64       =((simde__m64*)alpha_v)[1];
+      absa64    =simde_mm_abs_pi16(a64);
+      absb64    =simde_mm_abs_pi16(b64);
+      minabs64  =simde_mm_min_pi16(absa64,absb64);
+      *((simde__m64*)alpha_l) =simde_mm_sign_pi16(minabs64,simde_mm_sign_pi16(a64,b64));
     }
     else
     { // equivalent scalar code to above, activated only on non x86/ARM architectures
@@ -338,22 +332,30 @@ void applyGtoright(const t_nrPolar_params *pp,decoder_node_t *node) {
       int avx2len = node->Nv/2/16;
       
       for (int i=0;i<avx2len;i++) {
-	((__m256i *)alpha_r)[i] = 
-	  simde_mm256_subs_epi16(((__m256i *)alpha_v)[i+avx2len],
-			    simde_mm256_sign_epi16(((__m256i *)alpha_v)[i],
-					      ((__m256i *)betal)[i]));	
+	((simde__m256i *)alpha_r)[i] = 
+	  simde_mm256_subs_epi16(((simde__m256i *)alpha_v)[i+avx2len],
+			    simde_mm256_sign_epi16(((simde__m256i *)alpha_v)[i],
+					      ((simde__m256i *)betal)[i]));	
       }
     }
     else if (avx2mod == 8) {
-      ((__m128i *)alpha_r)[0] = _mm_subs_epi16(((__m128i *)alpha_v)[1],_mm_sign_epi16(((__m128i *)alpha_v)[0],((__m128i *)betal)[0]));	
+      ((simde__m128i *)alpha_r)[0] = simde_mm_subs_epi16(((simde__m128i *)alpha_v)[1],simde_mm_sign_epi16(((simde__m128i *)alpha_v)[0],((simde__m128i *)betal)[0]));	
     }
     else if (avx2mod == 4) {
-      ((__m64 *)alpha_r)[0] = _mm_subs_pi16(((__m64 *)alpha_v)[1],_mm_sign_pi16(((__m64 *)alpha_v)[0],((__m64 *)betal)[0]));	
+      ((simde__m64 *)alpha_r)[0] = simde_mm_subs_pi16(((simde__m64 *)alpha_v)[1],simde_mm_sign_pi16(((simde__m64 *)alpha_v)[0],((simde__m64 *)betal)[0]));	
     }
     else
-      {// equivalent scalar code to above, activated only on non x86/ARM architectures or Nv=1,2
-	for (int i=0;i<node->Nv/2;i++) {
-	  alpha_r[i] = alpha_v[i+(node->Nv/2)] - (betal[i]*alpha_v[i]);
+      {
+        int temp_alpha_r;
+	for (int i = 0; i < node->Nv / 2; i++) {
+	  temp_alpha_r = alpha_v[i + (node->Nv / 2)] - (betal[i] * alpha_v[i]);
+          if (temp_alpha_r > SHRT_MAX) {
+            alpha_r[i] = SHRT_MAX;
+          } else if (temp_alpha_r < -SHRT_MAX) {
+            alpha_r[i] = -SHRT_MAX;
+          } else {
+            alpha_r[i] = temp_alpha_r;
+          }
 	}
       }
     if (node->Nv == 2) { // apply hard decision on right node
@@ -378,21 +380,21 @@ void computeBeta(const t_nrPolar_params *pp,decoder_node_t *node) {
 #endif
   if (node->left->all_frozen==0) { // if left node is not aggregation of frozen bits
     int avx2mod = (node->Nv/2)&15;
-    register __m256i allones=*((__m256i*)all1);
+    register simde__m256i allones=*((simde__m256i*)all1);
     if (avx2mod == 0) {
       int avx2len = node->Nv/2/16;
       for (int i=0;i<avx2len;i++) {
-	((__m256i*)betav)[i] = simde_mm256_or_si256(simde_mm256_cmpeq_epi16(((__m256i*)betar)[i],
-								  ((__m256i*)betal)[i]),allones);
+	((simde__m256i*)betav)[i] = simde_mm256_or_si256(simde_mm256_cmpeq_epi16(((simde__m256i*)betar)[i],
+								  ((simde__m256i*)betal)[i]),allones);
       }
     }
     else if (avx2mod == 8) {
-      ((__m128i*)betav)[0] = _mm_or_si128(_mm_cmpeq_epi16(((__m128i*)betar)[0],
-							  ((__m128i*)betal)[0]),*((__m128i*)all1));
+      ((simde__m128i*)betav)[0] = simde_mm_or_si128(simde_mm_cmpeq_epi16(((simde__m128i*)betar)[0],
+							  ((simde__m128i*)betal)[0]),*((simde__m128i*)all1));
     }
     else if (avx2mod == 4) {
-      ((__m64*)betav)[0] = _mm_or_si64(_mm_cmpeq_pi16(((__m64*)betar)[0],
-						      ((__m64*)betal)[0]),*((__m64*)all1));
+      ((simde__m64*)betav)[0] = simde_mm_or_si64(simde_mm_cmpeq_pi16(((simde__m64*)betar)[0],
+						      ((simde__m64*)betal)[0]),*((simde__m64*)all1));
     }
     else
       {
@@ -420,4 +422,3 @@ void generic_polar_decoder(const t_nrPolar_params *pp,decoder_node_t *node) {
   computeBeta(pp, node);
 
 } 
-

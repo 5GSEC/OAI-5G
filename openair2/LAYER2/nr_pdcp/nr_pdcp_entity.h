@@ -24,7 +24,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "openair2/COMMON/platform_types.h"
+#include "common/platform_types.h"
 
 #include "nr_pdcp_sdu.h"
 #include "openair2/RRC/NR/rrc_gNB_radio_bearers.h"
@@ -76,6 +76,9 @@ typedef struct nr_pdcp_entity_t {
   int (*process_sdu)(struct nr_pdcp_entity_t *entity, char *buffer, int size,
                      int sdu_id, char *pdu_buffer, int pdu_max_size);
   void (*delete_entity)(struct nr_pdcp_entity_t *entity);
+  void (*release_entity)(struct nr_pdcp_entity_t *entity);
+  void (*suspend_entity)(struct nr_pdcp_entity_t *entity);
+  void (*reestablish_entity)(struct nr_pdcp_entity_t *entity);
   void (*get_stats)(struct nr_pdcp_entity_t *entity, nr_pdcp_statistics_t *out);
 
   /* set_security: pass -1 to integrity_algorithm / ciphering_algorithm
@@ -121,7 +124,7 @@ typedef struct nr_pdcp_entity_t {
   uint64_t t_current;
 
   /* timers (stores the ms of activation, 0 means not active) */
-  int t_reordering_start;
+  uint64_t t_reordering_start;
 
   /* security */
   int has_ciphering;

@@ -20,6 +20,8 @@
  */
 #ifndef X2AP_COMMON_H_
 #define X2AP_COMMON_H_
+#include <netinet/in.h>
+#include <netinet/sctp.h>
 #include "oai_asn1.h"
 #include "X2AP_ProtocolIE-Field.h"
 #include "X2AP_X2AP-PDU.h"
@@ -49,18 +51,11 @@
 
 extern int asn1_xer_print;
 
-#if defined(ENB_MODE)
-# include "common/utils/LOG/log.h"
-# define X2AP_INFO(x, args...) LOG_I(X2AP, x, ##args)
-# define X2AP_ERROR(x, args...) LOG_E(X2AP, x, ##args)
-# define X2AP_WARN(x, args...)  LOG_W(X2AP, x, ##args)
-# define X2AP_DEBUG(x, args...) LOG_D(X2AP, x, ##args)
-#else
-# define X2AP_INFO(x, args...) do { fprintf(stdout, "[X2AP][I]"x, ##args); } while(0)
-# define X2AP_ERROR(x, args...) do { fprintf(stdout, "[X2AP][E]"x, ##args); } while(0)
-# define X2AP_WARN(x, args...)  do { fprintf(stdout, "[X2AP][W]"x, ##args); } while(0)
-# define X2AP_DEBUG(x, args...) do { fprintf(stdout, "[X2AP][D]"x, ##args); } while(0)
-#endif
+#include "common/utils/LOG/log.h"
+#define X2AP_INFO(x, args...) LOG_I(X2AP, x, ##args)
+#define X2AP_ERROR(x, args...) LOG_E(X2AP, x, ##args)
+#define X2AP_WARN(x, args...)  LOG_W(X2AP, x, ##args)
+#define X2AP_DEBUG(x, args...) LOG_D(X2AP, x, ##args)
 
 #define X2AP_FIND_PROTOCOLIE_BY_ID(IE_TYPE, ie, container, IE_ID, mandatory) \
   do {\
@@ -79,11 +74,7 @@ extern int asn1_xer_print;
 
 /** \brief Function callback prototype.
  **/
-typedef int (*x2ap_message_decoded_callback)(
-  instance_t instance,
-  uint32_t assocId,
-  uint32_t stream,
-  X2AP_X2AP_PDU_t *pdu);
+typedef int (*x2ap_message_decoded_callback)(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, X2AP_X2AP_PDU_t *pdu);
 
 /** \brief Encode a successfull outcome message
  \param buffer pointer to buffer in which data will be encoded
@@ -141,5 +132,6 @@ ssize_t x2ap_generate_unsuccessfull_outcome(
  @returns void
  **/
 void x2ap_handle_criticality(X2AP_Criticality_t criticality);
+/** @}*/
 
 #endif /* X2AP_COMMON_H_ */

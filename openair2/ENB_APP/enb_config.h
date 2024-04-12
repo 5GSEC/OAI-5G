@@ -35,7 +35,7 @@
 #include <libconfig.h>
 
 #include "commonDef.h"
-#include "platform_types.h"
+#include "common/platform_types.h"
 #include "common/platform_constants.h"
 #include "PHY/defs_eNB.h"
 #include "s1ap_messages_types.h"
@@ -115,6 +115,11 @@ int RCconfig_S1(MessageDef *msg_p, uint32_t i);
 void read_config_and_init(void);
 int RCconfig_X2(MessageDef *msg_p, uint32_t i);
 int RCconfig_M2(MessageDef *msg_p, uint32_t i);
+
+#ifdef E2_AGENT
+#include "openair2/E2AP/e2_agent_arg.h"
+e2_agent_args_t RCconfig_E2agent(void);
+#endif
 
 void fill_SL_configuration(RrcConfigurationReq *RRCcfg, ccparams_sidelink_t *SLconfig, int cell_idx, int cc_idx, char *config_fname);
 void fill_eMTC_configuration(RrcConfigurationReq *RRCcfg, ccparams_eMTC_t *eMTCconfig, int cell_idx, int cc_idx, char *config_fname, char *brparamspath);

@@ -31,6 +31,7 @@ FROM ran-build:latest AS gnb-build
 
 
 FROM ubuntu:focal as oai-nr-cuup
+ARG BUILD_OPTION
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe
 
@@ -39,7 +40,14 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --yes \
         libsctp1 \
         libconfig9 \
+        iproute2 \
+        net-tools \
         openssl && \
+# if the --sanitize option was used to build, additional packages are required
+    /bin/bash -c 'if [[ "$BUILD_OPTION" = "--sanitize" ]]; then DEBIAN_FRONTEND=noninteractive apt-get install --yes \
+        libasan5 \
+        libubsan1 \
+        liblapacke; fi' && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/oai-gnb/bin
@@ -51,6 +59,8 @@ COPY --from=gnb-build \
     /oai-ran/cmake_targets/ran_build/build/libparams_libconfig.so \
     /oai-ran/cmake_targets/ran_build/build/libtelnetsrv.so \
     /usr/local/lib/
+
+RUN ldconfig && ldd /opt/oai-gnb/bin/nr-cuup
 
 # Create directory for configuration files
 WORKDIR /opt/oai-gnb/etc
