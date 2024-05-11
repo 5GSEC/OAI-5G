@@ -554,7 +554,7 @@ static void rrc_gNB_generate_defaultRRCReconfiguration(const protocol_ctxt_t *co
   }
 
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
+  addRrcMsg(ue_p->rnti, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedNAS_MessageList != NULL) {
     // we only decode the first NAS item
@@ -676,13 +676,13 @@ void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const c
   NR_DRB_ToAddModList_t *DRBs = createDRBlist(ue_p, false);
 
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
+  addRrcMsg(ue_p->rnti, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedNAS_MessageList != NULL) {
     // we only decode the first NAS item
     uint8_t *pdu_buf = dedicatedNAS_MessageList->list.array[0]->buf;
     uint32_t length = dedicatedNAS_MessageList->list.array[0]->size;
-    addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
+    addNasMsg(ue_p->rnti, pdu_buf, length);
   }
   #endif
 
@@ -879,7 +879,7 @@ rrc_gNB_generate_dedicatedRRCReconfiguration_release(
   }
 
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
+  addRrcMsg(ue_p->rnti, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
   // decocde NAS content
   if (dedicatedNAS_MessageList != NULL) {
     // we only decode the first NAS item
@@ -1039,7 +1039,7 @@ static void rrc_gNB_process_RRCReestablishmentComplete(const protocol_ctxt_t *co
   uint8_t buffer[RRC_BUF_SIZE] = {0};
 
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
+  addRrcMsg(ue_p->rnti, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
   #endif
 
   int size = do_RRCReconfiguration(ue_p,
@@ -1086,7 +1086,7 @@ int nr_rrc_reconfiguration_req(rrc_gNB_ue_context_t         *const ue_context_pP
   }
 
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
+  addRrcMsg(ue_p->rnti, NR_DL_DCCH_MessageType__c1_PR_rrcReconfiguration, 1, 1); // SECSM
   #endif
 
   uint8_t buffer[RRC_BUF_SIZE];
@@ -1623,7 +1623,7 @@ int rrc_gNB_decode_dcch(const protocol_ctxt_t *const ctxt_pP,
   }
 
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, ul_dcch_msg->message.choice.c1->present, 1, 0); // SECSM
+  addRrcMsg(ue_context_p->ue_context.rnti, ul_dcch_msg->message.choice.c1->present, 1, 0); // SECSM
   #endif
 
   if (ul_dcch_msg->message.present == NR_UL_DCCH_MessageType_PR_c1) {
@@ -2536,7 +2536,7 @@ rrc_gNB_generate_SecurityModeCommand(
   AssertFatal(!ue_p->as_security_active, "logic error: security already active\n");
 
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, NR_DL_DCCH_MessageType__c1_PR_securityModeCommand, 1, 1); // SECSM
+  addRrcMsg(ue_p->rnti, NR_DL_DCCH_MessageType__c1_PR_securityModeCommand, 1, 1); // SECSM
   #endif
 
   T(T_ENB_RRC_SECURITY_MODE_COMMAND, T_INT(ctxt_pP->module_id), T_INT(ctxt_pP->frame), T_INT(ctxt_pP->subframe), T_INT(ctxt_pP->rntiMaybeUEid));
@@ -2598,7 +2598,7 @@ rrc_gNB_generate_UECapabilityEnquiry(
   uint8_t                             size;
 
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, NR_DL_DCCH_MessageType__c1_PR_ueCapabilityEnquiry, 1, 1); // SECSM
+  addRrcMsg(ue_context_pP->ue_context.rnti, NR_DL_DCCH_MessageType__c1_PR_ueCapabilityEnquiry, 1, 1); // SECSM
   #endif
 
   T(T_ENB_RRC_UE_CAPABILITY_ENQUIRY, T_INT(ctxt_pP->module_id), T_INT(ctxt_pP->frame), T_INT(ctxt_pP->subframe), T_INT(ctxt_pP->rntiMaybeUEid));
@@ -2641,7 +2641,7 @@ rrc_gNB_generate_RRCRelease(
 //-----------------------------------------------------------------------------
 {
   #ifdef ENABLE_RIC_AGENT
-  addRrcMsg(ctxt_pP->rntiMaybeUEid, NR_DL_DCCH_MessageType__c1_PR_rrcRelease, 1, 1); // SECSM
+  addRrcMsg(ue_context_pP->ue_context.rnti, NR_DL_DCCH_MessageType__c1_PR_rrcRelease, 1, 1); // SECSM
   #endif
 
   uint8_t buffer[RRC_BUF_SIZE] = {0};

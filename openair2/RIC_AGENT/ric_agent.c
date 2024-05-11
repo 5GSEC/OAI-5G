@@ -335,7 +335,7 @@ static int ric_agent_handle_sctp_new_association_resp(
     if (ric->assoc_id == -1)
     {
         ric->assoc_id = resp->assoc_id;
-        ric->data_conn_assoc_id = resp->assoc_id;
+        ric->data_conn_assoc_id = resp->assoc_id; // TODO this change is OSC RIC only
 
         timer_remove(ric->ric_connect_timer_id);
 

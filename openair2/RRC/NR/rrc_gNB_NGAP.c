@@ -182,7 +182,7 @@ rrc_gNB_send_NGAP_NAS_FIRST_REQ(
   #ifdef ENABLE_RIC_AGENT
   uint8_t *pdu_buf = rrcSetupComplete->dedicatedNAS_Message.buf; // SECSM: Populate initial NAS msg
   uint32_t length = rrcSetupComplete->dedicatedNAS_Message.size;
-  addNasMsg(ctxt_pP->rntiMaybeUEid, pdu_buf, length);
+  addNasMsg(UE->rnti, pdu_buf, length);
   #endif
 
   message_p = itti_alloc_new_message(TASK_RRC_GNB, 0, NGAP_NAS_FIRST_REQ);
@@ -747,7 +747,7 @@ rrc_gNB_send_NGAP_UPLINK_NAS(
         memcpy(buf, nas->buf, nas->size);
 
         #ifdef ENABLE_RIC_AGENT
-        addNasMsg(ctxt_pP->rntiMaybeUEid, buf, nas->size); // SECSM: Populate uplink NAS msg
+        addNasMsg(UE->rnti, buf, nas->size); // SECSM: Populate uplink NAS msg
         #endif
 
         msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, NGAP_UPLINK_NAS);
