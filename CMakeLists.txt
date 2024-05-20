@@ -304,6 +304,10 @@ set(KPM_VERSION "KPM_V2_03" CACHE STRING "The KPM SM version to use")
 set_property(CACHE KPM_VERSION PROPERTY STRINGS "KPM_V2_03" "KPM_V3_00")
 message(STATUS "Selected KPM Version: ${KPM_VERSION}")
 
+set(RC_VERSION "RC_V1_03" CACHE STRING "The RC SM version to use")
+set_property(CACHE RC_VERSION PROPERTY STRINGS "RC_V1_03")
+message(STATUS "Selected RC Version: ${RC_VERSION}")
+
 
 ##################################################
 # ASN.1 grammar C code generation & dependencies #
@@ -657,7 +661,7 @@ if(ENABLE_RIC_AGENT)
   target_link_libraries(E2AP PUBLIC E2AP_ASN)
   set(E2AP_LIB E2AP)
 
-  ##############################E2SM_KPM_ASN
+  ############################## E2SM_KPM_ASN
   # set(KPM_ASN_VERS R01)
   set(KPM_ASN_VERS R02) # Specify version
   if (${KPM_ASN_VERS} STREQUAL R01)
@@ -689,6 +693,34 @@ if(ENABLE_RIC_AGENT)
   target_include_directories(E2SM_KPM PRIVATE ${E2SM_KPM_DIR} "${E2SM_KPM_C_DIR}")
   set(E2SM_KPM_LIB E2SM_KPM)
 
+  ############################## E2SM_RC_ASN
+  set(RC_ASN_VERS R01) # Specify version
+  if (${RC_ASN_VERS} STREQUAL R01)
+    set(E2SM_RC_ASN_FILE O-RAN.WG3.E2SM-RC-v01.03.asn)
+    set(E2SM_ASN_FILE O-RAN-WG3.E2SM-v03.00.asn)
+  endif (${RC_ASN_VERS} STREQUAL R01)
+
+  set(asn1_generated_dir ${OPENAIR_BIN_DIR})
+  set(E2SM_RC_DIR ${OPENAIR2_DIR}/RIC_AGENT/E2SM-RC)
+  set(E2SM_RC_ASN_DIR ${E2SM_RC_DIR}/MESSAGES/ASN1/${RC_ASN_VERS})
+  set(E2SM_RC_C_DIR ${asn1_generated_dir}/E2SM-RC/)
+  set(ENV{ASN1C_PREFIX} "")
+  file(MAKE_DIRECTORY ${E2SM_RC_C_DIR})
+  execute_process(
+    COMMAND ${ASN1C_EXEC_PATH} -gen-APER -gen-UPER -no-gen-JER -no-gen-BER -no-gen-OER -fcompound-names -no-gen-example -findirect-choice -fno-include-deps -fincludes-quoted ${E2SM_RC_ASN_DIR}/${E2SM_ASN_FILE} ${E2SM_RC_ASN_DIR}/${E2SM_RC_ASN_FILE} -D ${E2SM_RC_C_DIR}
+    RESULT_VARIABLE ret
+  )
+
+  file(GLOB E2SM_RC_asn_source ${E2SM_RC_C_DIR}/*.c)
+  add_library(E2SM_RC_ASN ${E2SM_RC_asn_source})
+  set(E2SM_RC_ASN_LIB E2SM_RC_ASN)
+
+  ############################# E2SM_RC_LIB
+  file(GLOB E2SM_RC_source ${E2SM_RC_DIR}/*.c)
+  add_library(E2SM_RC ${E2SM_RC_source} ${E2SM_RC_asn_source})
+  target_include_directories(E2SM_RC PRIVATE ${E2SM_RC_DIR} "${E2SM_RC_C_DIR}")
+  set(E2SM_RC_LIB E2SM_RC)
+
   ############################# RIC_AGENT_LIB
   set(RIC_AGENT_DIR ${OPENAIR2_DIR}/RIC_AGENT)
   file(GLOB RIC_AGENT_source ${RIC_AGENT_DIR}/*.c)
@@ -700,13 +732,15 @@ if(ENABLE_RIC_AGENT)
 
   # Manage dependencies
   target_link_libraries(E2AP PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
-  target_include_directories(E2AP PUBLIC ${E2SM_KPM_DIR} ${E2SM_KPM_C_DIR})
-  target_include_directories(E2AP_ASN PUBLIC ${E2AP_C_DIR} ${E2SM_KPM_DIR})
+  target_include_directories(E2AP PUBLIC ${E2SM_KPM_DIR} ${E2SM_KPM_C_DIR} ${E2SM_RC_C_DIR})
+  target_include_directories(E2AP_ASN PUBLIC ${E2AP_C_DIR} ${E2SM_KPM_DIR} ${E2SM_RC_DIR})
   target_include_directories(E2SM_KPM_ASN PUBLIC ${E2SM_KPM_C_DIR})
   target_link_libraries(E2SM_KPM PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs asn1_f1ap E2AP_ASN E2AP)
   target_include_directories(E2SM_KPM PUBLIC ${E2AP_DIR} ${E2AP_C_DIR})
-  # target_include_directories(RIC_AGENT PUBLIC ${E2AP_DIR} ${E2SM_KPM_DIR})
-  target_link_libraries(RIC_AGENT PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs E2AP E2SM_KPM)
+  # target_include_directories(RIC_AGENT PUBLIC ${E2AP_DIR} ${E2SM_KPM_DIR} ${E2SM_RC_DIR})
+  target_link_libraries(RIC_AGENT PUBLIC asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs E2AP E2SM_KPM E2SM_RC)
+  target_link_libraries(E2SM_RC PUBLIC E2AP_ASN E2AP)
+  target_include_directories(E2SM_RC PUBLIC ${E2AP_DIR} ${E2AP_C_DIR})
 
 
 else()
@@ -714,6 +748,7 @@ else()
   set(E2AP_ASN_LIB "")
   set(E2AP_LIB "")
   set(E2SM_KPM_LIB "")
+  set(E2SM_RC_LIB "")
 endif()
 
 # RAN SLICING: WARNING: DON'T USE THIS FEATURE AS THE SOURCE CODE MAY NOT BE COMPLETE
@@ -1544,7 +1579,7 @@ target_link_libraries(L2 PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
 if(E2_AGENT)
   target_link_libraries(L2 PUBLIC e2_agent e2_agent_arg e2_ran_func_du_cucp_cuup)
   target_compile_definitions(L2 PRIVATE E2_AGENT)
-  target_compile_definitions(L2 PRIVATE ${E2AP_VERSION} ${KPM_VERSION})
+  target_compile_definitions(L2 PRIVATE ${E2AP_VERSION} ${KPM_VERSION} ${RC_VERSION})
 endif()
 
 
@@ -1570,7 +1605,7 @@ target_link_libraries(e1_if PRIVATE asn1_nr_rrc_hdrs asn1_lte_rrc_hdrs asn1_f1ap
 target_link_libraries(L2_NR PRIVATE f1ap x2ap s1ap ngap nr_rrc e1ap nr_rlc)
 if(E2_AGENT)
   target_link_libraries(L2_NR PUBLIC e2_agent e2_agent_arg e2_ran_func_du_cucp_cuup)
-  target_compile_definitions(L2_NR PRIVATE ${E2AP_VERSION} ${KPM_VERSION})
+  target_compile_definitions(L2_NR PRIVATE ${E2AP_VERSION} ${KPM_VERSION} ${RC_VERSION})
   target_compile_definitions(L2_NR PRIVATE E2_AGENT)
 endif()
 
@@ -2084,7 +2119,7 @@ target_link_libraries(lte-softmodem PRIVATE
   lte_rrc nr_rrc s1ap m2ap x2ap m3ap GTPV1U SECURITY UTIL HASHTABLE SCTP_CLIENT MME_APP SCHED_LIB SCHED_RU_LIB
   PHY_COMMON PHY PHY_RU  L2 L2_LTE NFAPI_COMMON_LIB NFAPI_LIB NFAPI_VNF_LIB NFAPI_PNF_LIB NFAPI_USER_LIB MISC_NFAPI_LTE_LIB
   ${NAS_UE_LIB} ITTI SIMU SIMU_ETH shlib_loader
-  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
+  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RC_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
   -Wl,--end-group z dl)
 
 target_link_libraries(lte-softmodem PRIVATE pthread m CONFIG_LIB rt sctp)
@@ -2093,7 +2128,7 @@ target_link_libraries(lte-softmodem PRIVATE asn1_nr_rrc_hdrs asn1_lte_rrc_hdrs)
 
 if(E2_AGENT)
   target_compile_definitions(lte-softmodem PRIVATE E2_AGENT)
-  target_compile_definitions(lte-softmodem PRIVATE ${E2AP_VERSION} ${KPM_VERSION})
+  target_compile_definitions(lte-softmodem PRIVATE ${E2AP_VERSION} ${KPM_VERSION} ${RC_VERSION})
 endif()
 
 add_executable(oairu
@@ -2184,7 +2219,7 @@ target_link_libraries(nr-softmodem PRIVATE
   ITTI ${NAS_UE_LIB} lte_rrc nr_rrc
   ngap s1ap L2_LTE_NR L2_NR MAC_NR_COMMON NFAPI_COMMON_LIB NFAPI_LIB NFAPI_VNF_LIB NFAPI_PNF_LIB NFAPI_USER_LIB SIMU SIMU_ETH
   x2ap f1ap m2ap m3ap e1ap shlib_loader
-  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
+  ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RC_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
   -Wl,--end-group z dl)
 
 target_link_libraries(nr-softmodem PRIVATE pthread m CONFIG_LIB rt sctp)
@@ -2192,7 +2227,7 @@ target_link_libraries(nr-softmodem PRIVATE ${T_LIB})
 target_link_libraries(nr-softmodem PRIVATE asn1_nr_rrc_hdrs asn1_lte_rrc_hdrs)
 target_link_libraries(nr-softmodem PRIVATE asn1_nr_rrc_hdrs asn1_lte_rrc_hdrs)
 if(E2_AGENT)
-  target_compile_definitions(nr-softmodem PRIVATE ${E2AP_VERSION} ${KPM_VERSION})
+  target_compile_definitions(nr-softmodem PRIVATE ${E2AP_VERSION} ${KPM_VERSION} ${RC_VERSION})
 endif()
 
 
@@ -2488,7 +2523,7 @@ if (${T_TRACER})
         L2 L2_LTE L2_NR L2_LTE_NR L2_UE NR_L2_UE L2_UE_LTE_NR MAC_NR_COMMON MAC_UE_NR ngap
         CN_UTILS GTPV1U SCTP_CLIENT MME_APP LIB_NAS_UE NB_IoT SIMU SIMU_ETH OPENAIR0_LIB
         ldpc_orig ldpc_optim ldpc_optim8seg ldpc_t2 ldpc_cl ldpc_cuda ldpc dfts config_internals
-        ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
+        ${E2AP_ASN_LIB} ${E2AP_LIB} ${E2SM_KPM_ASN_LIB} ${E2SM_KPM_LIB} ${E2SM_RC_ASN_LIB} ${E2SM_RC_LIB} ${E2SM_RSM_LIB} ${RIC_AGENT_LIB}
         )
     if (TARGET ${i})
       add_dependencies(${i} generate_T)

@@ -61,6 +61,9 @@
 #include "E2AP_InitiatingMessage.h"
 #include "E2SM_KPM_E2SM-KPMv2-EventTriggerDefinition-Format1.h"
 
+#include "E2AP_RICcontrolRequest.h"
+#include "e2sm_rc.h"
+
 extern RAN_CONTEXT_t RC;
 
 int e2ap_handle_e2_setup_response(ric_agent_info_t *ric,uint32_t stream,
@@ -802,6 +805,24 @@ int e2ap_handle_reset_request(
     return 0;
 }
 
+int e2ap_handle_ric_control_request(
+        ranid_t ranid,
+        uint32_t stream,
+        E2AP_E2AP_PDU_t *pdu,
+        uint8_t **outbuf,
+        uint32_t *outlen)
+{
+    
+    RIC_AGENT_INFO("Received RICControlRequest from ranid %u\n", ranid);
+
+    xer_fprint(stdout, &asn_DEF_E2AP_E2AP_PDU, pdu);
+
+    E2AP_RICcontrolRequest_t *e2ap_controlRequest = &pdu->choice.initiatingMessage->value.choice.RICcontrolRequest;
+
+    return e2sm_rc_handle_control_request(e2ap_controlRequest);
+}
+
+
 int e2ap_handle_message(
         ric_agent_info_t *ric,
         int32_t stream,
@@ -849,6 +870,10 @@ int e2ap_handle_message(
 
                 case E2AP_ProcedureCode_id_E2connectionUpdate:
                     ret = e2ap_handle_e2_connection_update(ric->ranid, stream, &pdu, outbuf, outlen);
+                    break;
+
+                case E2AP_ProcedureCode_id_RICcontrol:
+                    ret = e2ap_handle_ric_control_request(ric->ranid, stream, &pdu, outbuf, outlen);
                     break;
 
                 default:
