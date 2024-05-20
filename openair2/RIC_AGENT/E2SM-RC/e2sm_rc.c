@@ -7,11 +7,14 @@
 #include "E2SM-RC-ControlMessage-Format1.h"
 #include "E2SM-RC-ControlMessage-Format1-Item.h"
 #include "RANParameter-ValueType.h"
+#include "RANParameter-ValueType-Choice-ElementFalse.h"
+#include "RANParameter-ValueType-Choice-ElementTrue.h"
+#include "RANParameter-Value.h"
 #include "UEID.h"
 #include "UEID-GNB.h"
 #include "conversions.h"
 
-void e2sm_rc_dispatch_control_action(long control_action_id, long ran_param_id) {
+void e2sm_rc_dispatch_control_action(long control_action_id, long ran_param_id, long ran_param_value) {
     // determine ran parameter value type based on control action ID and parameter ID, from O-RAN.WG3.E2SM-RC-v01.03 Section 8.4
     // TODO: fill other cases
     switch(control_action_id) {
@@ -117,14 +120,59 @@ int e2sm_rc_decode_control_request(uint8_t *control_header_buf, size_t control_h
 
     if (controlMessage->ric_controlMessage_formats.present == E2SM_RC_ControlMessage__ric_controlMessage_formats_PR_controlMessage_Format1) {
         E2SM_RC_ControlMessage_Format1_t *message_f1 = controlMessage->ric_controlMessage_formats.choice.controlMessage_Format1;
-        
+        long ran_param_id, ran_param_value_long;
+        double ran_param_value_double;
+        RANParameter_Value_t *rp;
+        RANParameter_ValueType_t *ran_param_value_type;
+
         // parse RAN parameter values
         for (int i=0; i<message_f1->ranP_List.list.count; ++i) {
-            long ran_param_id = message_f1->ranP_List.list.array[i]->ranParameter_ID;
-            // message_f1->ranP_List.list.array[i].ranParameter_ID.ranParameter_valueType
-            RIC_AGENT_INFO("[%d] Found RAN parameter ID: %ld\n", i, ran_param_id);
+            ran_param_id = message_f1->ranP_List.list.array[i]->ranParameter_ID;
+            ran_param_value_type = &message_f1->ranP_List.list.array[i]->ranParameter_valueType;
+            switch (ran_param_value_type->present) {
+                case RANParameter_ValueType_PR_ranP_Choice_ElementFalse:
+                    rp = ran_param_value_type->choice.ranP_Choice_ElementFalse->ranParameter_value;
+                    break;
+                case RANParameter_ValueType_PR_ranP_Choice_ElementTrue:
+                    rp = &ran_param_value_type->choice.ranP_Choice_ElementTrue->ranParameter_value;
+                    break;
+                // TODO: handle the following
+                case RANParameter_ValueType_PR_ranP_Choice_Structure:
+                    // ran_param_value_type->choice.ranP_Choice_Structure:
+                case RANParameter_ValueType_PR_ranP_Choice_List:
+                    // ran_param_value_type->choice.ranP_Choice_List
+                    RIC_AGENT_ERROR("Unimplemented RAN param type at index %d: %d\n", i, ran_param_value_type->present);
+                case RANParameter_ValueType_PR_NOTHING:
+                    break;
+            }
+            
+            // parse parameter value based on type
+            if (rp != NULL) {
+                switch (rp->present) {
+                    case RANParameter_Value_PR_valueInt:
+                        ran_param_value_long = rp->choice.valueInt;
+                        RIC_AGENT_INFO("[%d] Found RAN parameter ID: %ld, value (long): %ld\n", i, ran_param_id, ran_param_value_long);
+                        break;
+                    case RANParameter_Value_PR_valueReal:
+                        ran_param_value_double = rp->choice.valueReal;
+                        RIC_AGENT_INFO("[%d] Found RAN parameter ID: %ld, value (double): %f\n", i, ran_param_id, ran_param_value_double);
+                        break;
+                    case RANParameter_Value_PR_valueBoolean:
+                        // rp->valueBoolean;
+                    case RANParameter_Value_PR_valueBitS:
+                        // rp->valueBitS;
+                    case RANParameter_Value_PR_valueOctS:
+                        // rp->valueOctS;
+                    case RANParameter_Value_PR_valuePrintableString:
+                        // rp->valuePrintableString;
+                        RIC_AGENT_ERROR("Unimplemented RAN param value type: %d\n", rp->present);
+                    case RANParameter_Value_PR_NOTHING:
+                        break;
+                }
+            }
+            
             // Dispatch concrete control actions
-            e2sm_rc_dispatch_control_action(control_action_id, ran_param_id);
+            e2sm_rc_dispatch_control_action(control_action_id, ran_param_id, ran_param_value_long);
         }
     }
     else if (controlMessage->ric_controlMessage_formats.present == E2SM_RC_ControlMessage__ric_controlMessage_formats_PR_controlMessage_Format2) {
