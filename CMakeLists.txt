@@ -74,6 +74,10 @@ check_option(${ASN1C_EXEC} -no-gen-JER ASN1C_EXEC)
 check_option(${ASN1C_EXEC} -no-gen-BER ASN1C_EXEC)
 check_option(${ASN1C_EXEC} -no-gen-OER ASN1C_EXEC)
 
+# UE attack implementation
+set (ATTACK_ROOTDIR ${OPENAIR_DIR}/common/attacks)
+include_directories(${ATTACK_ROOTDIR})
+
 #########################################################
 # Base directories, compatible with legacy OAI building #
 #########################################################

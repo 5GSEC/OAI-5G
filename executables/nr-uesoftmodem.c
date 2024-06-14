@@ -79,6 +79,7 @@ unsigned short config_frames[4] = {2,9,11,13};
 // current status is that every UE has a DL scope for a SINGLE eNB (eNB_id=0)
 #include "PHY/TOOLS/phy_scope_interface.h"
 #include "PHY/TOOLS/nr_phy_scope.h"
+#define WANT_CMDLINE_UE_PARAMS
 #include <executables/nr-uesoftmodem.h>
 #include "executables/softmodem-common.h"
 #include "executables/thread-common.h"
@@ -479,6 +480,8 @@ int main(int argc, char **argv)
   // get options and fill parameters from configuration file
 
   get_options(uniqCfg); // Command-line options specific for NRUE
+
+  PRINT_ATTACK_INFO ();
 
   get_common_options(uniqCfg, SOFTMODEM_5GUE_BIT);
   CONFIG_CLEARRTFLAG(CONFIG_NOEXITONHELP);

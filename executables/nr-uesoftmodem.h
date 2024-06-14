@@ -5,6 +5,9 @@
 #include "PHY/defs_nr_UE.h"
 #include "SIMULATION/ETH_TRANSPORT/proto.h"
 
+#if defined (WANT_CMDLINE_UE_PARAMS)
+#include "attack_cliopts.h"
+
 
 
 #define  CONFIG_HLP_IF_FREQ                "IF frequency for RF, if needed\n"
@@ -63,8 +66,11 @@
   {"chest-time",                   CONFIG_HLP_CHESTTIME,       0,               .iptr=&(nrUE_params.chest_time),             .defintval=0,      TYPE_INT,      0}, \
   {"ue-timing-correction-disable", CONFIG_HLP_DISABLETIMECORR, PARAMFLAG_BOOL,  .iptr=&(nrUE_params.no_timing_correction),   .defintval=0,      TYPE_INT,      0}, \
   {"SLC",                          CONFIG_HLP_SLF,             0,               .u64ptr=&(sidelink_frequency[0][0]),         .defuintval=2600000000,TYPE_UINT64,0}, \
+  ATTACK_CLI_OPTS, \
 }
 // clang-format on
+
+#endif /* defined (WANT_CMDLINE_UE_PARAMS) */
 
 typedef struct {
   uint64_t       optmask;   //mask to store boolean config options

