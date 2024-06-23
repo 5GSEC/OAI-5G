@@ -26,7 +26,7 @@
     {"bts-attack",        CONFIG_HLP_ATTACK_BTS,    0,              iptr:&(bts_attack),         defintval:0,   TYPE_INT, 0},   \
     {"bts-delay",         CONFIG_HLP_BTS_DELAY,     0,              iptr:&(bts_delay) ,         defintval:188, TYPE_INT, 0},   \
     {"blind-dos-attack",  CONFIG_HLP_ATTACK_DOS,    0,              iptr:&(blind_dos_attack),   defintval:0,   TYPE_INT, 0},   \
-    {"RRC-TMSI",          CONFIG_HLP_RRC_TMSI,      0,              iptr:&tmsi_blind_dos_rrc,   defintval:0,   TYPE_INT, 0},   \
+    {"RRC-TMSI",          CONFIG_HLP_RRC_TMSI,      0,              iptr:&tmsi_blind_dos_rrc,   defintval:0,   TYPE_UINT64, 0},   \
     {"dnlink-dos-attack", CONFIG_HLP_DN_DOS_ATT,    0,              iptr:&(dnlink_dos_attack),  defintval:0,   TYPE_INT, 0},   \
     {"uplink-dos-attack", CONFIG_HLP_UP_DOS_ATT,    0,              iptr:&(uplink_dos_attack),  defintval:0,   TYPE_INT, 0},   \
     {"rep-conn-count",    CONFIG_HLP_REP_CONN_ATT,  0,              iptr:&(rep_conn_end_count), defintval:0,   TYPE_INT, 0},   \
