@@ -62,25 +62,153 @@ int get_rat() {
         return -1; // unknown
 }
 
-int encode_kpm_mobiflow(ric_agent_info_t *ric, kmp_meas_info_t *e2sm_kpm_meas_info, E2SM_KPM_MeasurementRecordItem_KPMv2_t ***g_indMsgMeasRecItemArr, uint8_t g_granularityIndx) {
+uint64_t get_imsi(ric_agent_info_t *ric, rnti_t rnti) {
+    uint64_t imsi = -1;
+    if (is_nr()) {
+        struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[ric->ranid], rnti);
+        if (ue_context_p) {
+            imsi  = ue_context_p->ue_context.imsi.digit15;
+            imsi += ue_context_p->ue_context.imsi.digit14 * 10;              // pow(10, 1)
+            imsi += ue_context_p->ue_context.imsi.digit13 * 100;             // pow(10, 2)
+            imsi += ue_context_p->ue_context.imsi.digit12 * 1000;            // pow(10, 3)
+            imsi += ue_context_p->ue_context.imsi.digit11 * 10000;           // pow(10, 4)
+            imsi += ue_context_p->ue_context.imsi.digit10 * 100000;          // pow(10, 5)
+            imsi += ue_context_p->ue_context.imsi.digit9  * 1000000;         // pow(10, 6)
+            imsi += ue_context_p->ue_context.imsi.digit8  * 10000000;        // pow(10, 7)
+            imsi += ue_context_p->ue_context.imsi.digit7  * 100000000;       // pow(10, 8)
+            imsi += ue_context_p->ue_context.imsi.digit6  * 1000000000;      // pow(10, 9)
+            imsi += ue_context_p->ue_context.imsi.digit5  * 10000000000;     // pow(10, 10)
+            imsi += ue_context_p->ue_context.imsi.digit4  * 100000000000;    // pow(10, 11)
+            imsi += ue_context_p->ue_context.imsi.digit3  * 1000000000000;   // pow(10, 12)
+            imsi += ue_context_p->ue_context.imsi.digit2  * 10000000000000;  // pow(10, 13)
+            imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
+            return imsi;
+        }
+    }
+    else if (is_lte()) {
+        struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid], rnti);
+        if (ue_context_p) {
+            imsi  = ue_context_p->ue_context.imsi.digit15;
+            imsi += ue_context_p->ue_context.imsi.digit14 * 10;              // pow(10, 1)
+            imsi += ue_context_p->ue_context.imsi.digit13 * 100;             // pow(10, 2)
+            imsi += ue_context_p->ue_context.imsi.digit12 * 1000;            // pow(10, 3)
+            imsi += ue_context_p->ue_context.imsi.digit11 * 10000;           // pow(10, 4)
+            imsi += ue_context_p->ue_context.imsi.digit10 * 100000;          // pow(10, 5)
+            imsi += ue_context_p->ue_context.imsi.digit9  * 1000000;         // pow(10, 6)
+            imsi += ue_context_p->ue_context.imsi.digit8  * 10000000;        // pow(10, 7)
+            imsi += ue_context_p->ue_context.imsi.digit7  * 100000000;       // pow(10, 8)
+            imsi += ue_context_p->ue_context.imsi.digit6  * 1000000000;      // pow(10, 9)
+            imsi += ue_context_p->ue_context.imsi.digit5  * 10000000000;     // pow(10, 10)
+            imsi += ue_context_p->ue_context.imsi.digit4  * 100000000000;    // pow(10, 11)
+            imsi += ue_context_p->ue_context.imsi.digit3  * 1000000000000;   // pow(10, 12)
+            imsi += ue_context_p->ue_context.imsi.digit2  * 10000000000000;  // pow(10, 13)
+            imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
+            return imsi;
+        }
+    }
+    return imsi;
+}
+
+uint8_t get_status(ric_agent_info_t *ric, rnti_t rnti) {
+    if (is_nr()) {
+        struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[ric->ranid], rnti);
+        if (ue_context_p)
+            return ue_context_p->ue_context.StatusRrc;
+    }
+    else if (is_lte()) {
+        struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid], rnti);
+        if (ue_context_p)
+            return ue_context_p->ue_context.StatusRrc;
+    }
+    return -1;
+}
+
+uint8_t get_cipher_alg(ric_agent_info_t *ric, rnti_t rnti) {
+    if (is_nr()) {
+        struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[ric->ranid], rnti);
+        if (ue_context_p)
+            return ue_context_p->ue_context.ciphering_algorithm;
+    }
+    else if (is_lte()) {
+        struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid], rnti);
+        if (ue_context_p)
+            return ue_context_p->ue_context.ciphering_algorithm;
+    }
+    return -1;
+}
+
+uint8_t get_integrity_alg(ric_agent_info_t *ric, rnti_t rnti) {
+    if (is_nr()) {
+        struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[ric->ranid], rnti);
+        if (ue_context_p)
+            return ue_context_p->ue_context.integrity_algorithm;
+    }
+    else if (is_lte()) {
+        struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid], rnti);
+        if (ue_context_p)
+            return ue_context_p->ue_context.integrity_algorithm;
+    }
+    return -1;
+}
+
+uint32_t get_m_tmsi(ric_agent_info_t *ric, rnti_t rnti) {
+    if (is_nr()) {
+        struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[ric->ranid], rnti);
+        if (ue_context_p)
+            if (ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.presence == TRUE)
+                return ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.fiveg_tmsi;    
+    }
+    else if (is_lte()) {
+        struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid], rnti);
+        if (ue_context_p)
+            if (ue_context_p->ue_context.Initialue_identity_s_TMSI.presence == TRUE)
+                return ue_context_p->ue_context.Initialue_identity_s_TMSI.m_tmsi;
+    }
+    return -1;
+}
+
+uint64_t get_random_id(ric_agent_info_t *ric, rnti_t rnti) {
+    if (is_nr()) {
+        struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[ric->ranid], rnti);
+        if (ue_context_p)
+            if (ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.presence == TRUE)
+                return ue_context_p->ue_context.random_ue_identity;    
+    }
+    else if (is_lte()) {
+        struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid], rnti);
+        if (ue_context_p)
+            if (ue_context_p->ue_context.Initialue_identity_s_TMSI.presence == TRUE)
+                return ue_context_p->ue_context.random_ue_identity;
+    }
+    return -1;
+}
+
+uint8_t get_establish_cause(ric_agent_info_t *ric, rnti_t rnti) {
+    if (is_nr()) {
+        struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[ric->ranid], rnti);
+        if (ue_context_p)
+            if (ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.presence == TRUE)
+                return ue_context_p->ue_context.establishment_cause;
+    }
+    else if (is_lte()) {
+        struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid], rnti);
+        if (ue_context_p)
+            if (ue_context_p->ue_context.Initialue_identity_s_TMSI.presence == TRUE)
+                return ue_context_p->ue_context.establishment_cause;
+    }
+    return -1;
+}
+
+
+int encode_kpm_mobiflow(ric_agent_info_t *ric, kmp_meas_info_t *e2sm_kpm_meas_info, E2SM_KPM_MeasurementRecordItem_KPMv2_t *g_indMsgMeasRecItemArr[MAX_GRANULARITY_INDEX][MAX_KPM_MEAS], uint8_t g_granularityIndx) {
     
-    int i,j=0;
     /******************** Start encoding SECSM measurement data ********************/
+    int i,j=0;
     int ue_count = 0;
     int meas_msg[MAX_RRC_MSG];
     int meas_msg_count = 0;
     rnti_t rnti = 0;
-    uint64_t imsi = 0;
-    uint8_t status = 0;
-    int initial_id = 0;
     uint8_t shouldUpdate = 0;
-    uint32_t tmsi_m = 0;
-    uint64_t random_id = 0;
-    uint8_t cipher_alg = 0;
-    uint8_t integrity_alg = 0;
-    // uint32_t failure_timer = 0;
-    uint32_t release_timer = 0;
-    uint8_t establish_cause = 0;
     uint8_t emm_cause = 0;
 
     for (int i=0; i<MAX_RRC_MSG; ++i)
@@ -92,85 +220,6 @@ int encode_kpm_mobiflow(ric_agent_info_t *ric, kmp_meas_info_t *e2sm_kpm_meas_in
             ++ue_count;
             // get UE meta data
             rnti = ue_rrc_msg[i].rnti;
-
-            if (RC.rrc != NULL) {
-                // 4G LTE
-                struct rrc_eNB_ue_context_s *ue_context_p = rrc_eNB_get_ue_context(RC.rrc[ric->ranid],rnti);
-                if (ue_context_p) {
-                    // populate imsi
-                    imsi  = ue_context_p->ue_context.imsi.digit15;
-                    imsi += ue_context_p->ue_context.imsi.digit14 * 10;              // pow(10, 1)
-                    imsi += ue_context_p->ue_context.imsi.digit13 * 100;             // pow(10, 2)
-                    imsi += ue_context_p->ue_context.imsi.digit12 * 1000;            // pow(10, 3)
-                    imsi += ue_context_p->ue_context.imsi.digit11 * 10000;           // pow(10, 4)
-                    imsi += ue_context_p->ue_context.imsi.digit10 * 100000;          // pow(10, 5)
-                    imsi += ue_context_p->ue_context.imsi.digit9  * 1000000;         // pow(10, 6)
-                    imsi += ue_context_p->ue_context.imsi.digit8  * 10000000;        // pow(10, 7)
-                    imsi += ue_context_p->ue_context.imsi.digit7  * 100000000;       // pow(10, 8)
-                    imsi += ue_context_p->ue_context.imsi.digit6  * 1000000000;      // pow(10, 9)
-                    imsi += ue_context_p->ue_context.imsi.digit5  * 10000000000;     // pow(10, 10)
-                    imsi += ue_context_p->ue_context.imsi.digit4  * 100000000000;    // pow(10, 11)
-                    imsi += ue_context_p->ue_context.imsi.digit3  * 1000000000000;   // pow(10, 12)
-                    imsi += ue_context_p->ue_context.imsi.digit2  * 10000000000000;  // pow(10, 13)
-                    imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
-                    // populate other fields
-                    status = ue_context_p->ue_context.StatusRrc;
-                    initial_id = ue_context_p->ue_context.ue_initial_id;
-                    cipher_alg = ue_context_p->ue_context.ciphering_algorithm;
-                    integrity_alg = ue_context_p->ue_context.integrity_algorithm;
-                    // failure_timer = ue_context_p->ue_context.ul_failure_timer;
-                    release_timer = ue_context_p->ue_context.ue_release_timer;
-                    if (ue_context_p->ue_context.Initialue_identity_s_TMSI.presence == TRUE)
-                        tmsi_m = ue_context_p->ue_context.Initialue_identity_s_TMSI.m_tmsi;
-                    random_id = ue_context_p->ue_context.random_ue_identity;
-                    establish_cause = ue_context_p->ue_context.establishment_cause;
-                }
-                else {
-                    // UE context not found, still need to check if there are some messages left to report
-                    RIC_AGENT_INFO("[SECSM] RRC eNB UE context not found for UE %x\n", rnti);
-                }
-            }
-            else if (RC.nrrrc != NULL) {
-                // 5G NR
-                struct rrc_gNB_ue_context_s *ue_context_p = rrc_gNB_get_ue_context_by_rnti_any_du(RC.nrrrc[ric->ranid], rnti);
-                if (ue_context_p) {
-                    // populate imsi
-                    imsi  = ue_context_p->ue_context.imsi.digit15;
-                    imsi += ue_context_p->ue_context.imsi.digit14 * 10;              // pow(10, 1)
-                    imsi += ue_context_p->ue_context.imsi.digit13 * 100;             // pow(10, 2)
-                    imsi += ue_context_p->ue_context.imsi.digit12 * 1000;            // pow(10, 3)
-                    imsi += ue_context_p->ue_context.imsi.digit11 * 10000;           // pow(10, 4)
-                    imsi += ue_context_p->ue_context.imsi.digit10 * 100000;          // pow(10, 5)
-                    imsi += ue_context_p->ue_context.imsi.digit9  * 1000000;         // pow(10, 6)
-                    imsi += ue_context_p->ue_context.imsi.digit8  * 10000000;        // pow(10, 7)
-                    imsi += ue_context_p->ue_context.imsi.digit7  * 100000000;       // pow(10, 8)
-                    imsi += ue_context_p->ue_context.imsi.digit6  * 1000000000;      // pow(10, 9)
-                    imsi += ue_context_p->ue_context.imsi.digit5  * 10000000000;     // pow(10, 10)
-                    imsi += ue_context_p->ue_context.imsi.digit4  * 100000000000;    // pow(10, 11)
-                    imsi += ue_context_p->ue_context.imsi.digit3  * 1000000000000;   // pow(10, 12)
-                    imsi += ue_context_p->ue_context.imsi.digit2  * 10000000000000;  // pow(10, 13)
-                    imsi += ue_context_p->ue_context.imsi.digit1  * 100000000000000; // pow(10, 14)
-                    // populate other fields
-                    status = ue_context_p->ue_context.StatusRrc;
-		            // initial_id = ue_context_p->ue_context.ue_initial_id; *NOT* set in 5G
-                    cipher_alg = ue_context_p->ue_context.ciphering_algorithm;
-                    integrity_alg = ue_context_p->ue_context.integrity_algorithm;
-                    // failure_timer = ue_context_p->ue_context.ul_failure_timer;
-                    // release_timer = ue_context_p->ue_context.ue_release_timer;
-                    if (ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.presence == TRUE)
-                        tmsi_m = ue_context_p->ue_context.Initialue_identity_5g_s_TMSI.fiveg_tmsi;
-                    random_id = ue_context_p->ue_context.random_ue_identity;
-                    establish_cause = ue_context_p->ue_context.establishment_cause;
-                }
-                else {
-                    // UE context not found, still need to check if there are some messages left to report
-                    RIC_AGENT_INFO("[SECSM] RRC gNB UE context not found for UE %x\n", rnti);
-                }
-            }
-            else {
-                RIC_AGENT_ERROR("[SECSM] Unknown RAT\n");
-                return -1;
-            }
             
             // assemble ue information for SECSM
             // collect RRC msg trace
@@ -188,9 +237,9 @@ int encode_kpm_mobiflow(ric_agent_info_t *ric, kmp_meas_info_t *e2sm_kpm_meas_in
             if (prev_msg_counter[i] == msgCount + totalNasMsg)
                 continue; // message count has not been changed, don't update this UE
 
-            RIC_AGENT_INFO("[SECSM] Report UE ID: %x, RNTI: %x, RAT:%x, IMSI:%ld, random_id: %ld\n", initial_id, rnti, get_rat(), imsi, random_id);
+            RIC_AGENT_INFO("[SECSM] Report UE RNTI: %x, RAT:%x, IMSI:%ld, random_id: %ld\n", rnti, get_rat(ric, rnti), get_imsi(ric, rnti), get_random_id(ric, rnti));
 
-            prev_state[i] = status;
+            prev_state[i] = get_status(ric, rnti);
             shouldUpdate = 1;
 
             RIC_AGENT_INFO("[SECSM] RRC msg trace (count %d) for UE %x:\n", msgCount, rnti);
@@ -262,42 +311,44 @@ int encode_kpm_mobiflow(ric_agent_info_t *ric, kmp_meas_info_t *e2sm_kpm_meas_in
 
             switch(e2sm_kpm_meas_info[i].meas_type_id)
             {
-                case 1:/*RNTI*/
+                case 1: // RNTI
                     g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = rnti;
                     break;
-                case 2:/*IMSI1*/
-                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = (uint32_t) imsi & 0xFFFFFFFF;
+                case 2: // IMSI1
+                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = (uint32_t) get_imsi(ric, rnti) & 0xFFFFFFFF;
                     break;
-                case 3:/*IMSI2*/
-                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = (uint32_t) (imsi >> 32);
+                case 3: // IMSI2
+                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = (uint32_t) (get_imsi(ric, rnti) >> 32);
                     break;
-                case 4:/*RAT*/
+                case 4: // RAT
                     g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = get_rat();
                     break;
                 case 5: // TMSI
-                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = tmsi_m;
+                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = get_m_tmsi(ric, rnti);
                     break;
                 case 6: // CIPHER_ALG
-                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = cipher_alg;
+                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = get_cipher_alg(ric, rnti);
                     break;
                 case 7: // INTEGRITY_ALG
-                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = integrity_alg;
+                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = get_integrity_alg(ric, rnti);
                     break;
                 case 8: // EMM_CAUSE
                     g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = emm_cause;
                     break;
                 case 9: // RELEASE_TIMER
-                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = release_timer;
+                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = 0; // TODO
                     break;
                 case 10: // ESTABLISH_CAUSE
-                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = establish_cause;
+                    g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = get_establish_cause(ric, rnti);
                     break; 
                 default:
                     g_indMsgMeasRecItemArr[g_granularityIndx][j]->choice.integer = meas_msg[e2sm_kpm_meas_info[i].meas_type_id-11];
-                            break;
+                    break;
             }
             j++;
         }
     }
+
+    return 0;   
 }
 

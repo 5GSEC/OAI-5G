@@ -508,7 +508,7 @@ static int e2sm_kpm_gp_timer_expiry(
     //free(time);
 
     // encode mobiflow data
-    int ret = encode_kpm_mobiflow(ric, e2sm_kpm_meas_info, (E2SM_KPM_MeasurementRecordItem_KPMv2_t ***)g_indMsgMeasRecItemArr, g_granularityIndx);
+    int ret = encode_kpm_mobiflow(ric, e2sm_kpm_meas_info, g_indMsgMeasRecItemArr, g_granularityIndx);
 
     g_granularityIndx++;
 
