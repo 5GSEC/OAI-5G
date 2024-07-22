@@ -28,6 +28,16 @@
 #ifndef _E2SM_COMMON_H_
 #define _E2SM_COMMON_H_
 
+#define MAX_KPM_MEAS    30
+#define MAX_GRANULARITY_INDEX   50
+
+#ifndef FALSE
+# define FALSE (0)
+#endif
+#ifndef TRUE
+# define TRUE  (!FALSE)
+#endif
+
 extern int e2sm_kpm_init(void);
 
 extern int 
