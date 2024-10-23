@@ -171,6 +171,15 @@ int e2ap_generate_e2_setup_request(ranid_t  ranid,
   
   ASN_SEQUENCE_ADD(&ie->value.choice.E2nodeComponentConfigAddition_List.list,
                    e2node_comp_cfg_update_ie);
+  
+  ASN_SEQUENCE_ADD(&req->protocolIEs.list,ie);
+
+  /* 4. TransactionID */
+  ie = (E2AP_E2setupRequestIEs_t *)calloc(1,sizeof(*ie));
+  ie->id = E2AP_ProtocolIE_ID_id_TransactionID;
+  ie->criticality = E2AP_Criticality_reject;
+  ie->value.present = E2AP_E2setupRequestIEs__value_PR_TransactionID;
+  ie->value.choice.TransactionID = 1; // transaction ID value
 
   ASN_SEQUENCE_ADD(&req->protocolIEs.list,ie);
 
